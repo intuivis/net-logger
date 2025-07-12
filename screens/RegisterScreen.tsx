@@ -26,6 +26,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
             email,
             password,
             options: {
+                emailRedirectTo: window.location.origin,
                 data: {
                     full_name: fullName,
                     call_sign: callSign.toUpperCase(),
@@ -61,19 +62,19 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                     <div className="space-y-4 rounded-md shadow-sm">
                          <div>
                             <label htmlFor="register-email" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Email address <span className="text-red-400">*</span>
+                                Email
                             </label>
                             <input id="register-email" name="email" type="email" autoComplete="email" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
                          </div>
                          <div>
                             <label htmlFor="register-password" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Password <span className="text-red-400">*</span>
+                                Password
                             </label>
                             <input id="register-password" name="password" type="password" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
                          </div>
                          <div>
                             <label htmlFor="register-full-name" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Full Name <span className="text-red-400">*</span>
+                                Full Name
                             </label>
                             <input id="register-full-name" name="full_name" type="text" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                          </div>

@@ -26,7 +26,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                 <div className="flex items-center justify-between h-16">
                     <button onClick={() => onSetView({ type: 'home' })} className="flex items-center space-x-3 group">
                          <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text group-hover:text-brand-secondary transition-colors">
-                             NET Logger
+                             NetControl Pro
                          </h1>
                     </button>
                     <div className="flex items-center gap-4">

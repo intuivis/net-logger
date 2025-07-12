@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile } from '../types';
@@ -35,7 +36,7 @@ const AdminApprovalScreen: React.FC = () => {
         const payload: Database['public']['Tables']['profiles']['Update'] = { is_approved: !profile.is_approved };
         const { error } = await supabase
             .from('profiles')
-            .update(payload as any)
+            .update(payload)
             .eq('id', profile.id);
 
         if (error) {

@@ -94,7 +94,7 @@ const App: React.FC = () => {
                 await supabase.auth.signOut();
                 return; // Let the sign-out flow (which triggers a re-run of this effect) handle the rest.
             }
-            userProfile = data as Profile;
+            userProfile = data;
         }
         
         setProfile(userProfile);
@@ -160,7 +160,7 @@ const App: React.FC = () => {
                 ...finalUpdateData,
                 repeaters: finalUpdateData.repeaters as unknown as Json,
             };
-            result = await supabase.from('nets').update(updatePayload as any).eq('id', id).select('id').single();
+            result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
@@ -170,7 +170,7 @@ const App: React.FC = () => {
                 repeaters: sanitizedData.repeaters as unknown as Json,
             };
 
-            result = await supabase.from('nets').insert(insertPayload as any).select('id').single();
+            result = await supabase.from('nets').insert(insertPayload as Database['public']['Tables']['nets']['Insert']).select('id').single();
         }
 
         if (result.error) throw result.error;
@@ -214,7 +214,7 @@ const App: React.FC = () => {
           backup_nco_callsign: overrides.backup_nco_callsign || net.backup_nco_callsign,
         };
 
-        const { data, error } = await supabase.from('sessions').insert(payload as any).select().single();
+        const { data, error } = await supabase.from('sessions').insert(payload).select().single();
         
         if (error) throw error;
         if (!data) throw new Error("Failed to create session.");
@@ -246,7 +246,7 @@ const App: React.FC = () => {
       const updatePayload = { end_time: endedTime };
       const { error } = await supabase
         .from('sessions')
-        .update(updatePayload as any)
+        .update(updatePayload)
         .eq('id', sessionId);
 
       if (error) {
@@ -276,7 +276,7 @@ const App: React.FC = () => {
   
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
-        const { error } = await supabase.from('sessions').update({ notes } as any).eq('id', sessionId);
+        const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
         if (error) throw error;
         await refreshAllData();
     } catch (error: any) {
@@ -288,7 +288,7 @@ const App: React.FC = () => {
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => {
     try {
         const payload: Database['public']['Tables']['check_ins']['Insert'] = { ...checkInData, session_id: sessionId };
-        const { error } = await supabase.from('check_ins').insert(payload as any);
+        const { error } = await supabase.from('check_ins').insert(payload);
         if (error) throw error;
         await refreshAllData();
     } catch (error: any) {
@@ -305,7 +305,7 @@ const App: React.FC = () => {
     try {
         const { id, ...updateData } = updatedCheckIn;
         const payload: Database['public']['Tables']['check_ins']['Update'] = updateData;
-        const { error } = await supabase.from('check_ins').update(payload as any).eq('id', id);
+        const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
         if (error) throw error;
         await refreshAllData();
         setEditingCheckIn(null);
