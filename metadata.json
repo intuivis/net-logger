@@ -1,0 +1,6 @@
+{
+  "name": "Amateur Radio Net Logger",
+  "description": "A net control logging system where operators configure a weekly NET and log check-ins from participants. Features include detailed NET configuration, repeater management for linked systems, and real-time check-in logging.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
