@@ -22,25 +22,49 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
         setError(null);
         setMessage(null);
 
-        const { data, error } = await supabase.auth.signUp({
+        // A backend trigger was likely failing when both `emailRedirectTo` and `data` options were present in the signUp call.
+        // To fix this, we'll first sign up the user to get the correct email verification link,
+        // and then manually insert their profile information in a separate step.
+        // This is more robust and ensures the core registration flow works.
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 emailRedirectTo: window.location.origin,
-                data: {
-                    full_name: fullName,
-                    call_sign: callSign.toUpperCase(),
-                },
             },
         });
 
-        if (error) {
-            setError(error.message);
-        } else if (data && data.user) {
-            setMessage('Registration successful! Please check your email to confirm your account. After confirming, an admin will need to approve your account before you can log in.');
-        } else {
-            setError('An unexpected error occurred. The user might already exist or the service is unavailable.');
+        if (signUpError) {
+            setError(signUpError.message);
+            setLoading(false);
+            return;
         }
+
+        if (!signUpData.user) {
+            setError('An unexpected error occurred during registration. The user might already exist.');
+            setLoading(false);
+            return;
+        }
+
+        // Manually create the profile row.
+        // This requires RLS to be configured to allow a newly signed-up user to insert their own profile.
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+                id: signUpData.user.id,
+                email: email,
+                full_name: fullName,
+                call_sign: callSign.toUpperCase() || null,
+            });
+        
+        if (profileError) {
+            console.error('Profile creation failed after signup:', profileError);
+            setError(`Your account was created, but we failed to save your profile information. Please contact an administrator. Error: ${profileError.message}`);
+            setLoading(false);
+            return;
+        }
+
+        setMessage('Registration successful! Please check your email to confirm your account. After confirming, an admin will need to approve your account before you can log in.');
         setLoading(false);
     };
 

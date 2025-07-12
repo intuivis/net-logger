@@ -41,7 +41,15 @@ export interface Database {
           notes?: string | null;
           repeater_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          }
+        ];
       };
       nets: {
         Row: {
@@ -106,7 +114,15 @@ export interface Database {
           band?: string | null;
           mode?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "nets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ];
       };
       profiles: {
         Row: {
@@ -136,7 +152,15 @@ export interface Database {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ];
       };
       sessions: {
         Row: {
@@ -175,7 +199,15 @@ export interface Database {
           backup_nco_callsign?: string | null;
           notes?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "sessions_net_id_fkey"
+            columns: ["net_id"]
+            isOneToOne: false
+            referencedRelation: "nets"
+            referencedColumns: ["id"]
+          }
+        ];
       };
     };
     Views: {
