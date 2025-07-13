@@ -35,7 +35,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
          <div className="text-center z-10 relative">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Logger</h1>
             <p className="mt-4 max-w-3xl mx-auto text-lg text-dark-text-secondary">
-                Your Command Center for Community Communication. Coordinate nets, track participation, and keep your community connected in real-time.
+                A command center for managing community radio communications. Coordinate NETs, track participation, and keep your community connected in real-time.
             </p>
          </div>
       </div>
@@ -71,7 +71,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
                     <div>
                       <h3 className="text-xl font-bold text-brand-accent">{net.name}</h3>
                       <p className="text-dark-text-secondary mt-1">
-                        NCO: <span className="font-semibold text-dark-text">{session.primary_nco} ({session.primary_nco_callsign})</span>
+                        <span className="font-semibold text-dark-text">Net Control:</span> {session.primary_nco} ({session.primary_nco_callsign})
                       </p>
                     </div>
                     <div className="mt-4 sm:mt-0 sm:text-right">

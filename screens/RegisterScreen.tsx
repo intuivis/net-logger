@@ -22,49 +22,28 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
         setError(null);
         setMessage(null);
 
-        // A backend trigger was likely failing when both `emailRedirectTo` and `data` options were present in the signUp call.
-        // To fix this, we'll first sign up the user to get the correct email verification link,
-        // and then manually insert their profile information in a separate step.
-        // This is more robust and ensures the core registration flow works.
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        // The user's profile will be created automatically by a database trigger.
+        // We just need to sign them up and pass their details in the options.
+        const { error: signUpError } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                emailRedirectTo: window.location.origin,
+                // This data is stored in auth.users.raw_user_meta_data
+                // and will be used by our database trigger to populate the profile.
+                data: {
+                    full_name: fullName,
+                    call_sign: callSign.toUpperCase(),
+                },
             },
         });
 
         if (signUpError) {
             setError(signUpError.message);
-            setLoading(false);
-            return;
+        } else {
+            // Success! The trigger will handle profile creation.
+            setMessage('Registration successful! Please check your email to confirm your account. After confirmation, an admin must approve your account before you can log in.');
         }
 
-        if (!signUpData.user) {
-            setError('An unexpected error occurred during registration. The user might already exist.');
-            setLoading(false);
-            return;
-        }
-
-        // Manually create the profile row.
-        // This requires RLS to be configured to allow a newly signed-up user to insert their own profile.
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-                id: signUpData.user.id,
-                email: email,
-                full_name: fullName,
-                call_sign: callSign.toUpperCase() || null,
-            });
-        
-        if (profileError) {
-            console.error('Profile creation failed after signup:', profileError);
-            setError(`Your account was created, but we failed to save your profile information. Please contact an administrator. Error: ${profileError.message}`);
-            setLoading(false);
-            return;
-        }
-
-        setMessage('Registration successful! Please check your email to confirm your account. After confirming, an admin will need to approve your account before you can log in.');
         setLoading(false);
     };
 
@@ -104,7 +83,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                          </div>
                          <div>
                             <label htmlFor="register-call-sign" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Call Sign (Optional)
+                                Call Sign
                             </label>
                             <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Call Sign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
                          </div>

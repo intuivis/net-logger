@@ -21,7 +21,7 @@ export const NetTable: React.FC<NetTableProps> = ({ nets, activeSessionNetIds, o
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Type</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Configuration</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Schedule</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Primary NCO</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Net Control</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700">

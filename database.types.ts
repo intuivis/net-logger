@@ -4,8 +4,8 @@ export type Json =
   | number
   | boolean
   | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+  | { [key: string]: any }
+  | any[];
 
 export interface Database {
   public: {
@@ -43,11 +43,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "check_ins_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
+            foreignKeyName: "check_ins_session_id_fkey";
+            columns: ["session_id"];
+            referencedRelation: "sessions";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -116,11 +115,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "nets_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            foreignKeyName: "nets_created_by_fkey";
+            columns: ["created_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -152,15 +150,7 @@ export interface Database {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ];
+        Relationships: [];
       };
       sessions: {
         Row: {
@@ -201,11 +191,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "sessions_net_id_fkey"
-            columns: ["net_id"]
-            isOneToOne: false
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
+            foreignKeyName: "sessions_net_id_fkey";
+            columns: ["net_id"];
+            referencedRelation: "nets";
+            referencedColumns: ["id"];
           }
         ];
       };

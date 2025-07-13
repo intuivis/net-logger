@@ -2,15 +2,10 @@
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_KEY;
 
-try {
-  const testUrl = new URL(supabaseUrl);
-  console.log('Parsed URL object:', testUrl);
-} catch (err) {
-  console.error('URL parsing error:', err);
-}
-
+// Import necessary modules from Supabase
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '../database.types';
+// Ensure the environment variables are set correctly
 
 // Check for missing configuration
 if (!supabaseUrl || !supabaseKey || 
@@ -27,8 +22,8 @@ if (!supabaseUrl || !supabaseKey ||
           <p class="mt-2 text-dark-text-secondary">Please create a <code class="bg-dark-900 px-2 py-1 rounded text-yellow-400">.env</code> file in your project root and add your Supabase Project URL and Public Anon Key.</p>
           <p class="mt-4 text-sm text-dark-text-secondary">Example:</p>
           <pre class="mt-2 text-sm text-yellow-400 bg-dark-900 p-4 rounded">
-VITE_SUPABASE_URL=https://YOUR_SUPABASE_URL.supabase.co
-VITE_SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
+          VITE_SUPABASE_URL=https://YOUR_SUPABASE_URL.supabase.co
+          VITE_SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
           </pre>
         </div>
       </div>
