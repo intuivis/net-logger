@@ -113,17 +113,12 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 if (!repeater) return null;
                 return (
                     <div className="space-y-4">
-                        <DetailItem label="Primary NCO" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
                         <RepeaterDetails repeater={repeater} />
                     </div>
                 );
             case NetConfigType.LINKED_REPEATER:
                 return (
                     <>
-                        <dl className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
-                           <DetailItem label="Primary NCO" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
-                        </dl>
-                        <div className="border-t border-dark-700/50 my-4"></div>
                          <button 
                             className="flex justify-between items-center w-full text-left py-2"
                             onClick={() => setIsRepeaterListVisible(!isRepeaterListVisible)}
@@ -138,7 +133,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                     <li key={r.id} className="text-sm text-dark-text-secondary bg-dark-700/30 p-3 rounded-md flex items-center justify-between">
                                         <span>{formatRepeaterCondensed(r)}</span>
                                         {r.website_url && (
-                                            <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label={`Visit website for ${r.name}`}>
+                                            <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label={`Visit website for ${r.name}`}>
                                                 <Icon className="text-base">open_in_new</Icon>
                                             </a>
                                         )}
@@ -151,7 +146,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
              case NetConfigType.GROUP:
                 return (
                     <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-6">
-                        <DetailItem label="Primary NCO" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
+                        <DetailItem label="Net Control" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
                         <DetailItem label="Frequency" value={net.frequency ? `${net.frequency} MHz` : undefined} />
                         <DetailItem label="Band" value={net.band} />
                         <DetailItem label="Mode" value={net.mode} />
@@ -174,21 +169,20 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                     <div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
                             <h1 className="text-3xl font-bold text-dark-text">{net.name}</h1>
-                            {net.website_url && (
-                                <a href={net.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-brand-secondary hover:text-brand-primary mt-2 sm:mt-0">
-                                    <Icon className="text-base">open_in_new</Icon>
-                                    <span>Visit Website</span>
-                                </a>
-                            )}
+                            {renderConfigBadge()}
                         </div>
                          <div className="flex items-center gap-4 mt-2">
-                            <p className="text-dark-text-secondary">
-                                {net.net_type} Net &bull; Every {net.schedule} at {formatTime(net.time)} {net.time_zone}
+                            <p className="text-dark-text-secondary font-bold text-dark-text">
+                                {net.net_type} Net &bull; {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {net.time_zone}
                             </p>
-                            {renderConfigBadge()}
                         </div>
                         {net.description && (
                             <p className="mt-4 text-dark-text-secondary max-w-2xl">{net.description}</p>
+                        )}
+                        {net.website_url && (
+                            <a href={net.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-brand-secondary hover:text-brand-primary mt-2 sm:mt-0">
+                                <span>Visit Website</span><Icon className="text-base">open_in_new</Icon>
+                            </a>
                         )}
                     </div>
                     {canManage && (
@@ -222,7 +216,6 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 </div>
                  
                 <div className="mt-6 pt-4 border-t border-dark-700">
-                    <h2 className="text-lg font-medium text-dark-text mb-4">Technical Details</h2>
                     {renderTechnicalDetails()}
                 </div>
             </div>

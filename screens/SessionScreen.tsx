@@ -159,7 +159,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                         : `For ${net.name} on ${new Date(session.start_time).toLocaleDateString()}`
                     }
                 </p>
-                <p className="text-dark-text-secondary mt-1">NCO: <span className="text-dark-text font-semibold">{session.primary_nco} ({session.primary_nco_callsign})</span></p>
+                <p className="text-dark-text-secondary mt-1">Net Control: <span className="text-dark-text font-semibold">{session.primary_nco} ({session.primary_nco_callsign})</span></p>
             </div>
             {canManage && isActive && (
                 <button
@@ -213,8 +213,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                     <tr>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Attendee</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
                         {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
@@ -238,8 +237,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">{checkIn.call_sign}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text">{checkIn.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{checkIn.name} - <span className="text-brand-accent">{checkIn.call_sign}</span></td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
                                     {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? repeater.name : '-'}</td>}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>

@@ -33,7 +33,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
       <div 
         className="relative rounded-xl p-8 md:p-12 lg:p-16 mb-8 overflow-hidden">
          <div className="text-center z-10 relative">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Control Logger</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Control Log</h1>
             <p className="mt-4 max-w-3xl mx-auto text-lg text-dark-text-secondary">
                 A command center for managing community radio communications. Coordinate on-air NETs, track participation, and keep your community connected in real-time.
             </p>
