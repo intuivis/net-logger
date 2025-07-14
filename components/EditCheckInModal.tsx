@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckIn, NetSession, Net, NetConfigType } from '../types';
+import { formatRepeaterCondensed } from '../lib/time';
 
 interface EditCheckInModalProps {
   session: NetSession;
@@ -74,7 +75,7 @@ const EditCheckInModal: React.FC<EditCheckInModalProps> = ({ session, net, check
             {net.net_config_type === NetConfigType.LINKED_REPEATER && (
                  <FormSelect label="Repeater" id="edit-repeaterId" name="repeater_id" value={formData.repeater_id || ''} onChange={handleChange}>
                     <option value="">Select Repeater...</option>
-                    {net.repeaters.map(r => <option key={r.id} value={r.id}>{r.name} ({r.frequency}MHz)</option>)}
+                    {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
                 </FormSelect>
             )}
             <FormInput label="Notes" id="edit-notes" name="notes" value={formData.notes || ''} onChange={handleChange} />

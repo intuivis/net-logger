@@ -1,6 +1,8 @@
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType } from '../types';
 import { Icon } from '../components/Icon';
+import { formatRepeaterCondensed } from '../lib/time';
 
 interface SessionScreenProps {
   session: NetSession;
@@ -87,7 +89,7 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
                     <div className="lg:col-span-1">
                         <FormSelect label="Repeater" id="repeaterId" value={repeaterId} onChange={e => setRepeaterId(e.target.value)}>
                             <option value="">Select...</option>
-                            {net.repeaters.map(r => <option key={r.id} value={r.id}>{r.name} ({r.frequency}MHz)</option>)}
+                            {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
                         </FormSelect>
                     </div>
                 )}
@@ -239,7 +241,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">{checkIn.call_sign}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text">{checkIn.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
-                                    {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name} (${repeater.frequency}MHz)` : '-'}</td>}
+                                    {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? repeater.name : '-'}</td>}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
                                     {canManage && (
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

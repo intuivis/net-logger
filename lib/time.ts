@@ -1,4 +1,6 @@
 
+import { Repeater } from "../types";
+
 export const formatTime = (time24: string): string => {
   if (!time24 || !time24.includes(':')) {
     return time24; // Return original if format is unexpected
@@ -16,4 +18,27 @@ export const formatTime = (time24: string): string => {
   const minutesStr = minutesInt < 10 ? `0${minutesInt}` : `${minutesInt}`;
 
   return `${hours12}:${minutesStr} ${ampm}`;
+};
+
+export const formatRepeaterCondensed = (repeater: Repeater): string => {
+    let mainPart = repeater.name;
+    if (repeater.owner_callsign) {
+        mainPart += ` (${repeater.owner_callsign})`;
+    }
+
+    const details: string[] = [];
+    if (repeater.downlink_freq) {
+        details.push(`${repeater.downlink_freq} MHz`);
+    }
+    if (repeater.offset) {
+        const offsetNum = parseFloat(repeater.offset);
+        if (!isNaN(offsetNum)) {
+             details.push(`${offsetNum > 0 ? '+' : ''}${repeater.offset}`);
+        }
+    }
+    if (repeater.uplink_tone) {
+        details.push(`Tone ${repeater.uplink_tone}`);
+    }
+
+    return `${mainPart} · ${details.join(' ')}`;
 };

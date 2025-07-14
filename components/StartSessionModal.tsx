@@ -38,7 +38,7 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrides.primary_nco || !overrides.primary_nco_callsign) {
-        alert("Primary NCO Name and Callsign are required for this session.");
+        alert("Primary Net Conotrol Name and Callsign are required for this session.");
         return;
     }
     onStart(net, overrides);
@@ -55,7 +55,7 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
           <div className="p-6 border-y border-dark-700 space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormInput 
-                    label="Primary NCO Name" 
+                    label="Primary Net Control Name" 
                     id="session-primaryNCO" 
                     name="primary_nco" 
                     value={overrides.primary_nco} 
@@ -63,7 +63,7 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
                     required 
                 />
                 <FormInput 
-                    label="Primary NCO Callsign" 
+                    label="Primary Net Control Callsign" 
                     id="session-primaryNCOCallsign" 
                     name="primary_nco_callsign" 
                     value={overrides.primary_nco_callsign} 
@@ -71,14 +71,14 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
                     required 
                 />
                 <FormInput 
-                    label="Backup NCO Name" 
+                    label="Backup Net Control Name" 
                     id="session-backupNCO" 
                     name="backup_nco" 
                     value={overrides.backup_nco || ''} 
                     onChange={handleChange} 
                 />
                  <FormInput 
-                    label="Backup NCO Callsign" 
+                    label="Backup Net Control Callsign" 
                     id="session-backupNCOCallsign" 
                     name="backup_nco_callsign" 
                     value={overrides.backup_nco_callsign || ''} 

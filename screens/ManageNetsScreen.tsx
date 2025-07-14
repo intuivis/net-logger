@@ -46,7 +46,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {profile?.role === 'admin' ? 'Manage All NETs' : 'My NETs'}
+            {profile?.role === 'admin' ? 'Manage NETs' : 'My NETs'}
           </h1>
         </div>
         <AddNetButton />

@@ -39,7 +39,7 @@ interface RepeaterInputSetProps {
   index: number;
   configType: NetConfigType;
   repeaterCount: number;
-  onUpdate: (index: number, field: keyof Omit<Repeater, 'id'>, value: string | 'plus' | 'minus' | 'none') => void;
+  onUpdate: (index: number, field: keyof Omit<Repeater, 'id'>, value: string) => void;
   onRemove: (id: string) => void;
 }
 
@@ -51,60 +51,34 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
   onUpdate,
   onRemove,
 }) => (
-  <div className="grid grid-cols-1 md:grid-cols-10 gap-3 items-center p-3 bg-dark-900/50 rounded-md">
-      <FormInput
-        className="md:col-span-4"
-        label="Name"
-        id={`r-name-${index}`}
-        type="text" value={repeater.name}
-        onChange={e => onUpdate(index, 'name', e.target.value)}
-        placeholder="e.g., Mountain Top"
-        required={configType === NetConfigType.LINKED_REPEATER}
-      />
-      <FormInput
-        className="md:col-span-2"
-        label="Freq (MHz)"
-        id={`r-freq-${index}`}
-        type="text"
-        value={repeater.frequency}
-        onChange={e => onUpdate(index, 'frequency', e.target.value)}
-        placeholder="e.g., 146.520"
-        required
-      />
-      <FormInput
-        className="md:col-span-2"
-        label="Tone (Hz)"
-        id={`r-tone-${index}`}
-        type="text"
-        value={repeater.tone}
-        onChange={e => onUpdate(index, 'tone', e.target.value)}
-        placeholder="e.g., 100.0"
-      />
-      <FormSelect
-        className="md:col-span-1"
-        label="Offset"
-        id={`r-offset-${index}`}
-        value={repeater.tone_offset || 'none'}
-        onChange={e => onUpdate(index, 'tone_offset', e.target.value as 'plus' | 'minus' | 'none')}
-      >
-        <option value="none">&nbsp;</option>
-        <option value="plus">+</option>
-        <option value="minus">-</option>
-      </FormSelect>
-      <div className="md:col-span-1 flex items-end h-full justify-end pt-5">
-          {configType === NetConfigType.LINKED_REPEATER && repeaterCount > 1 && (
-              <button type="button" onClick={() => onRemove(repeater.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors">
-                  <Icon className="text-xl">delete</Icon>
-              </button>
-          )}
-      </div>
+  <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <FormInput className="md:col-span-2" label="Repeater Name" id={`r-name-${index}`} type="text" value={repeater.name} onChange={e => onUpdate(index, 'name', e.target.value)} placeholder="e.g., Spring Mountain" required />
+        <FormInput className="md:col-span-2" label="Owner Callsign" id={`r-owner-${index}`} type="text" value={repeater.owner_callsign || ''} onChange={e => onUpdate(index, 'owner_callsign', e.target.value)} placeholder="e.g., K4NRC" />
+        
+        <FormInput label="Downlink Freq (MHz)" id={`r-freq-${index}`} type="text" value={repeater.downlink_freq} onChange={e => onUpdate(index, 'downlink_freq', e.target.value)} placeholder="e.g., 145.130" required />
+        <FormInput label="Offset (MHz)" id={`r-offset-${index}`} type="text" value={repeater.offset || ''} onChange={e => onUpdate(index, 'offset', e.target.value)} placeholder="e.g., -0.600" />
+        <FormInput label="Uplink Tone (Hz)" id={`r-uplink-tone-${index}`} type="text" value={repeater.uplink_tone || ''} onChange={e => onUpdate(index, 'uplink_tone', e.target.value)} placeholder="e.g., 156.7" />
+        <FormInput label="Downlink Tone (Hz)" id={`r-downlink-tone-${index}`} type="text" value={repeater.downlink_tone || ''} onChange={e => onUpdate(index, 'downlink_tone', e.target.value)} placeholder="e.g., 156.7" />
+
+        <FormInput label="County" id={`r-county-${index}`} type="text" value={repeater.county || ''} onChange={e => onUpdate(index, 'county', e.target.value)} placeholder="e.g., Coweta" />
+        <FormInput label="Grid Square" id={`r-grid-${index}`} type="text" value={repeater.grid_square || ''} onChange={e => onUpdate(index, 'grid_square', e.target.value)} placeholder="e.g., EM73oj" />
+        <FormInput className="md:col-span-2" label="Website URL" id={`r-website-${index}`} type="url" value={repeater.website_url || ''} onChange={e => onUpdate(index, 'website_url', e.target.value)} placeholder="https://example.com" />
+    </div>
+    {configType === NetConfigType.LINKED_REPEATER && repeaterCount > 1 && (
+        <div className="flex justify-end mt-3">
+            <button type="button" onClick={() => onRemove(repeater.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors">
+                <Icon className="text-xl">delete</Icon>
+            </button>
+        </div>
+    )}
   </div>
 ));
 
 
 const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, onCancel }) => {
   const [net, setNet] = useState<Partial<Net>>(() => {
-    const baseNet = initialNet || {
+    const baseNet: Partial<Net> = initialNet || {
       name: '',
       description: '',
       website_url: '',
@@ -122,10 +96,32 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
       band: '',
       mode: ''
     };
+    
+    // On-the-fly migration for repeaters from old format to new format
+    if (baseNet.repeaters && baseNet.repeaters.length > 0) {
+        baseNet.repeaters = baseNet.repeaters.map((r: any) => {
+            if (r.frequency !== undefined) { // This property only existed on the old format
+                const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : '';
+                return {
+                    id: r.id || uuidv4(),
+                    name: r.name || '',
+                    owner_callsign: '',
+                    grid_square: '',
+                    county: '',
+                    downlink_freq: r.frequency || '',
+                    offset: offset,
+                    uplink_tone: r.tone || '',
+                    downlink_tone: r.tone || '', // Assume downlink tone is same as old tone
+                    website_url: '',
+                };
+            }
+            return r; // Already in new format
+        });
+    }
 
     // Ensure there's always at least one repeater object for repeater-based nets
     if ((baseNet.net_config_type === NetConfigType.SINGLE_REPEATER || baseNet.net_config_type === NetConfigType.LINKED_REPEATER) && (!baseNet.repeaters || baseNet.repeaters.length === 0)) {
-        baseNet.repeaters = [{ id: uuidv4(), name: '', frequency: '', tone: '', tone_offset: 'none' }];
+        baseNet.repeaters = [{ id: uuidv4(), name: '', owner_callsign: '', grid_square: '', county: '', downlink_freq: '', offset: '', uplink_tone: '', downlink_tone: '', website_url: '' }];
     }
 
     return baseNet;
@@ -141,20 +137,37 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
   const addRepeater = useCallback(() => {
     setNet(prev => ({
       ...prev,
-      repeaters: [...(prev.repeaters || []), { id: uuidv4(), name: '', frequency: '', tone: '', tone_offset: 'none' }],
+      repeaters: [...(prev.repeaters || []), { id: uuidv4(), name: '', owner_callsign: null, grid_square: null, county: null, downlink_freq: '', offset: null, uplink_tone: null, downlink_tone: null, website_url: null }],
     }));
   }, []);
 
-  const updateRepeater = useCallback((index: number, field: keyof Omit<Repeater, 'id'>, value: string | 'plus' | 'minus' | 'none') => {
+  const updateRepeater = useCallback((index: number, field: keyof Omit<Repeater, 'id'>, value: string) => {
     setNet(prev => {
-      const newRepeaters = [...(prev.repeaters || [])];
-      if (newRepeaters[index]) {
-        newRepeaters[index] = { ...newRepeaters[index], [field]: value };
-      }
-      return {
-        ...prev,
-        repeaters: newRepeaters,
-      };
+      if (!prev?.repeaters) return prev;
+
+      const newRepeaters = prev.repeaters.map((r, i) => {
+        if (i !== index) {
+          return r;
+        }
+        
+        const isNullable = field !== 'name' && field !== 'downlink_freq';
+        let processedValue: string | null = value;
+
+        if (field === 'owner_callsign') {
+          processedValue = value.toUpperCase();
+        }
+
+        if (isNullable && processedValue === '') {
+            processedValue = null;
+        }
+        
+        return {
+          ...r,
+          [field]: processedValue,
+        };
+      });
+
+      return { ...prev, repeaters: newRepeaters };
     });
   }, []);
 
@@ -183,12 +196,12 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         return;
       }
       for (const repeater of net.repeaters) {
-          if (!repeater.frequency) {
-              alert('Frequency is required for all repeaters.');
+          if (!repeater.downlink_freq) {
+              alert('Downlink Frequency is required for all repeaters.');
               return;
           }
-          if (net.net_config_type === NetConfigType.LINKED_REPEATER && !repeater.name) {
-              alert('Name is required for all repeaters in a linked system.');
+          if (!repeater.name) {
+              alert('Name is required for all repeaters.');
               return;
           }
       }

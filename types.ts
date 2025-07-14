@@ -34,9 +34,14 @@ export enum DayOfWeek {
 export interface Repeater {
   id: string;
   name: string;
-  frequency: string;
-  tone: string;
-  tone_offset: 'plus' | 'minus' | 'none';
+  owner_callsign: string | null;
+  grid_square: string | null;
+  county: string | null;
+  downlink_freq: string;
+  offset: string | null;
+  uplink_tone: string | null;
+  downlink_tone: string | null;
+  website_url: string | null;
 }
 
 // Re-defining Net to avoid complex recursive types that cause TS errors.

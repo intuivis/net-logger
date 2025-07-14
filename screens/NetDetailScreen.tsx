@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType } from '../types';
-import { formatTime } from '../lib/time';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater } from '../types';
+import { formatTime, formatRepeaterCondensed } from '../lib/time';
 import { Icon } from '../components/Icon';
 
 interface NetDetailScreenProps {
@@ -32,6 +33,40 @@ const DetailItem: React.FC<{label: string, value: string | null | undefined}> = 
         <dd className="mt-1 text-sm text-dark-text font-semibold">{value || '-'}</dd>
     </div>
 );
+
+const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
+    <div className="bg-dark-700/50 p-4 rounded-lg">
+        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <div>
+                <dt className="text-sm font-medium text-dark-text-secondary">Repeater</dt>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.name} {repeater.owner_callsign ? `(${repeater.owner_callsign})` : ''}</dd>
+            </div>
+            <div>
+                <dt className="text-sm font-medium text-dark-text-secondary">Location</dt>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'}, {repeater.grid_square || '-'}</dd>
+            </div>
+            <div>
+                <dt className="text-sm font-medium text-dark-text-secondary">Frequency &amp; Offset</dt>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.downlink_freq ? `${repeater.downlink_freq} MHz` : '-'} {repeater.offset ? `(${repeater.offset} MHz)` : ''}</dd>
+            </div>
+             <div>
+                <dt className="text-sm font-medium text-dark-text-secondary">Tones (Uplink / Downlink)</dt>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.uplink_tone || '-'} / {repeater.downlink_tone || '-'}</dd>
+            </div>
+            {repeater.website_url && (
+                <div className="md:col-span-2">
+                    <dt className="text-sm font-medium text-dark-text-secondary">Website</dt>
+                    <dd className="mt-1">
+                        <a href={repeater.website_url} target="_blank" rel="noopener noreferrer" className="text-brand-secondary hover:underline break-all">
+                            {repeater.website_url}
+                        </a>
+                    </dd>
+                </div>
+            )}
+        </dl>
+    </div>
+);
+
 
 const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, onStartSession, onEndSession, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession }) => {
     const [isRepeaterListVisible, setIsRepeaterListVisible] = useState(false);
@@ -77,13 +112,10 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 const repeater = net.repeaters[0];
                 if (!repeater) return null;
                 return (
-                    <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
+                    <div className="space-y-4">
                         <DetailItem label="Primary NCO" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
-                        <DetailItem label="Repeater Name" value={repeater.name} />
-                        <DetailItem label="Frequency" value={repeater.frequency ? `${repeater.frequency} MHz` : undefined} />
-                        <DetailItem label="Tone" value={repeater.tone ? `${repeater.tone} Hz` : undefined} />
-                        <DetailItem label="Offset" value={repeater.tone_offset && repeater.tone_offset !== 'none' ? repeater.tone_offset : undefined} />
-                    </dl>
+                        <RepeaterDetails repeater={repeater} />
+                    </div>
                 );
             case NetConfigType.LINKED_REPEATER:
                 return (
@@ -101,10 +133,15 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             {isRepeaterListVisible ? <Icon className="text-xl">expand_less</Icon> : <Icon className="text-xl">expand_more</Icon>}
                         </button>
                         {isRepeaterListVisible && (
-                             <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                             <ul className="mt-2 space-y-2">
                                 {net.repeaters.map(r => (
-                                    <li key={r.id} className="text-sm text-dark-text">
-                                        <span className="font-semibold">{r.name}:</span> {r.frequency}MHz, Tone: {r.tone_offset !== 'none' ? `${r.tone_offset === 'plus' ? '+' : '-'} ` : ''}{r.tone ? `${r.tone}Hz` : ''}
+                                    <li key={r.id} className="text-sm text-dark-text-secondary bg-dark-700/30 p-3 rounded-md flex items-center justify-between">
+                                        <span>{formatRepeaterCondensed(r)}</span>
+                                        {r.website_url && (
+                                            <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label={`Visit website for ${r.name}`}>
+                                                <Icon className="text-base">open_in_new</Icon>
+                                            </a>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

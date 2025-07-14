@@ -33,9 +33,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
       <div 
         className="relative rounded-xl p-8 md:p-12 lg:p-16 mb-8 overflow-hidden">
          <div className="text-center z-10 relative">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Logger</h1>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Control Logger</h1>
             <p className="mt-4 max-w-3xl mx-auto text-lg text-dark-text-secondary">
-                A command center for managing community radio communications. Coordinate NETs, track participation, and keep your community connected in real-time.
+                A command center for managing community radio communications. Coordinate on-air NETs, track participation, and keep your community connected in real-time.
             </p>
          </div>
       </div>
@@ -44,7 +44,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
         <div className="mb-6">
           <h2 className="text-3xl font-bold tracking-tight">Active NETs</h2>
           <p className="text-dark-text-secondary mt-1">
-            {activeSessions.length > 0 ? 'Live sessions happening right now. Click to view!' : 'No nets are currently active.'}
+            {activeSessions.length > 0 ? 'Live sessions happening right now.' : 'No nets are currently active.'}
           </p>
         </div>
 
@@ -92,7 +92,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
         <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">NET Directory</h2>
-              <p className="text-dark-text-secondary mt-1">Browse all available NETs in the community.</p>
+              <p className="text-dark-text-secondary mt-1">Browse all available NETs in this community.</p>
             </div>
             <div className="flex items-center gap-2 md:gap-4 flex-wrap">
               <select
