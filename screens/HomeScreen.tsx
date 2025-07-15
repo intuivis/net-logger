@@ -51,7 +51,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
         {activeSessions.length === 0 && profile ? (
           <div className="text-center py-20 px-4 border-2 border-dashed border-dark-700 rounded-lg">
             <h3 className="text-xl font-bold text-dark-text-secondary">No Active NETs</h3>
-            <p className="mt-2 text-dark-text-secondary">There are currently no active net sessions.</p>
+            <p className="mt-2 text-dark-text-secondary">There are currently no active NETs in session.</p>
             <p className="mt-1 text-dark-text-secondary">Go to "Manage NETs" to start one.</p>
           </div>
         ) : activeSessions.length > 0 ? (

@@ -184,7 +184,7 @@ const App: React.FC = () => {
                 repeaters: sanitizedData.repeaters as unknown as Json,
             };
 
-            result = await supabase.from('nets').insert(insertPayload).select('id').single();
+            result = await supabase.from('nets').insert(insertPayload as Database['public']['Tables']['nets']['Insert']).select('id').single();
         }
 
         if (result.error) throw result.error;

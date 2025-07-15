@@ -1,4 +1,11 @@
-export type Json = any;
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export interface Database {
   public: {
@@ -36,10 +43,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "check_ins_session_id_fkey";
-            columns: ["session_id"];
-            referencedRelation: "sessions";
-            referencedColumns: ["id"];
+            foreignKeyName: "check_ins_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
           }
         ];
       };
@@ -108,10 +115,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "nets_created_by_fkey";
-            columns: ["created_by"];
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
+            foreignKeyName: "nets_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           }
         ];
       };
@@ -143,7 +150,14 @@ export interface Database {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ];
       };
       sessions: {
         Row: {
@@ -184,10 +198,10 @@ export interface Database {
         };
         Relationships: [
           {
-            foreignKeyName: "sessions_net_id_fkey";
-            columns: ["net_id"];
-            referencedRelation: "nets";
-            referencedColumns: ["id"];
+            foreignKeyName: "sessions_net_id_fkey"
+            columns: ["net_id"]
+            referencedRelation: "nets"
+            referencedColumns: ["id"]
           }
         ];
       };

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import Logo from '../img/NetControl-Logo-White.svg';
 
 interface HeaderProps {
     profile: Profile | null;
@@ -24,7 +25,10 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
             console.error('Error signing out:', error);
             alert('Failed to sign out. Please try again.');
         } else {
-            onSetView({ type: 'home' });
+            // Explicitly navigate after a successful sign-out. This ensures a
+            // clean and immediate redirection, resolving the issue where the
+            // session was being cleared before the operation completed.
+            onSetView({ type: 'login' });
         }
     };
 
@@ -32,7 +36,8 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
         <header className="bg-light-card dark:bg-dark-800 shadow-md sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-3 group">
+                    <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-2 group">
+                         <img src={Logo} alt="NetControl Logo" className="h-9 w-auto" />
                          <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text group-hover:text-brand-secondary transition-colors">
                              NetControl <span className="text-xs font-light text-light uppercase">Beta</span>
                          </h1>
@@ -47,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                         onClick={() => handleNavClick({type: 'adminApprovals'})}
                                         className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
                                     >
-                                        Manage NCOs
+                                        Approvals
                                     </button>
                                 )}
                                 {(profile.is_approved || profile.role === 'admin') && (

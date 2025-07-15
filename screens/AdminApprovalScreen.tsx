@@ -63,8 +63,8 @@ const AdminApprovalScreen: React.FC = () => {
                     <table className="min-w-full divide-y divide-dark-700">
                         <thead className="bg-dark-700/50">
                             <tr>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Email</th>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Status</th>
                                 <th scope="col" className="relative px-6 py-4"><span className="sr-only">Action</span></th>
@@ -73,10 +73,10 @@ const AdminApprovalScreen: React.FC = () => {
                         <tbody className="divide-y divide-dark-700">
                              {profiles.filter(p => p.role !== 'admin').map(profile => (
                                 <tr key={profile.id} className="hover:bg-dark-700/30">
-                                    <td className="px-6 py-4 whitespace-nowrap text-dark-text">{profile.full_name || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-dark-text-secondary">{profile.email}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-dark-text-secondary">{profile.call_sign || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{profile.email}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{profile.full_name || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{profile.call_sign || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${profile.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
                                             {profile.is_approved ? 'Approved' : 'Pending'}
                                         </span>
