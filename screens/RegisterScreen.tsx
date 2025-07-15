@@ -41,7 +41,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
             setError(signUpError.message);
         } else {
             // Success! The trigger will handle profile creation.
-            setMessage('Registration successful! Please check your email to confirm this email for your account. After confirmation, an admin must approve your account before you can log in.');
+            setMessage('Registration successful! Please check your email to confirm your account. After confirmation, an admin must approve your account before you can log in.');
         }
 
         setLoading(false);

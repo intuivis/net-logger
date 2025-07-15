@@ -61,50 +61,64 @@ const App: React.FC = () => {
     }
   }, []);
   
-  // Effect 1: Sync session with Supabase auth state.
+  // Effect 1: Handle auth state changes and initial session loading for Supabase v2.
   useEffect(() => {
+    // Get the initial session asynchronously.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
+    // Listen for any subsequent changes in auth state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   // Effect 2: React to session changes to fetch profile and all app data.
   // This is now robust against errors and guarantees loading state is cleared.
   useEffect(() => {
     const onSessionChange = async () => {
-      try {
-        setLoading(true);
-        let userProfile: Profile | null = null;
-        
-        if (session?.user?.id) {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-            
-            if (error || !data) {
-                console.warn("Could not fetch user profile. This could be a new user or a stale session. Signing out.", error);
-                await supabase.auth.signOut();
-                return; // Let the sign-out flow (which triggers a re-run of this effect) handle the rest.
+        try {
+            setLoading(true);
+            let userProfile: Profile | null = null;
+
+            if (session?.user?.id) {
+                const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id);
+
+                if (profileError) {
+                    // This is a network or database error.
+                    // Don't sign the user out. They might be temporarily offline.
+                    // Log the error and alert the user.
+                    console.error("Error fetching user profile:", profileError);
+                    alert("A problem occurred while loading your profile. The app may not function correctly. Please check your connection and refresh.");
+                    // Keep the existing profile (if any) and session.
+                    // Let the app continue in a degraded state.
+                } else if (!profileData || profileData.length === 0) {
+                    // This is a valid response, but no profile was found for the logged-in user.
+                    // This is an inconsistent state, so we should sign the user out.
+                    console.warn(`Profile not found for user ${session.user.id}. Signing out.`);
+                    await supabase.auth.signOut();
+                    // Don't need to do anything else, the onAuthStateChange will trigger a re-run with session=null.
+                    return;
+                } else {
+                    // Profile was found successfully.
+                    userProfile = profileData[0];
+                }
             }
-            userProfile = data;
+
+            setProfile(userProfile);
+            await refreshAllData();
+        } catch (error) {
+            console.error("An unexpected error occurred during session processing:", error);
+            alert("An unexpected error occurred. Please refresh the page.");
+        } finally {
+            setLoading(false);
         }
-        
-        setProfile(userProfile);
-        await refreshAllData();
-      } catch (error) {
-        console.error("An unexpected error occurred during session processing:", error);
-        alert("An unexpected error occurred. Please refresh the page.");
-      } finally {
-        setLoading(false);
-      }
     };
 
     onSessionChange();
@@ -329,10 +343,6 @@ const App: React.FC = () => {
   }, [refreshAllData]);
 
   const renderContent = () => {
-    if (loading) {
-      return <div className="text-center py-20 text-dark-text-secondary">Loading...</div>;
-    }
-    
     switch (view.type) {
       case 'login':
           return <LoginScreen onSetView={setView} />;
@@ -448,7 +458,16 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-light-bg dark:bg-dark-900 text-light-text dark:text-dark-text">
       <Header profile={profile} onSetView={setView} />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-        {renderContent()}
+        {/*
+          Only show the main loading screen on initial load.
+          Subsequent background loads (e.g., on tab focus) will not unmount the entire view,
+          preserving component state like form inputs.
+        */}
+        {loading && !session ? (
+            <div className="text-center py-20 text-dark-text-secondary">Loading...</div>
+        ) : (
+            renderContent()
+        )}
       </main>
       {editingCheckIn && getNetForCheckIn() && (
         <EditCheckInModal

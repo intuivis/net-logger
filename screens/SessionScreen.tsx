@@ -213,7 +213,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                     <tr>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Attendee</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
                         {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
@@ -237,9 +238,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">{checkIn.name} - <span className="text-brand-accent">{checkIn.call_sign}</span></td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{checkIn.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">{checkIn.call_sign}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
-                                    {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? repeater.name : '-'}</td>}
+                                    {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
                                     {canManage && (
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
