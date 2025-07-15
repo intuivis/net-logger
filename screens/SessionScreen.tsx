@@ -43,16 +43,31 @@ const FormSelect = ({ label, id, children, ...props }: {label: string, id: strin
   </div>
 );
 
+const REPEATER_STORAGE_KEY = (net: Net) => `selectedRepeater_${net.id}`;
 
 const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 'timestamp'| 'session_id'>) => void }> = ({ net, onAdd }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
     const [notes, setNotes] = useState('');
-    const [repeaterId, setRepeaterId] = useState('');
     const showRepeaterSelect = net.net_config_type === NetConfigType.LINKED_REPEATER;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Load repeaterId from localStorage on mount
+    const [repeaterId, setRepeaterId] = useState(() => {
+        if (showRepeaterSelect) {
+            return localStorage.getItem(REPEATER_STORAGE_KEY(net)) || '';
+        }
+        return '';
+    });
+
+    // Save repeaterId to localStorage whenever it changes
+    React.useEffect(() => {
+        if (showRepeaterSelect) {
+            localStorage.setItem(REPEATER_STORAGE_KEY(net), repeaterId);
+        }
+    }, [repeaterId, net, showRepeaterSelect]);
+   
+const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!callSign) return;
         const checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'> = {
@@ -67,7 +82,7 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
         setName('');
         setLocation('');
         setNotes('');
-        setRepeaterId('');
+        // Do NOT reset repeaterId here, so it stays selected
         document.getElementById('callSign')?.focus();
     };
 
@@ -76,6 +91,14 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
     return (
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 bg-dark-800 shadow-lg rounded-lg">
             <div className={`grid grid-cols-1 md:grid-cols-2 ${gridCols} gap-4 items-end`}>
+                {showRepeaterSelect && (
+                    <div className="lg:col-span-1">
+                        <FormSelect label="Repeater" id="repeaterId" value={repeaterId} onChange={e => setRepeaterId(e.target.value)}>
+                            <option value="">Select...</option>
+                            {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
+                        </FormSelect>
+                    </div>
+                )}
                 <div className="lg:col-span-1">
                     <FormInput label="Call Sign" id="callSign" value={callSign} onChange={e => setCallSign(e.target.value.toUpperCase())} required />
                 </div>
@@ -85,14 +108,7 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
                 <div className="lg:col-span-1">
                     <FormInput label="Location" id="location" value={location} onChange={e => setLocation(e.target.value)} />
                 </div>
-                {showRepeaterSelect && (
-                    <div className="lg:col-span-1">
-                        <FormSelect label="Repeater" id="repeaterId" value={repeaterId} onChange={e => setRepeaterId(e.target.value)}>
-                            <option value="">Select...</option>
-                            {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
-                        </FormSelect>
-                    </div>
-                )}
+
                 <div className="lg:col-span-2">
                      <div className="flex items-end gap-2">
                          <div className="flex-grow">
