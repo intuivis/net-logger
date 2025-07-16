@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import Logo from '../img/logo-wht.svg';
+import {LogoSignal} from './icons/LogoSignal';
 
 interface HeaderProps {
     profile: Profile | null;
@@ -36,11 +36,12 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
         <header className="bg-light-card dark:bg-dark-800 shadow-md sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
+                    {/* Logo and Title */}
                     <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-2 group">
-                         <img src={Logo} alt="NetControl Logo" className="h-7 w-auto" />
-                         <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text group-hover:text-brand-secondary transition-colors">
-                             NetControl <span className="text-xs font-light text-light uppercase">Beta</span>
-                         </h1>
+                    <LogoSignal className="w-8 h-8 text-white" />
+                        <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text group-hover:text-brand-secondary transition-colors">
+                            NetControl <span className="text-xs font-light text-light uppercase">Beta</span>
+                        </h1>
                     </button>
                     
                     {/* --- Desktop Navigation --- */}
