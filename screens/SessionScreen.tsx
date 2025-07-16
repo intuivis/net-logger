@@ -3,6 +3,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
+import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
 
 interface SessionScreenProps {
   session: NetSession;
@@ -50,6 +51,7 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
     const [notes, setNotes] = useState('');
+    const [isLookingUp, setIsLookingUp] = useState(false);
     const showRepeaterSelect = net.net_config_type === NetConfigType.LINKED_REPEATER;
 
     // Load repeaterId from localStorage on mount
@@ -66,7 +68,31 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
             localStorage.setItem(REPEATER_STORAGE_KEY(net), repeaterId);
         }
     }, [repeaterId, net, showRepeaterSelect]);
-   
+
+    // Look up name when callsign changes
+    React.useEffect(() => {
+        const lookupName = async () => {
+        if (!callSign || callSign.length < 3) return;
+        setIsLookingUp(true);
+        const { data, error } = await supabase
+            .from('callsigns')
+            .select('first_name, last_name')
+            .eq('callsign', callSign.trim().toUpperCase())
+            .order('license_id', { ascending: false })
+            .limit(1);
+
+        if (data && data.length > 0 && !error) {
+            setName(`${data[0].first_name ?? ''} ${data[0].last_name ?? ''}`.trim());
+        }
+        setIsLookingUp(false);
+        };
+
+        lookupName();
+        // Only run when callSign changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [callSign]);
+
+
 const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!callSign) return;

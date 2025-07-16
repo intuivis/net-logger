@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -204,6 +203,27 @@ export interface Database {
             referencedColumns: ["id"]
           }
         ];
+      };
+      callsigns: {
+        Row: {
+          license_id: string;
+          callsign: string;
+          last_name: string;
+          first_name: string;
+        };
+        Insert: {
+          license_id: string;
+          callsign: string;
+          last_name: string;
+          first_name: string;
+        };
+        Update: {
+          license_id?: string;
+          callsign?: string;
+          last_name?: string;
+          first_name?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {
