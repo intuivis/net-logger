@@ -265,8 +265,8 @@ const App: React.FC = () => {
         if (id) {
             const { created_by, ...finalUpdateData } = sanitizedData;
             const updatePayload: Database['public']['Tables']['nets']['Update'] = {
-              ...finalUpdateData,
-              repeaters: finalUpdateData.repeaters ? (finalUpdateData.repeaters as unknown as Json) : [],
+                ...finalUpdateData,
+                repeaters: finalUpdateData.repeaters,
             };
             result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
@@ -288,7 +288,7 @@ const App: React.FC = () => {
                 schedule: restData.schedule!,
                 time: restData.time!,
                 time_zone: restData.time_zone!,
-                repeaters: (repeaters ?? []) as unknown as Json,
+                repeaters: repeaters ?? [],
                 net_config_type: restData.net_config_type!,
                 frequency: restData.frequency ?? null,
                 band: restData.band ?? null,
@@ -422,20 +422,20 @@ const App: React.FC = () => {
         const newCheckIn = newCheckInData as CheckIn;
 
         const callSign = newCheckIn.call_sign;
-        const { data: allUserCheckInsData, error: allCheckInsError } = await supabase.from('check_ins').select('timestamp').eq('call_sign', callSign);
-        if (allCheckInsError) throw allCheckInsError;
-        const allUserCheckIns = (allUserCheckInsData as Pick<CheckIn, 'timestamp'>[]) || [];
+        
+        // This includes the new check-in which hasn't been added to the main state yet.
+        const allUserCheckInsIncludingNew = [...checkIns.filter(ci => ci.call_sign === callSign), newCheckIn];
 
         const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
         if (awardsError) throw awardsError;
         const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
         
         const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
-        const newCheckInTime = new Date(newCheckIn.timestamp);
         
         const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
         for (const badge of BADGE_DEFINITIONS) {
-            if (!awardedBadgeIds.has(badge.id) && badge.isEarned(allUserCheckIns, newCheckInTime)) {
+            // Pass the full check-in history and session list to the logic function.
+            if (!awardedBadgeIds.has(badge.id) && badge.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
                 badgesToAward.push({
                     call_sign: callSign,
                     badge_id: badge.id,
@@ -457,7 +457,7 @@ const App: React.FC = () => {
         console.error("Error adding check-in and awarding badges:", error);
         alert(`Failed to add check-in: ${error.message}`);
     }
-  }, [refreshAllData]);
+  }, [refreshAllData, checkIns, sessions]);
 
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
     setEditingCheckIn({ sessionId, checkIn });

@@ -7,7 +7,7 @@ interface IconProps extends React.HTMLAttributes<HTMLSpanElement> {
 export const Icon: React.FC<IconProps> = ({ children, className, ...props }) => {
   return (
     <span
-      className={`material-symbols-rounded select-none ${className || ''}`}
+      className={`material-symbols-rounded select-none inline-flex items-center justify-center ${className || ''}`}
       {...props}
       aria-hidden="true" // Icons are decorative
     >

@@ -3,10 +3,8 @@ import React from 'react';
 import { Badge as BadgeType } from '../types';
 import { Icon } from './Icon';
 import { StarIcon } from './icons/StarIcon';
-import { TrendingUpIcon } from './icons/TrendingUpIcon';
-import { AwardIcon } from './icons/AwardIcon';
 import { MoonIcon } from './icons/MoonIcon';
-import { SunriseIcon } from './icons/SunriseIcon';
+import { SunIcon } from './icons/SunIcon';
 
 interface BadgeProps {
   badge: BadgeType;
@@ -15,21 +13,20 @@ interface BadgeProps {
 
 const iconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
     star: StarIcon,
-    trending_up: TrendingUpIcon,
-    award: AwardIcon,
     moon: MoonIcon,
-    sunrise: SunriseIcon,
+    sun: SunIcon,
 };
 
 export const Badge: React.FC<BadgeProps> = ({ badge, showLabel = true }) => {
     const IconComponent = iconMap[badge.icon];
 
-    // Conditionally adjust styles for icon-only badges
     const containerClasses = showLabel
       ? `inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-full ${badge.color_classes}`
-      : `inline-flex items-center justify-center p-1 rounded-full ${badge.color_classes}`; // Smaller padding for icon-only
+      : `inline-flex items-center justify-center p-1 rounded-full ${badge.color_classes}`;
 
-    const iconSize = showLabel ? 'w-3.5 h-3.5' : 'w-4 h-4'; // Slightly larger icon when alone
+    // Define container and font sizes separately to ensure they match
+    const iconContainerSize = showLabel ? 'w-3.5 h-3.5' : 'w-4 h-4';
+    const iconFontSize = showLabel ? 'text-sm' : 'text-base'; // text-sm is 14px, text-base is 16px
     
     return (
         <div
@@ -37,9 +34,9 @@ export const Badge: React.FC<BadgeProps> = ({ badge, showLabel = true }) => {
         title={showLabel ? badge.description : `${badge.name}: ${badge.description}`} // More descriptive title for icon-only
         >
         {IconComponent ? (
-            <IconComponent className={iconSize} />
+            <IconComponent className={iconContainerSize} />
         ) : (
-            <Icon className={`text-base ${iconSize}`}>{badge.icon}</Icon>
+            <Icon className={`${iconFontSize} ${iconContainerSize}`}>{badge.icon}</Icon>
         )}
         {showLabel && <span>{badge.name}</span>}
         </div>

@@ -19,7 +19,7 @@ interface CallsignProfileScreenProps {
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: string }> = ({ label, value, icon }) => (
   <div className="bg-dark-700/50 p-4 rounded-lg flex items-center gap-4">
-    <div className="p-3 bg-brand-primary/20 rounded-full">
+    <div className="w-12 h-12 bg-brand-dark/20 rounded-full flex items-center justify-center">
       <Icon className="text-brand-accent text-2xl">{icon}</Icon>
     </div>
     <div>
@@ -137,7 +137,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
       </div>
 
       <div className="bg-dark-800 shadow-lg rounded-lg p-6">
-        <h3 className="text-xl font-bold text-dark-text mb-4">Awarded Badges ({operatorBadges.length})</h3>
+        <h3 className="text-xl font-bold text-dark-text mb-4">Awarded Badges</h3>
         {operatorBadges.length > 0 ? (
             <div className="flex flex-wrap gap-4">
                 {operatorBadges.map(badge => (
@@ -151,7 +151,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
 
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-6 border-b border-dark-700">
-            <h3 className="text-xl font-bold text-dark-text">Check-in History by NET</h3>
+            <h3 className="text-xl font-bold text-dark-text">Check-in Activity</h3>
         </div>
         {detailedNetParticipation.length > 0 ? (
             <ul className="divide-y divide-dark-700">

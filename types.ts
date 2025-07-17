@@ -77,8 +77,15 @@ export type Badge = Database['public']['Tables']['badges']['Row'];
 
 export type AwardedBadge = Database['public']['Tables']['awarded_badges']['Row'];
 
+export type BadgeCategory = "Participation" | "Loyalty" | "Special";
+
 export interface BadgeDefinition extends Badge {
-  isEarned: (checkIns: Pick<CheckIn, 'timestamp'>[], checkInTime: Date) => boolean;
+  category: BadgeCategory;
+  isEarned: (
+    allUserCheckIns: CheckIn[],
+    allSessions: NetSession[],
+    newCheckIn: CheckIn
+  ) => boolean;
 }
 
 export type View =
