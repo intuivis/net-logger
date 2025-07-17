@@ -1,6 +1,5 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -17,58 +16,162 @@ import AdminApprovalScreen from './screens/AdminApprovalScreen';
 import { Session } from '@supabase/supabase-js';
 import { Database } from './database.types';
 import { Json } from './database.types';
+import { BADGE_DEFINITIONS } from './lib/badges';
+import CallsignProfileScreen from './screens/CallSignProfileScreen';
+import { v4 as uuidv4 } from 'uuid';
+import AboutScreen from './screens/AboutScreen';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<View>({ type: 'home' });
+  const [viewHistory, setViewHistory] = useState<View[]>([{ type: 'home' }]);
+  const view = viewHistory[viewHistory.length - 1];
+  
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [nets, setNets] = useState<Net[]>([]);
   const [sessions, setSessions] = useState<NetSession[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [awardedBadges, setAwardedBadges] = useState<AwardedBadge[]>([]);
   
   const [loading, setLoading] = useState(true);
 
   const [editingCheckIn, setEditingCheckIn] = useState<{ sessionId: string; checkIn: CheckIn } | null>(null);
   const [startingNet, setStartingNet] = useState<Net | null>(null);
 
+  const goBack = useCallback(() => {
+      setViewHistory(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
+  }, []);
+
+  const setView = useCallback((newView: View) => {
+      setViewHistory(prev => {
+          const currentView = prev[prev.length - 1];
+          if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
+
+          // Navigating to a main screen from the header should reset the stack
+          if (['home', 'login', 'register', 'manageNets', 'adminApprovals', 'about'].includes(newView.type)) {
+              return [newView];
+          }
+          
+          return [...prev, newView];
+      });
+  }, []);
+
   const refreshAllData = useCallback(async () => {
     try {
-        const [netsRes, sessionsRes, checkInsRes] = await Promise.all([
+        const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes] = await Promise.all([
             supabase.from('nets').select('*').order('name'),
             supabase.from('sessions').select('*').order('start_time', { ascending: false }),
-            supabase.from('check_ins').select('*').order('timestamp', { ascending: false })
+            supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
+            supabase.from('awarded_badges').select('*')
         ]);
 
-        if (netsRes.error) throw netsRes.error;
-        if (sessionsRes.error) throw sessionsRes.error;
-        if (checkInsRes.error) throw checkInsRes.error;
+        if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
+        if (sessionsRes.error) throw new Error(`Failed to load sessions: ${sessionsRes.error.message}`);
+        if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
+        if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
 
-        const rawNets = (netsRes.data as any[]) || [];
-        const typedNets: Net[] = rawNets.map(n => ({
-            ...n,
-            net_type: n.net_type as NetType,
-            schedule: n.schedule as DayOfWeek,
-            net_config_type: n.net_config_type as NetConfigType,
-            repeaters: (Array.isArray(n.repeaters) ? n.repeaters : []) as unknown as Repeater[],
-        }));
+        const rawNets = (netsRes.data as unknown as Database['public']['Tables']['nets']['Row'][]) || [];
+        
+        const typedNets: Net[] = rawNets.map((n: Database['public']['Tables']['nets']['Row']): Net => {
+            let migratedRepeaters: Repeater[] = [];
+            
+            if (Array.isArray(n.repeaters)) {
+                const repeatersArray = n.repeaters as any[];
+                if (repeatersArray.length > 0 && repeatersArray[0] && repeatersArray[0].frequency !== undefined) {
+                    // This looks like the old format that needs migration
+                    migratedRepeaters = repeatersArray.map((r: any): Repeater => {
+                        const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : null;
+                        return {
+                            id: r.id || uuidv4(),
+                            name: r.name || 'Imported Repeater',
+                            owner_callsign: null,
+                            grid_square: null,
+                            county: null,
+                            downlink_freq: r.frequency || '',
+                            offset: offset,
+                            uplink_tone: r.tone || null,
+                            downlink_tone: r.tone || null,
+                            website_url: null,
+                        };
+                    });
+                } else {
+                    // This looks like the new format
+                    migratedRepeaters = repeatersArray as Repeater[];
+                }
+            }
+
+            return {
+                ...n,
+                net_type: n.net_type as NetType,
+                schedule: n.schedule as DayOfWeek,
+                net_config_type: (n.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+                repeaters: migratedRepeaters,
+            };
+        });
         
         setNets(typedNets);
-        setSessions((sessionsRes.data as any[]) || []);
-        setCheckIns((checkInsRes.data as any[]) || []);
-    } catch (error) {
+        setSessions((sessionsRes.data as unknown as NetSession[]) || []);
+        setCheckIns((checkInsRes.data as unknown as CheckIn[]) || []);
+        setAwardedBadges((awardedBadgesRes.data as unknown as AwardedBadge[]) || []);
+    } catch (error: any) {
         console.error("Error refreshing application data:", error);
-        alert('Could not load application data. Please check your connection and refresh the page.');
+        alert(`Could not load application data. Please check your connection and refresh the page.\n\nDetails: ${error.message}`);
     }
   }, []);
+
+  const backfillBadges = useCallback(async () => {
+    const firstCheckinBadgeId = 'first_checkin';
+
+    try {
+        const [checkInsRes, awardedBadgesRes] = await Promise.all([
+            supabase.from('check_ins').select('call_sign, timestamp, session_id'),
+            supabase.from('awarded_badges').select('call_sign').eq('badge_id', firstCheckinBadgeId)
+        ]);
+
+        if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
+        if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
+
+        const allCheckIns = (checkInsRes.data as unknown as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
+        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as unknown as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
+
+        const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
+        for (const checkIn of allCheckIns) {
+            const existingFirst = firstCheckIns.get(checkIn.call_sign);
+            if (!existingFirst || new Date(checkIn.timestamp) < new Date(existingFirst.timestamp)) {
+                firstCheckIns.set(checkIn.call_sign, { timestamp: checkIn.timestamp, session_id: checkIn.session_id });
+            }
+        }
+
+        const newAwards: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
+        for (const [callsign, firstCheckIn] of firstCheckIns.entries()) {
+            if (!operatorsWithFirstBadge.has(callsign)) {
+                newAwards.push({
+                    call_sign: callsign,
+                    badge_id: firstCheckinBadgeId,
+                    session_id: firstCheckIn.session_id,
+                });
+            }
+        }
+
+        if (newAwards.length > 0) {
+            console.log(`Backfilling ${newAwards.length} '${firstCheckinBadgeId}' badges...`);
+            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards);
+
+            if (insertError) {
+                throw new Error(`Error inserting backfilled badges: ${insertError.message}`);
+            }
+            
+            await refreshAllData();
+        }
+    } catch (error) {
+        console.error("Error during badge backfill process:", error);
+    }
+  }, [refreshAllData]);
   
-  // Effect 1: Handle auth state changes and initial session loading for Supabase v2.
   useEffect(() => {
-    // Get the initial session asynchronously.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for any subsequent changes in auth state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -76,8 +179,6 @@ const App: React.FC = () => {
     return () => subscription?.unsubscribe();
   }, []);
 
-  // Effect 2: React to session changes to fetch profile and all app data.
-  // This is now robust against errors and guarantees loading state is cleared.
   useEffect(() => {
     const onSessionChange = async () => {
         try {
@@ -88,31 +189,25 @@ const App: React.FC = () => {
                 const { data: profileData, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
-                    .eq('id', session.user.id);
+                    .eq('id', session.user.id)
+                    .single();
 
                 if (profileError) {
-                    // This is a network or database error.
-                    // Don't sign the user out. They might be temporarily offline.
-                    // Log the error and alert the user.
                     console.error("Error fetching user profile:", profileError);
                     alert("A problem occurred while loading your profile. The app may not function correctly. Please check your connection and refresh.");
-                    // Keep the existing profile (if any) and session.
-                    // Let the app continue in a degraded state.
-                } else if (!profileData || profileData.length === 0) {
-                    // This is a valid response, but no profile was found for the logged-in user.
-                    // This is an inconsistent state, so we should sign the user out.
+                } else if (!profileData) {
                     console.warn(`Profile not found for user ${session.user.id}. Signing out.`);
                     await supabase.auth.signOut();
-                    // Don't need to do anything else, the onAuthStateChange will trigger a re-run with session=null.
                     return;
                 } else {
-                    // Profile was found successfully.
-                    userProfile = profileData[0];
+                    userProfile = profileData as unknown as Profile;
                 }
             }
 
             setProfile(userProfile);
             await refreshAllData();
+            await backfillBadges();
+
         } catch (error) {
             console.error("An unexpected error occurred during session processing:", error);
             alert("An unexpected error occurred. Please refresh the page.");
@@ -122,13 +217,12 @@ const App: React.FC = () => {
     };
 
     onSessionChange();
-  }, [session, refreshAllData]);
+  }, [session, refreshAllData, backfillBadges]);
 
-  // Effect 3: Handle view routing and redirection based on auth state and profile.
   useEffect(() => {
-    if (loading) return; // Wait for auth and data load to complete
+    if (loading) return;
 
-    if (session && profile) { // Authenticated and profile loaded
+    if (session && profile) {
         if (!profile.is_approved && profile.role !== 'admin') {
             if (view.type !== 'pendingApproval') {
                 setView({ type: 'pendingApproval' });
@@ -136,16 +230,13 @@ const App: React.FC = () => {
         } else if (['login', 'register', 'pendingApproval'].includes(view.type)) {
             setView({ type: 'home' });
         }
-    } else if (!session) { // Not authenticated
-        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session'];
+    } else if (!session) {
+        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about'];
         if (!publicViews.includes(view.type)) {
-            // Preserve public views if user logs out, otherwise go to login
-             if(view.type !== 'netDetail' && view.type !== 'session') {
-                setView({ type: 'login' });
-             }
+             setView({ type: 'login' });
         }
     }
-  }, [view.type, session, profile, loading]);
+  }, [view, session, profile, loading, setView]);
 
   const handleSaveNet = useCallback(async (netData: Partial<Net>) => {
     try {
@@ -157,7 +248,6 @@ const App: React.FC = () => {
         if (sanitizedData.backup_nco === '') sanitizedData.backup_nco = null;
         if (sanitizedData.backup_nco_callsign === '') sanitizedData.backup_nco_callsign = null;
 
-        // Based on the config type, null out irrelevant fields
         if(sanitizedData.net_config_type === NetConfigType.GROUP) {
             sanitizedData.repeaters = [];
         } else {
@@ -178,13 +268,27 @@ const App: React.FC = () => {
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
-            sanitizedData.created_by = profile.id;
-            const insertPayload = {
-                ...sanitizedData,
-                repeaters: sanitizedData.repeaters as unknown as Json,
+            const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
+              created_by: profile.id,
+              name: sanitizedData.name ?? '', // or throw if missing
+              description: sanitizedData.description ?? null,
+              website_url: sanitizedData.website_url ?? null,
+              primary_nco: sanitizedData.primary_nco ?? '',
+              primary_nco_callsign: sanitizedData.primary_nco_callsign ?? '',
+              backup_nco: sanitizedData.backup_nco ?? null,
+              backup_nco_callsign: sanitizedData.backup_nco_callsign ?? null,
+              net_type: sanitizedData.net_type ?? '', // or throw if missing
+              schedule: sanitizedData.schedule ?? '', // or throw if missing
+              time: sanitizedData.time ?? '', // or throw if missing
+              time_zone: sanitizedData.time_zone ?? '', // or throw if missing
+              repeaters: sanitizedData.repeaters as unknown as Json,
+              net_config_type: sanitizedData.net_config_type ?? '', // or throw if missing
+              frequency: sanitizedData.frequency ?? null,
+              band: sanitizedData.band ?? null,
+              mode: sanitizedData.mode ?? null,
             };
 
-            result = await supabase.from('nets').insert(insertPayload as Database['public']['Tables']['nets']['Insert']).select('id').single();
+            result = await supabase.from('nets').insert([insertPayload]).select('id').single();
         }
 
         if (result.error) throw result.error;
@@ -197,7 +301,7 @@ const App: React.FC = () => {
         console.error("Error saving NET:", error);
         alert(`Failed to save NET: ${error.message}`);
     }
-  }, [refreshAllData, profile]);
+  }, [refreshAllData, profile, setView]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
     if (window.confirm('Are you sure you want to delete this NET and all its sessions? This cannot be undone.')) {
@@ -211,7 +315,7 @@ const App: React.FC = () => {
              alert(`Failed to delete NET: ${error.message}`);
         }
     }
-  }, [refreshAllData]);
+  }, [refreshAllData, setView]);
 
   const handleStartSessionRequest = useCallback((netId: string) => {
     const netToStart = nets.find(n => n.id === netId);
@@ -228,19 +332,19 @@ const App: React.FC = () => {
           backup_nco_callsign: overrides.backup_nco_callsign || net.backup_nco_callsign,
         };
 
-        const { data, error } = await supabase.from('sessions').insert(payload).select().single();
+        const { data, error } = await supabase.from('sessions').insert([payload]).select().single();
         
         if (error) throw error;
         if (!data) throw new Error("Failed to create session.");
         
         await refreshAllData();
         setStartingNet(null);
-        setView({ type: 'session', sessionId: (data as any).id });
+        setView({ type: 'session', sessionId: (data as unknown as NetSession).id });
     } catch (error: any) {
         console.error("Error starting session:", error);
         alert(`Failed to start session: ${error.message}`);
     }
-  }, [refreshAllData]);
+  }, [refreshAllData, setView]);
 
   const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
     const endedTime = new Date().toISOString();
@@ -251,13 +355,12 @@ const App: React.FC = () => {
         s.id === sessionId ? { ...s, end_time: endedTime } : s
       )
     );
-    // If the current view is the session screen, navigate away.
     if (view.type === 'session' && view.sessionId === sessionId) {
         setView({ type: 'netDetail', netId });
     }
 
     try {
-      const updatePayload = { end_time: endedTime };
+      const updatePayload: Database['public']['Tables']['sessions']['Update'] = { end_time: endedTime };
       const { error } = await supabase
         .from('sessions')
         .update(updatePayload)
@@ -273,7 +376,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error("Error ending session:", error);
     }
-  }, [refreshAllData, sessions, view.type]);
+  }, [refreshAllData, sessions, view.type, setView]);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     if (window.confirm('Are you sure you want to permanently delete this session and its log?')) {
@@ -301,12 +404,50 @@ const App: React.FC = () => {
 
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => {
     try {
-        const payload: Database['public']['Tables']['check_ins']['Insert'] = { ...checkInData, session_id: sessionId };
-        const { error } = await supabase.from('check_ins').insert(payload);
-        if (error) throw error;
+        const { data: newCheckInData, error: checkInError } = await supabase
+            .from('check_ins')
+            .insert([{ ...checkInData, session_id: sessionId }])
+            .select()
+            .single();
+            
+        if (checkInError || !newCheckInData) throw checkInError || new Error("Failed to create check-in");
+        
+        const newCheckIn = newCheckInData as unknown as CheckIn;
+
+        const callSign = newCheckIn.call_sign;
+        const { data: allUserCheckInsData, error: allCheckInsError } = await supabase.from('check_ins').select('timestamp').eq('call_sign', callSign);
+        if (allCheckInsError) throw allCheckInsError;
+        const allUserCheckIns = (allUserCheckInsData as unknown as Pick<CheckIn, 'timestamp'>[]) || [];
+
+        const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
+        if (awardsError) throw awardsError;
+        const existingAwards = (existingAwardsData as unknown as Pick<AwardedBadge, 'badge_id'>[]) || [];
+        
+        const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
+        const newCheckInTime = new Date(newCheckIn.timestamp);
+        
+        const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
+        for (const badge of BADGE_DEFINITIONS) {
+            if (!awardedBadgeIds.has(badge.id) && badge.isEarned(allUserCheckIns, newCheckInTime)) {
+                badgesToAward.push({
+                    call_sign: callSign,
+                    badge_id: badge.id,
+                    session_id: sessionId,
+                });
+            }
+        }
+        
+        if (badgesToAward.length > 0) {
+            const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
+            if (newBadgeError) throw newBadgeError;
+            
+            const badgeNames = badgesToAward.map(b => BADGE_DEFINITIONS.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
+            alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
+        }
+
         await refreshAllData();
     } catch (error: any) {
-        console.error("Error adding check-in:", error);
+        console.error("Error adding check-in and awarding badges:", error);
         alert(`Failed to add check-in: ${error.message}`);
     }
   }, [refreshAllData]);
@@ -350,6 +491,8 @@ const App: React.FC = () => {
           return <RegisterScreen onSetView={setView} />;
       case 'pendingApproval':
           return <PendingApprovalScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
+      case 'about':
+          return <AboutScreen onBack={goBack} />;
       case 'home': {
         const activeSessions = sessions.filter(s => s.end_time === null);
         return (
@@ -387,7 +530,7 @@ const App: React.FC = () => {
           <NetEditorScreen
             initialNet={netToEdit}
             onSave={handleSaveNet}
-            onCancel={() => view.netId ? setView({ type: 'netDetail', netId: view.netId }) : setView({ type: 'manageNets' })}
+            onCancel={goBack}
           />
         );
       }
@@ -406,7 +549,7 @@ const App: React.FC = () => {
                 onEditNet={() => setView({ type: 'netEditor', netId: view.netId })}
                 onDeleteNet={() => handleDeleteNet(view.netId)}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
-                onBack={() => profile ? setView({ type: 'manageNets' }) : setView({ type: 'home' })}
+                onBack={goBack}
                 onDeleteSession={handleDeleteSession}
             />
         );
@@ -422,13 +565,15 @@ const App: React.FC = () => {
             session={sessionData}
             net={net}
             checkIns={sessionCheckIns}
+            awardedBadges={awardedBadges}
             profile={profile}
             onEndSession={handleEndSession}
             onAddCheckIn={handleAddCheckIn}
             onEditCheckIn={handleEditCheckIn}
             onDeleteCheckIn={handleDeleteCheckIn}
-            onBack={() => setView({ type: 'netDetail', netId: net.id })}
+            onBack={goBack}
             onUpdateSessionNotes={handleUpdateSessionNotes}
+            onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
           />
         );
       }
@@ -436,7 +581,20 @@ const App: React.FC = () => {
         if (profile?.role !== 'admin') {
             return <div className="text-center py-20">Access Denied.</div>;
         }
-        return <AdminApprovalScreen />;
+        return <AdminApprovalScreen onSetView={setView}/>;
+      }
+      case 'callsignProfile': {
+        return (
+            <CallsignProfileScreen
+                callsign={view.callsign}
+                allNets={nets}
+                allSessions={sessions}
+                allCheckIns={checkIns}
+                awardedBadges={awardedBadges}
+                onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
+                onBack={goBack}
+            />
+        )
       }
       default:
         setView({ type: 'home' });
@@ -458,12 +616,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-light-bg dark:bg-dark-900 text-light-text dark:text-dark-text">
       <Header profile={profile} onSetView={setView} />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8">
-        {/*
-          Only show the main loading screen on initial load.
-          Subsequent background loads (e.g., on tab focus) will not unmount the entire view,
-          preserving component state like form inputs.
-        */}
-        {loading && !session ? (
+        {loading && !profile && !session ? (
             <div className="text-center py-20 text-dark-text-secondary">Loading...</div>
         ) : (
             renderContent()

@@ -9,6 +9,72 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      awarded_badges: {
+        Row: {
+          id: string;
+          call_sign: string;
+          badge_id: string;
+          awarded_at: string;
+          session_id: string;
+        };
+        Insert: {
+          id?: string;
+          call_sign: string;
+          badge_id: string;
+          awarded_at?: string;
+          session_id: string;
+        };
+        Update: {
+          id?: string;
+          call_sign?: string;
+          badge_id?: string;
+          awarded_at?: string;
+          session_id?: string;
+        };
+      };
+      badges: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          icon: string;
+          color_classes: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          description: string;
+          icon: string;
+          color_classes: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          icon?: string;
+          color_classes?: string;
+        };
+      };
+      callsigns: {
+        Row: {
+          callsign: string;
+          first_name: string | null;
+          last_name: string | null;
+          license_id: number;
+        };
+        Insert: {
+          callsign: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          license_id: number;
+        };
+        Update: {
+          callsign?: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          license_id?: number;
+        };
+      };
       check_ins: {
         Row: {
           id: string;
@@ -40,14 +106,6 @@ export interface Database {
           notes?: string | null;
           repeater_id?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "check_ins_session_id_fkey"
-            columns: ["session_id"]
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          }
-        ];
       };
       nets: {
         Row: {
@@ -95,6 +153,7 @@ export interface Database {
         Update: {
           id?: string;
           created_at?: string;
+          created_by?: string;
           name?: string;
           description?: string | null;
           website_url?: string | null;
@@ -112,14 +171,6 @@ export interface Database {
           band?: string | null;
           mode?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "nets_created_by_fkey"
-            columns: ["created_by"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ];
       };
       profiles: {
         Row: {
@@ -149,14 +200,6 @@ export interface Database {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ];
       };
       sessions: {
         Row: {
@@ -195,35 +238,6 @@ export interface Database {
           backup_nco_callsign?: string | null;
           notes?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "sessions_net_id_fkey"
-            columns: ["net_id"]
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
-          }
-        ];
-      };
-      callsigns: {
-        Row: {
-          license_id: string;
-          callsign: string;
-          last_name: string;
-          first_name: string;
-        };
-        Insert: {
-          license_id: string;
-          callsign: string;
-          last_name: string;
-          first_name: string;
-        };
-        Update: {
-          license_id?: string;
-          callsign?: string;
-          last_name?: string;
-          first_name?: string;
-        };
-        Relationships: [];
       };
     };
     Views: {

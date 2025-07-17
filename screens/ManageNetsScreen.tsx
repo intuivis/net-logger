@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Net, NetSession, Profile } from '../types';
 import { NetCard } from '../components/NetCard';
@@ -27,14 +28,14 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
   const activeSessionNetIds = new Set(sessions.filter(s => s.end_time === null).map(s => s.net_id));
   
   // Admins and approved NCOs can create nets.
-  const canCreateNet = profile?.role === 'admin' || profile?.role === 'nco';
+  const canCreateNet = profile?.role === 'admin' || profile?.is_approved;
 
   const AddNetButton = () => (
      <button
         onClick={onAddNet}
         disabled={!canCreateNet}
         className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-dark-900 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-        title="Create a new NET"
+        title={canCreateNet ? "Create a new NET" : "Your account must be approved to create a NET."}
       >
         <Icon className="text-xl">add</Icon>
         <span>New NET</span>
@@ -46,8 +47,11 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {profile?.role === 'admin' ? 'Manage NETs' : 'My NETs'}
+            {profile?.role === 'admin' ? 'Manage All NETs' : 'My NETs'}
           </h1>
+          <p className="text-dark-text-secondary mt-1">
+            {profile?.role === 'admin' ? 'As an admin, you can manage all configured NETs.' : 'Create, edit, and start sessions for the NETs you manage.'}
+          </p>
         </div>
         <AddNetButton />
       </div>

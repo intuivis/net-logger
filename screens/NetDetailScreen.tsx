@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater } from '../types';
 import { formatTime, formatRepeaterCondensed } from '../lib/time';
 import { Icon } from '../components/Icon';
+import { NetTypeBadge } from '../components/NetTypeBadge';
 
 interface NetDetailScreenProps {
     net: Net;
@@ -79,31 +80,8 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
         }
     };
 
-    const renderConfigBadge = () => {
-        switch (net.net_config_type) {
-            case NetConfigType.LINKED_REPEATER:
-                return (
-                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-300">
-                        <Icon className="text-base">link</Icon>
-                        <span>Linked System</span>
-                    </div>
-                );
-            case NetConfigType.SINGLE_REPEATER:
-                 return (
-                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-full bg-purple-500/20 text-purple-300">
-                        <Icon className="text-base">cell_tower</Icon>
-                        <span>Single Repeater</span>
-                    </div>
-                );
-            case NetConfigType.GROUP:
-                 return (
-                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-full bg-teal-500/20 text-teal-300">
-                        <Icon className="text-base">wifi_tethering</Icon>
-                        <span>Group/Simplex</span>
-                    </div>
-                );
-            default: return null;
-        }
+    const renderTypeBadge = () => {
+        return <NetTypeBadge type={net.net_type} size="base" />;
     }
 
     const renderTechnicalDetails = () => {
@@ -169,7 +147,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                     <div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
                             <h1 className="text-3xl font-bold text-dark-text">{net.name}</h1>
-                            {renderConfigBadge()}
+                            {renderTypeBadge()}
                         </div>
                          <div className="flex items-center gap-4 mt-2">
                             <p className="text-dark-text-secondary font-bold text-dark-text">

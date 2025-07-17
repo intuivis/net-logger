@@ -39,13 +39,19 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                     {/* Logo and Title */}
                     <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-2 group">
                     <LogoSignal className="w-8 h-8 text-white" />
-                        <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text group-hover:text-brand-secondary transition-colors">
+                        <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text transition-colors">
                             NetControl <span className="text-xs font-light text-light uppercase">Beta</span>
                         </h1>
                     </button>
                     
                     {/* --- Desktop Navigation --- */}
                     <nav className="hidden md:flex items-center gap-4">
+                        <button
+                            onClick={() => handleNavClick({ type: 'about' })}
+                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
+                        >
+                            About
+                        </button>
                         {profile ? (
                             <>
                                 {profile.role === 'admin' && (
@@ -111,6 +117,12 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
             {isMenuOpen && (
                 <nav className="md:hidden border-t border-dark-700" id="mobile-menu">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                       <button
+                            onClick={() => handleNavClick({ type: 'about' })}
+                            className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
+                        >
+                            About
+                        </button>
                        {profile ? (
                             <>
                                 {profile.role === 'admin' && (

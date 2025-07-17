@@ -1,7 +1,9 @@
+
 import React from 'react';
-import { Net, Profile, NetConfigType } from '../types';
+import { Net, Profile } from '../types';
 import { formatTime } from '../lib/time';
 import { Icon } from './Icon';
+import { NetTypeBadge } from './NetTypeBadge';
 
 interface NetCardProps {
   net: Net;
@@ -14,31 +16,6 @@ interface NetCardProps {
   onDeleteNet?: () => void;
 }
 
-const NetConfigBadge: React.FC<{type: NetConfigType}> = ({ type }) => {
-    switch (type) {
-        case NetConfigType.LINKED_REPEATER:
-            return (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-300" title="Linked System">
-                    <Icon className="text-sm">link</Icon>
-                </div>
-            )
-        case NetConfigType.SINGLE_REPEATER:
-             return (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-500/20 text-purple-300" title="Single Repeater">
-                    <Icon className="text-sm">cell_tower</Icon>
-                </div>
-            )
-        case NetConfigType.GROUP:
-             return (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-500/20 text-teal-300" title="Group/Simplex">
-                    <Icon className="text-sm">wifi_tethering</Icon>
-                </div>
-            )
-        default:
-            return null;
-    }
-}
-
 export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, profile, onStartSession, onEditNet, onDeleteNet, onViewDetails }) => {
   const canManage = profile && (profile.role === 'admin' || net.created_by === profile.id);
 
@@ -48,7 +25,7 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, p
         <div className="flex justify-between items-start">
             <h2 className="text-xl font-bold text-light-text dark:text-dark-text mb-1">{net.name}</h2>
             <div className="flex items-center gap-2">
-                <NetConfigBadge type={net.net_config_type} />
+                <NetTypeBadge type={net.net_type} />
                 {isActive && (
                     <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold rounded-full bg-green-500/20 text-green-300">
                         <span className="relative flex h-2 w-2">
@@ -62,16 +39,15 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, p
         </div>
         
         <div className="mb-4">
-            <p className="text-sm text-gray-500 dark:text-dark-text-secondary">{net.net_type}</p>
             {net.description && (
-                <p className="text-sm text-gray-400 mt-1 truncate" title={net.description}>
+                <p className="text-sm text-gray-400 mt-2 truncate" title={net.description}>
                     {net.description}
                 </p>
             )}
         </div>
         
         <div className="text-sm space-y-2 text-gray-600 dark:text-dark-text-secondary">
-            <p><span className="font-semibold text-light-text dark:text-dark-text">Net Control:</span> {net.primary_nco} ({net.primary_nco_callsign})</p>
+            <p><span className="font-semibold text-light-text dark:text-dark-text">NCO:</span> {net.primary_nco} ({net.primary_nco_callsign})</p>
             <p><span className="font-semibold text-light-text dark:text-dark-text">Schedule:</span> {net.schedule} at {formatTime(net.time)} {net.time_zone}</p>
             {typeof sessionCount === 'number' && <p><span className="font-semibold text-light-text dark:text-dark-text">Sessions:</span> {sessionCount}</p>}
         </div>

@@ -1,14 +1,17 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
-import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
+import { supabase } from '../lib/supabaseClient';
+import { Badge } from '../components/Badge';
+import { getBadgeById } from '../lib/badges';
 
 interface SessionScreenProps {
   session: NetSession;
   net: Net;
   checkIns: CheckIn[];
+  awardedBadges: AwardedBadge[];
   profile: Profile | null;
   onEndSession: (sessionId: string, netId: string) => void;
   onAddCheckIn: (sessionId: string, checkIn: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => void;
@@ -16,6 +19,7 @@ interface SessionScreenProps {
   onDeleteCheckIn: (checkInId: string) => void;
   onBack: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => Promise<void>;
+  onViewCallsignProfile: (callsign: string) => void;
 }
 
 const FormInput = ({ label, id, ...props }: {label: string, id: string} & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -81,8 +85,10 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
             .order('license_id', { ascending: false })
             .limit(1);
 
-        if (data && data.length > 0 && !error) {
-            setName(`${data[0].first_name ?? ''} ${data[0].last_name ?? ''}`.trim());
+        const typedData = data as ({ first_name: string | null; last_name: string | null; }[] | null);
+
+        if (typedData && typedData.length > 0 && !error) {
+            setName(`${typedData[0].first_name ?? ''} ${typedData[0].last_name ?? ''}`.trim());
         }
         setIsLookingUp(false);
         };
@@ -150,7 +156,7 @@ const handleSubmit = (e: React.FormEvent) => {
     );
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, profile, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes }) => {
+const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, awardedBadges, profile, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
   const isActive = session.end_time === null;
   const canManage = profile && (profile.role === 'admin' || net.created_by === profile.id);
   
@@ -255,8 +261,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                     <tr>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
                         {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
@@ -276,12 +282,26 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, p
                         sortedCheckIns.map((checkIn, index) => {
                             const repeater = showRepeaterColumn ? net.repeaters.find(r => r.id === checkIn.repeater_id) : null;
                             const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
+                            const newlyAwarded = awardedBadges.filter(ab => ab.session_id === session.id && ab.call_sign === checkIn.call_sign);
+
                             return (
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">
+                                        <div className="flex flex-col gap-1.5">
+                                            <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
+                                                {checkIn.call_sign}
+                                            </button>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {newlyAwarded.map(award => {
+                                                    const badgeDef = getBadgeById(award.badge_id);
+                                                    return badgeDef ? <Badge key={award.id} badge={badgeDef} /> : null;
+                                                })}
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">{checkIn.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">{checkIn.call_sign}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
                                     {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>

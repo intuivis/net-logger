@@ -7,6 +7,7 @@ export enum NetType {
   TRAFFIC = "Traffic",
   EMERGENCY = "Emergency",
   ARES_RACES = "ARES/RACES",
+  SPECIAL_EVENT = "Special Event",
 }
 
 export enum NetConfigType {
@@ -72,6 +73,14 @@ export type NetSession = Database['public']['Tables']['sessions']['Row'];
 
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 
+export type Badge = Database['public']['Tables']['badges']['Row'];
+
+export type AwardedBadge = Database['public']['Tables']['awarded_badges']['Row'];
+
+export interface BadgeDefinition extends Badge {
+  isEarned: (checkIns: Pick<CheckIn, 'timestamp'>[], checkInTime: Date) => boolean;
+}
+
 export type View =
   | { type: 'home' }
   | { type: 'login' }
@@ -81,4 +90,6 @@ export type View =
   | { type: 'manageNets' }
   | { type: 'netEditor'; netId?: string }
   | { type: 'netDetail'; netId: string }
-  | { type: 'session'; sessionId: string };
+  | { type: 'session'; sessionId: string }
+  | { type: 'callsignProfile'; callsign: string }
+  | { type: 'about' };

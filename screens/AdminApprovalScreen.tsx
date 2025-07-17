@@ -1,10 +1,16 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Profile } from '../types';
+import { Profile, View } from '../types';
 import { Database } from '../database.types';
+import { Icon } from '../components/Icon';
 
-const AdminApprovalScreen: React.FC = () => {
+interface AdminApprovalScreenProps {
+    onSetView: (view: View) => void;
+}
+
+const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) => {
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -21,7 +27,7 @@ const AdminApprovalScreen: React.FC = () => {
             console.error(error);
             setError('Failed to load user profiles.');
         } else {
-            setProfiles((data as any[]) || []);
+            setProfiles((data as Profile[]) || []);
         }
         setLoading(false);
     }, []);
@@ -45,6 +51,12 @@ const AdminApprovalScreen: React.FC = () => {
         }
         setUpdatingProfileId(null);
     };
+
+    const handleViewProfile = (callsign: string | null) => {
+        if(callsign) {
+            onSetView({ type: 'callsignProfile', callsign });
+        }
+    }
     
     if (loading) {
         return <div className="text-center py-20 text-dark-text-secondary">Loading Users...</div>;
@@ -73,15 +85,25 @@ const AdminApprovalScreen: React.FC = () => {
                         <tbody className="divide-y divide-dark-700">
                              {profiles.filter(p => p.role !== 'admin').map(profile => (
                                 <tr key={profile.id} className="hover:bg-dark-700/30">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text">{profile.email}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{profile.full_name || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{profile.call_sign || '-'}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <td className="px-6 py-4 whitespace-nowrap text-md font-medium text-dark-text">{profile.email}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-md text-dark-text-secondary">{profile.full_name || '-'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-md text-dark-text">
+                                        <button
+                                          onClick={() => handleViewProfile(profile.call_sign)}
+                                          className="flex items-center gap-1.5 hover:text-brand-accent transition-colors disabled:text-dark-text-secondary disabled:cursor-not-allowed"
+                                          disabled={!profile.call_sign}
+                                          title={profile.call_sign ? `View profile for ${profile.call_sign}`: ''}
+                                        >
+                                            <span>{profile.call_sign || '-'}</span>
+                                            {profile.call_sign && <Icon className="text-sm">person</Icon>}
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-md">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${profile.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
                                             {profile.is_approved ? 'Approved' : 'Pending'}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-md font-medium">
                                         <button 
                                             onClick={() => handleApprovalToggle(profile)}
                                             disabled={updatingProfileId === profile.id}
