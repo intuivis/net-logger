@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -69,12 +70,15 @@ const App: React.FC = () => {
         if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
 
-        const rawNets = (netsRes.data as unknown as Database['public']['Tables']['nets']['Row'][]) || [];
+        const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
         
-        const typedNets: Net[] = rawNets.map((n: Database['public']['Tables']['nets']['Row']): Net => {
+        const typedNets: Net[] = rawNets.map((n): Net => {
             let migratedRepeaters: Repeater[] = [];
             
             if (Array.isArray(n.repeaters)) {
+                // The `any` cast here is a deliberate choice for data migration. It allows us
+                // to safely inspect and convert legacy data structures that may not match the current
+                // 'Repeater' type, preventing runtime errors during the transition.
                 const repeatersArray = n.repeaters as any[];
                 if (repeatersArray.length > 0 && repeatersArray[0] && repeatersArray[0].frequency !== undefined) {
                     // This looks like the old format that needs migration
@@ -109,9 +113,9 @@ const App: React.FC = () => {
         });
         
         setNets(typedNets);
-        setSessions((sessionsRes.data as unknown as NetSession[]) || []);
-        setCheckIns((checkInsRes.data as unknown as CheckIn[]) || []);
-        setAwardedBadges((awardedBadgesRes.data as unknown as AwardedBadge[]) || []);
+        setSessions((sessionsRes.data as NetSession[]) || []);
+        setCheckIns((checkInsRes.data as CheckIn[]) || []);
+        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
     } catch (error: any) {
         console.error("Error refreshing application data:", error);
         alert(`Could not load application data. Please check your connection and refresh the page.\n\nDetails: ${error.message}`);
@@ -130,8 +134,8 @@ const App: React.FC = () => {
         if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
 
-        const allCheckIns = (checkInsRes.data as unknown as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
-        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as unknown as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
+        const allCheckIns = (checkInsRes.data as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
+        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
 
         const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
         for (const checkIn of allCheckIns) {
@@ -200,7 +204,7 @@ const App: React.FC = () => {
                     await supabase.auth.signOut();
                     return;
                 } else {
-                    userProfile = profileData as unknown as Profile;
+                    userProfile = profileData;
                 }
             }
 
@@ -260,32 +264,35 @@ const App: React.FC = () => {
 
         if (id) {
             const { created_by, ...finalUpdateData } = sanitizedData;
-            const updatePayload = {
-                ...finalUpdateData,
-                repeaters: finalUpdateData.repeaters as unknown as Json,
+            const updatePayload: Database['public']['Tables']['nets']['Update'] = {
+              ...finalUpdateData,
+              repeaters: finalUpdateData.repeaters ? (finalUpdateData.repeaters as unknown as Json) : [],
             };
             result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
+            const { repeaters, ...restData } = sanitizedData;
+            // Explicitly build the payload to satisfy the Insert type, using non-null assertions
+            // for fields validated by the form.
             const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
-              created_by: profile.id,
-              name: sanitizedData.name ?? '', // or throw if missing
-              description: sanitizedData.description ?? null,
-              website_url: sanitizedData.website_url ?? null,
-              primary_nco: sanitizedData.primary_nco ?? '',
-              primary_nco_callsign: sanitizedData.primary_nco_callsign ?? '',
-              backup_nco: sanitizedData.backup_nco ?? null,
-              backup_nco_callsign: sanitizedData.backup_nco_callsign ?? null,
-              net_type: sanitizedData.net_type ?? '', // or throw if missing
-              schedule: sanitizedData.schedule ?? '', // or throw if missing
-              time: sanitizedData.time ?? '', // or throw if missing
-              time_zone: sanitizedData.time_zone ?? '', // or throw if missing
-              repeaters: sanitizedData.repeaters as unknown as Json,
-              net_config_type: sanitizedData.net_config_type ?? '', // or throw if missing
-              frequency: sanitizedData.frequency ?? null,
-              band: sanitizedData.band ?? null,
-              mode: sanitizedData.mode ?? null,
+                name: restData.name!,
+                created_by: profile.id,
+                description: restData.description ?? null,
+                website_url: restData.website_url ?? null,
+                primary_nco: restData.primary_nco!,
+                primary_nco_callsign: restData.primary_nco_callsign!,
+                backup_nco: restData.backup_nco ?? null,
+                backup_nco_callsign: restData.backup_nco_callsign ?? null,
+                net_type: restData.net_type!,
+                schedule: restData.schedule!,
+                time: restData.time!,
+                time_zone: restData.time_zone!,
+                repeaters: (repeaters ?? []) as unknown as Json,
+                net_config_type: restData.net_config_type!,
+                frequency: restData.frequency ?? null,
+                band: restData.band ?? null,
+                mode: restData.mode ?? null,
             };
 
             result = await supabase.from('nets').insert([insertPayload]).select('id').single();
@@ -339,7 +346,7 @@ const App: React.FC = () => {
         
         await refreshAllData();
         setStartingNet(null);
-        setView({ type: 'session', sessionId: (data as unknown as NetSession).id });
+        setView({ type: 'session', sessionId: data.id });
     } catch (error: any) {
         console.error("Error starting session:", error);
         alert(`Failed to start session: ${error.message}`);
@@ -402,7 +409,7 @@ const App: React.FC = () => {
     }
   }, [refreshAllData]);
 
-  const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => {
+  const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     try {
         const { data: newCheckInData, error: checkInError } = await supabase
             .from('check_ins')
@@ -412,16 +419,16 @@ const App: React.FC = () => {
             
         if (checkInError || !newCheckInData) throw checkInError || new Error("Failed to create check-in");
         
-        const newCheckIn = newCheckInData as unknown as CheckIn;
+        const newCheckIn = newCheckInData as CheckIn;
 
         const callSign = newCheckIn.call_sign;
         const { data: allUserCheckInsData, error: allCheckInsError } = await supabase.from('check_ins').select('timestamp').eq('call_sign', callSign);
         if (allCheckInsError) throw allCheckInsError;
-        const allUserCheckIns = (allUserCheckInsData as unknown as Pick<CheckIn, 'timestamp'>[]) || [];
+        const allUserCheckIns = (allUserCheckInsData as Pick<CheckIn, 'timestamp'>[]) || [];
 
         const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
         if (awardsError) throw awardsError;
-        const existingAwards = (existingAwardsData as unknown as Pick<AwardedBadge, 'badge_id'>[]) || [];
+        const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
         
         const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
         const newCheckInTime = new Date(newCheckIn.timestamp);
@@ -592,6 +599,7 @@ const App: React.FC = () => {
                 allCheckIns={checkIns}
                 awardedBadges={awardedBadges}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
+                onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
                 onBack={goBack}
             />
         )

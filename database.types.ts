@@ -144,7 +144,7 @@ export interface Database {
           schedule: string;
           time: string;
           time_zone: string;
-          repeaters?: Json;
+          repeaters: Json;
           net_config_type: string;
           frequency?: string | null;
           band?: string | null;

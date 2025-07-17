@@ -3,9 +3,11 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
 import { Badge } from '../components/Badge';
 import { getBadgeById } from '../lib/badges';
+import { Database } from '../database.types';
+import { NCOBadge } from '../components/NCOBadge';
 
 interface SessionScreenProps {
   session: NetSession;
@@ -14,7 +16,7 @@ interface SessionScreenProps {
   awardedBadges: AwardedBadge[];
   profile: Profile | null;
   onEndSession: (sessionId: string, netId: string) => void;
-  onAddCheckIn: (sessionId: string, checkIn: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => void;
+  onAddCheckIn: (sessionId: string, checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
   onDeleteCheckIn: (checkInId: string) => void;
   onBack: () => void;
@@ -50,7 +52,7 @@ const FormSelect = ({ label, id, children, ...props }: {label: string, id: strin
 
 const REPEATER_STORAGE_KEY = (net: Net) => `selectedRepeater_${net.id}`;
 
-const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 'timestamp'| 'session_id'>) => void }> = ({ net, onAdd }) => {
+const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void }> = ({ net, onAdd }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
@@ -102,11 +104,11 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<CheckIn, 'id' | 't
 const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!callSign) return;
-        const checkInData: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'> = {
+        const checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'> = {
             call_sign: callSign,
-            name: name,
-            location: location,
-            notes: notes,
+            name: name || null,
+            location: location || null,
+            notes: notes || null,
             repeater_id: (showRepeaterSelect && repeaterId) ? repeaterId : null
         };
         onAdd(checkInData);
@@ -177,7 +179,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
     return sorted; // Oldest first for logs
   }, [checkIns, isActive]);
 
-  const handleAdd = useCallback((checkIn: Omit<CheckIn, 'id' | 'timestamp' | 'session_id'>) => {
+  const handleAdd = useCallback((checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     onAddCheckIn(session.id, checkIn);
   }, [session.id, onAddCheckIn]);
   
@@ -283,22 +285,22 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
                             const repeater = showRepeaterColumn ? net.repeaters.find(r => r.id === checkIn.repeater_id) : null;
                             const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
                             const newlyAwarded = awardedBadges.filter(ab => ab.session_id === session.id && ab.call_sign === checkIn.call_sign);
+                            const isNCO = checkIn.call_sign === session.primary_nco_callsign || (session.backup_nco_callsign && checkIn.call_sign === session.backup_nco_callsign);
 
                             return (
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-brand-accent">
-                                        <div className="flex flex-col gap-1.5">
+                                    <td className="px-6 py-4 text-sm font-bold text-brand-accent">
+                                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                                             <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
                                                 {checkIn.call_sign}
                                             </button>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {newlyAwarded.map(award => {
-                                                    const badgeDef = getBadgeById(award.badge_id);
-                                                    return badgeDef ? <Badge key={award.id} badge={badgeDef} /> : null;
-                                                })}
-                                            </div>
+                                            {isNCO && <NCOBadge />}
+                                            {newlyAwarded.map(award => {
+                                                const badgeDef = getBadgeById(award.badge_id);
+                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} showLabel={false} /> : null;
+                                            })}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm">{checkIn.name}</td>

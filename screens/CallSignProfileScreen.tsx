@@ -1,9 +1,10 @@
-
-import React, { useMemo } from 'react';
-import { Net, NetSession, CheckIn, AwardedBadge, Repeater } from '../types';
+import React, { useMemo, useState } from 'react';
+import { Net, NetSession, CheckIn, AwardedBadge } from '../types';
 import { Icon } from '../components/Icon';
 import { Badge } from '../components/Badge';
 import { getBadgeById } from '../lib/badges';
+import { NetTypeBadge } from '../components/NetTypeBadge';
+import { formatTime, formatTimeZone } from '../lib/time';
 
 interface CallsignProfileScreenProps {
   callsign: string;
@@ -12,6 +13,7 @@ interface CallsignProfileScreenProps {
   allCheckIns: CheckIn[];
   awardedBadges: AwardedBadge[];
   onViewSession: (sessionId: string) => void;
+  onViewNetDetails: (netId: string) => void;
   onBack: () => void;
 }
 
@@ -34,8 +36,11 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   allCheckIns,
   awardedBadges,
   onViewSession,
+  onViewNetDetails,
   onBack,
 }) => {
+  const [expandedNets, setExpandedNets] = useState<Record<string, boolean>>({});
+
   const operatorCheckIns = useMemo(
     () => allCheckIns
       .filter(ci => ci.call_sign === callsign)
@@ -55,28 +60,40 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   const sessionsById = useMemo(() => new Map(allSessions.map(s => [s.id, s])), [allSessions]);
   const netsById = useMemo(() => new Map(allNets.map(n => [n.id, n])), [allNets]);
 
-  const netParticipation = useMemo(() => {
-    const counts = new Map<string, number>();
-    
-    operatorCheckIns.forEach(checkIn => {
-        const session = sessionsById.get(checkIn.session_id);
-        if (session) {
-            const netId = session.net_id;
-            counts.set(netId, (counts.get(netId) || 0) + 1);
-        }
-    });
+  const detailedNetParticipation = useMemo(() => {
+    const participationMap = new Map<string, { net: Net; sessions: Map<string, CheckIn> }>();
 
-    const participation = Array.from(counts.entries()).map(([netId, count]) => {
-        const net = netsById.get(netId);
-        return {
-            net,
-            count
-        };
-    }).filter((item): item is { net: Net, count: number } => item.net !== undefined);
-    
-    return participation.sort((a, b) => b.count - a.count);
+    for (const checkIn of operatorCheckIns) {
+      const session = sessionsById.get(checkIn.session_id);
+      if (!session) continue;
 
+      const net = netsById.get(session.net_id);
+      if (!net) continue;
+
+      if (!participationMap.has(net.id)) {
+        participationMap.set(net.id, {
+          net: net,
+          sessions: new Map<string, CheckIn>()
+        });
+      }
+      participationMap.get(net.id)!.sessions.set(session.id, checkIn);
+    }
+
+    const result = Array.from(participationMap.values()).map(data => ({
+      net: data.net,
+      checkInCount: data.sessions.size,
+      sessions: Array.from(data.sessions.entries()).map(([sessionId, checkIn]) => ({
+        session: sessionsById.get(sessionId)!,
+        checkIn: checkIn
+      })).sort((a, b) => new Date(b.session.start_time).getTime() - new Date(a.session.start_time).getTime())
+    }));
+    
+    return result.sort((a, b) => b.checkInCount - a.checkInCount);
   }, [operatorCheckIns, sessionsById, netsById]);
+
+  const toggleNetExpansion = (netId: string) => {
+    setExpandedNets(prev => ({ ...prev, [netId]: !prev[netId] }));
+  };
 
   const firstCheckIn = operatorCheckIns[operatorCheckIns.length - 1];
   const lastCheckIn = operatorCheckIns[0];
@@ -132,56 +149,87 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
         )}
       </div>
 
-      <div className="bg-dark-800 shadow-lg rounded-lg p-6">
-        <h3 className="text-xl font-bold text-dark-text mb-4">NET Participation ({netParticipation.length})</h3>
-        {netParticipation.length > 0 ? (
-          <ul className="space-y-3">
-            {netParticipation.map(({ net, count }) => (
-              <li key={net.id} className="flex justify-between items-center bg-dark-700/50 p-3 rounded-md">
-                <span className="text-dark-text font-semibold">{net.name}</span>
-                <span className="text-sm text-dark-text-secondary font-mono bg-dark-900/50 px-2 py-0.5 rounded">{count} check-in{count > 1 ? 's' : ''}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-dark-text-secondary">No NET-specific check-ins logged.</p>
-        )}
-      </div>
-
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-6 border-b border-dark-700">
-          <h3 className="text-xl font-bold text-dark-text">Check-in History</h3>
+            <h3 className="text-xl font-bold text-dark-text">Check-in History by NET</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-dark-700">
-            <thead className="bg-dark-700/50">
-              <tr>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Date & Time</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">NET Name</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">NCO</th>
-                <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dark-700">
-              {operatorCheckIns.map(checkIn => {
-                const session = sessionsById.get(checkIn.session_id);
-                const net = session ? netsById.get(session.net_id) : null;
-                return (
-                  <tr key={checkIn.id} className="hover:bg-dark-700/30">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-dark-text">
-                      <button onClick={() => onViewSession(checkIn.session_id)} className="hover:underline" title="View Session Log">
-                        {net?.name || 'Unknown Net'}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{session?.primary_nco_callsign || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary truncate max-w-xs" title={checkIn.notes || ''}>{checkIn.notes || '-'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {detailedNetParticipation.length > 0 ? (
+            <ul className="divide-y divide-dark-700">
+                {detailedNetParticipation.map(({ net, checkInCount, sessions }) => (
+                    <li key={net.id}>
+                        <div className="p-6 hover:bg-dark-700/30 transition-colors">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="flex-grow space-y-2">
+                                    <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+                                        <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline">
+                                            {net.name}
+                                        </button>
+                                        <NetTypeBadge type={net.net_type} />
+                                    </div>
+                                    <div className="flex items-center gap-6 text-sm text-dark-text-secondary">
+                                        <span>
+                                            <Icon className="text-base mr-1.5 align-middle">calendar_month</Icon>
+                                            {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                        </span>
+                                        <span>
+                                            <Icon className="text-base mr-1.5 align-middle">tag</Icon>
+                                            {checkInCount} check-in{checkInCount > 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    className="flex-shrink-0 p-2 rounded-full hover:bg-dark-600"
+                                    onClick={() => toggleNetExpansion(net.id)}
+                                    aria-expanded={expandedNets[net.id]}
+                                    aria-label={`Show sessions for ${net.name}`}
+                                >
+                                    <Icon className="text-2xl text-dark-text-secondary transition-transform" style={{ transform: expandedNets[net.id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
+                                </button>
+                            </div>
+                        </div>
+                        {expandedNets[net.id] && (
+                            <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
+                                <div className="mt-4 flow-root">
+                                    <div className="-mx-6 -my-2">
+                                        <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                                            <div className="divide-y divide-dark-600">
+                                                {sessions.map(({ session, checkIn }) => (
+                                                    <div key={session.id} className="py-4 grid grid-cols-1 sm:grid-cols-5 gap-4">
+                                                        <div className="sm:col-span-2">
+                                                            <button 
+                                                                onClick={() => onViewSession(session.id)} 
+                                                                className="text-sm font-semibold text-dark-text hover:text-brand-accent hover:underline focus:outline-none"
+                                                                title={`View session from ${new Date(session.start_time).toLocaleDateString()}`}
+                                                            >
+                                                                {new Date(checkIn.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                            </button>
+                                                        </div>
+                                                        <div className="sm:col-span-1">
+                                                            <p className="text-sm text-dark-text-secondary">
+                                                                {new Date(checkIn.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                                            </p>
+                                                        </div>
+                                                        <div className="sm:col-span-2">
+                                                            {checkIn.notes ? (
+                                                                <p className="text-sm text-dark-text-secondary italic">"{checkIn.notes}"</p>
+                                                            ) : (
+                                                                <p className="text-sm text-dark-text-secondary/50">-</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        ) : (
+          <p className="text-dark-text-secondary text-center py-10">No check-in history found.</p>
+        )}
       </div>
     </div>
   );

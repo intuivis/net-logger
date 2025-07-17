@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Net, NET_CONFIG_TYPE_LABELS } from '../types';
-import { formatTime } from '../lib/time';
+import { formatTime, formatTimeZone } from '../lib/time';
 
 interface NetTableProps {
     nets: Net[];
@@ -21,7 +20,7 @@ export const NetTable: React.FC<NetTableProps> = ({ nets, activeSessionNetIds, o
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Type</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Configuration</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Schedule</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Net Control</th>
+                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Primary NCO</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-700">
@@ -50,7 +49,7 @@ export const NetTable: React.FC<NetTableProps> = ({ nets, activeSessionNetIds, o
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-dark-text">{net.name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{net.net_type}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{NET_CONFIG_TYPE_LABELS[net.net_config_type] || net.net_config_type}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{net.schedule} at {formatTime(net.time)} {net.time_zone}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{net.primary_nco} ({net.primary_nco_callsign})</td>
                             </tr>
                         );

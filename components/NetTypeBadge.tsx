@@ -17,11 +17,11 @@ export const NetTypeBadge: React.FC<NetTypeBadgeProps> = ({ type, size = 'sm' })
 
     const sizeStyles = {
         sm: {
-            container: "px-2 py-0.5 text-xs",
+            container: "px-2.5 py-1 text-xs",
             icon: "text-sm"
         },
         base: {
-            container: "px-2 py-1 text-xs",
+            container: "px-4 py-1.5 text-xs",
             icon: "text-base"
         }
     }

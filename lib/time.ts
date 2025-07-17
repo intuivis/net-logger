@@ -1,4 +1,3 @@
-
 import { Repeater } from "../types";
 
 export const formatTime = (time24: string): string => {
@@ -19,6 +18,21 @@ export const formatTime = (time24: string): string => {
 
   return `${hours12}:${minutesStr} ${ampm}`;
 };
+
+const TIME_ZONE_MAP: Record<string, string> = {
+    "America/New_York": "ET",
+    "America/Chicago": "CT",
+    "America/Denver": "MT",
+    "America/Los_Angeles": "PT",
+    "America/Phoenix": "MST",
+    "Pacific/Honolulu": "HST",
+    "UTC": "UTC",
+};
+
+export const formatTimeZone = (timeZone: string): string => {
+    return TIME_ZONE_MAP[timeZone] || timeZone;
+};
+
 
 export const formatRepeaterCondensed = (repeater: Repeater): string => {
     let mainPart = repeater.name;
