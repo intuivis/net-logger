@@ -1,11 +1,10 @@
 
 import React, { useState, useCallback, useMemo } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
 import { Badge } from '../components/Badge';
-import { getBadgeById } from '../lib/badges';
 import { Database } from '../database.types';
 import { NCOBadge } from '../components/NCOBadge';
 
@@ -13,6 +12,7 @@ interface SessionScreenProps {
   session: NetSession;
   net: Net;
   checkIns: CheckIn[];
+  allBadges: BadgeType[];
   awardedBadges: AwardedBadge[];
   profile: Profile | null;
   onEndSession: (sessionId: string, netId: string) => void;
@@ -52,7 +52,7 @@ const FormSelect = ({ label, id, children, ...props }: {label: string, id: strin
 
 const REPEATER_STORAGE_KEY = (net: Net) => `selectedRepeater_${net.id}`;
 
-const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void }> = ({ net, onAdd }) => {
+const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void }> = ({ net, checkIns, onAdd }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
@@ -60,7 +60,6 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<Database['public']
     const [isLookingUp, setIsLookingUp] = useState(false);
     const showRepeaterSelect = net.net_config_type === NetConfigType.LINKED_REPEATER;
 
-    // Load repeaterId from localStorage on mount
     const [repeaterId, setRepeaterId] = useState(() => {
         if (showRepeaterSelect) {
             return localStorage.getItem(REPEATER_STORAGE_KEY(net)) || '';
@@ -68,14 +67,12 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<Database['public']
         return '';
     });
 
-    // Save repeaterId to localStorage whenever it changes
     React.useEffect(() => {
         if (showRepeaterSelect) {
             localStorage.setItem(REPEATER_STORAGE_KEY(net), repeaterId);
         }
     }, [repeaterId, net, showRepeaterSelect]);
 
-    // Look up name when callsign changes
     React.useEffect(() => {
         const lookupName = async () => {
         if (!callSign || callSign.length < 3) return;
@@ -96,27 +93,37 @@ const CheckInForm: React.FC<{ net: Net, onAdd: (checkIn: Omit<Database['public']
         };
 
         lookupName();
-        // Only run when callSign changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [callSign]);
 
 
 const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!callSign) return;
+        const trimmedCallsign = callSign.trim().toUpperCase();
+
+        if (!trimmedCallsign) {
+            alert("Call Sign cannot be empty.");
+            return;
+        }
+
+        if (checkIns.some(ci => ci.call_sign.trim().toUpperCase() === trimmedCallsign)) {
+            alert(`${trimmedCallsign} has already checked into this session.`);
+            return;
+        }
+        
         const checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'> = {
-            call_sign: callSign,
+            call_sign: trimmedCallsign,
             name: name || null,
             location: location || null,
             notes: notes || null,
             repeater_id: (showRepeaterSelect && repeaterId) ? repeaterId : null
         };
+
         onAdd(checkInData);
         setCallSign('');
         setName('');
         setLocation('');
         setNotes('');
-        // Do NOT reset repeaterId here, so it stays selected
         document.getElementById('callSign')?.focus();
     };
 
@@ -158,7 +165,7 @@ const handleSubmit = (e: React.FormEvent) => {
     );
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, awardedBadges, profile, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
+const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, allBadges, awardedBadges, profile, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
   const isActive = session.end_time === null;
   const canManage = profile && (profile.role === 'admin' || net.created_by === profile.id);
   
@@ -174,9 +181,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
   const sortedCheckIns = useMemo(() => {
     const sorted = [...checkIns].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     if (isActive) {
-        return sorted.reverse(); // Newest first for active sessions
+        return sorted.reverse();
     }
-    return sorted; // Oldest first for logs
+    return sorted;
   }, [checkIns, isActive]);
 
   const handleAdd = useCallback((checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
@@ -250,7 +257,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
         </div>
       ) : null }
       
-      {canManage && isActive && <CheckInForm net={net} onAdd={handleAdd} />}
+      {canManage && isActive && <CheckInForm net={net} checkIns={checkIns} onAdd={handleAdd} />}
       
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-dark-700">
@@ -298,8 +305,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
                                             </button>
                                             {isNCO && <NCOBadge />}
                                             {newlyAwarded.map(award => {
-                                                const badgeDef = getBadgeById(award.badge_id);
-                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} showLabel={false} /> : null;
+                                                const badgeDef = allBadges.find(b => b.id === award.badge_id);
+                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} variant="icon" /> : null;
                                             })}
                                         </div>
                                     </td>

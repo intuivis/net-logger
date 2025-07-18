@@ -13,7 +13,7 @@ export const NET_TYPE_OPTIONS: NetType[] = [
 export const NET_TYPE_INFO: Record<NetType, { icon: string, classes: string, description: string }> = {
     [NetType.SOCIAL]: {
         icon: 'groups',
-        classes: 'bg-yellow-500/20 text-yellow-300',
+        classes: 'bg-orange-500/20 text-orange-300',
         description: 'Casual gatherings for operators to chat and connect. A great way to meet new people on the air.',
     },
     [NetType.TECHNICAL]: {
@@ -42,6 +42,26 @@ export const NET_TYPE_INFO: Record<NetType, { icon: string, classes: string, des
         description: 'Nets operating for a limited time to commemorate a special occasion, such as a historical anniversary, a festival, or a contest. These are a fun way to make unique contacts.',
     },
 };
+
+export const BADGE_STYLES: Record<string, { icon: string; color_classes: string; }> = {
+    // Participation
+    first_checkin: { icon: 'star', color_classes: 'bg-yellow-500/20 text-yellow-300' },
+    pathfinder: { icon: 'explore', color_classes: 'bg-lime-500/20 text-lime-300' },
+    explorer: { icon: 'travel_explore', color_classes: 'bg-green-500/20 text-green-300' },
+    trailblazer: { icon: 'flag', color_classes: 'bg-teal-500/20 text-teal-300' },
+    pioneer: { icon: 'emoji_events', color_classes: 'bg-cyan-500/20 text-cyan-300' },
+    // Loyalty
+    bronze_member: { icon: 'verified_user', color_classes: 'bg-amber-700/30 text-amber-500' },
+    silver_member: { icon: 'workspace_premium', color_classes: 'bg-slate-400/30 text-slate-300' },
+    gold_member: { icon: 'military_tech', color_classes: 'bg-yellow-500/30 text-yellow-400' },
+    platinum_member: { icon: 'diamond', color_classes: 'bg-sky-400/30 text-sky-300' },
+    // Special
+    daybreaker: { icon: 'sun', color_classes: 'bg-orange-500/20 text-orange-300' },
+    night_owl: { icon: 'moon', color_classes: 'bg-indigo-500/20 text-indigo-300' },
+    // Default/Fallback
+    default: { icon: 'badge', color_classes: 'bg-gray-500/20 text-gray-300' },
+};
+
 
 export const NET_CONFIG_TYPE_OPTIONS: NetConfigType[] = [
   NetConfigType.SINGLE_REPEATER,

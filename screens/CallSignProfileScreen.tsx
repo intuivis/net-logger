@@ -1,8 +1,8 @@
+
 import React, { useMemo, useState } from 'react';
-import { Net, NetSession, CheckIn, AwardedBadge } from '../types';
+import { Net, NetSession, CheckIn, AwardedBadge, Badge as BadgeType } from '../types';
 import { Icon } from '../components/Icon';
 import { Badge } from '../components/Badge';
-import { getBadgeById } from '../lib/badges';
 import { NetTypeBadge } from '../components/NetTypeBadge';
 import { formatTime, formatTimeZone } from '../lib/time';
 
@@ -11,6 +11,7 @@ interface CallsignProfileScreenProps {
   allNets: Net[];
   allSessions: NetSession[];
   allCheckIns: CheckIn[];
+  allBadges: BadgeType[];
   awardedBadges: AwardedBadge[];
   onViewSession: (sessionId: string) => void;
   onViewNetDetails: (netId: string) => void;
@@ -19,7 +20,7 @@ interface CallsignProfileScreenProps {
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: string }> = ({ label, value, icon }) => (
   <div className="bg-dark-700/50 p-4 rounded-lg flex items-center gap-4">
-    <div className="w-12 h-12 bg-brand-dark/20 rounded-full flex items-center justify-center">
+    <div className="p-3 bg-brand-dark/20 rounded-full">
       <Icon className="text-brand-accent text-2xl">{icon}</Icon>
     </div>
     <div>
@@ -34,6 +35,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   allNets,
   allSessions,
   allCheckIns,
+  allBadges,
   awardedBadges,
   onViewSession,
   onViewNetDetails,
@@ -51,10 +53,10 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   const operatorBadges = useMemo(
     () => awardedBadges
         .filter(ab => ab.call_sign === callsign)
-        .map(ab => getBadgeById(ab.badge_id))
-        .filter((b): b is Exclude<typeof b, undefined> => !!b)
+        .map(ab => allBadges.find(b => b.id === ab.badge_id))
+        .filter((b): b is BadgeType => !!b)
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [awardedBadges, callsign]
+    [awardedBadges, callsign, allBadges]
   );
   
   const sessionsById = useMemo(() => new Map(allSessions.map(s => [s.id, s])), [allSessions]);
@@ -139,9 +141,9 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
       <div className="bg-dark-800 shadow-lg rounded-lg p-6">
         <h3 className="text-xl font-bold text-dark-text mb-4">Awarded Badges</h3>
         {operatorBadges.length > 0 ? (
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-6">
                 {operatorBadges.map(badge => (
-                    <Badge key={badge.id} badge={badge} />
+                    <Badge key={badge.id} badge={badge} variant="profile" />
                 ))}
             </div>
         ) : (
@@ -151,7 +153,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
 
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-6 border-b border-dark-700">
-            <h3 className="text-xl font-bold text-dark-text">Check-in Activity</h3>
+            <h3 className="text-xl font-bold text-dark-text">Check-In Activity</h3>
         </div>
         {detailedNetParticipation.length > 0 ? (
             <ul className="divide-y divide-dark-700">

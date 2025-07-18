@@ -47,7 +47,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {profile?.role === 'admin' ? 'Manage All NETs' : 'My NETs'}
+            {profile?.role === 'admin' ? 'Manage NETs' : 'My NETs'}
           </h1>
           <p className="text-dark-text-secondary mt-1">
             {profile?.role === 'admin' ? 'As an admin, you can manage all configured NETs.' : 'Create, edit, and start sessions for the NETs you manage.'}

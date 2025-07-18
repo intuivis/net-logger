@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -37,22 +38,16 @@ export interface Database {
           id: string;
           name: string;
           description: string;
-          icon: string;
-          color_classes: string;
         };
         Insert: {
           id: string;
           name: string;
           description: string;
-          icon: string;
-          color_classes: string;
         };
         Update: {
           id?: string;
           name?: string;
           description?: string;
-          icon?: string;
-          color_classes?: string;
         };
       };
       callsigns: {

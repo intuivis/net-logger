@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Badge } from '../components/Badge';
 import { BADGE_DEFINITIONS } from '../lib/badges';
 import { BadgeDefinition } from '../types';
 
 interface AboutScreenProps {
     onBack: () => void;
+    allBadges: BadgeDefinition[];
 }
 
 const AwardSection: React.FC<{title: string, description: string, awards: BadgeDefinition[]}> = ({title, description, awards}) => (
@@ -30,10 +31,27 @@ const AwardSection: React.FC<{title: string, description: string, awards: BadgeD
     </div>
 );
 
-const AboutScreen: React.FC<AboutScreenProps> = ({ onBack }) => {
-    const participationAwards = BADGE_DEFINITIONS.filter(b => b.category === 'Participation');
-    const loyaltyAwards = BADGE_DEFINITIONS.filter(b => b.category === 'Loyalty');
-    const specialAwards = BADGE_DEFINITIONS.filter(b => b.category === 'Special');
+const AboutScreen: React.FC<AboutScreenProps> = ({ onBack, allBadges }) => {
+
+    const badgeCategories = useMemo(() => {
+        const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
+        const categorized: Record<string, BadgeDefinition[]> = {
+            'Participation': [],
+            'Loyalty': [],
+            'Special': []
+        };
+        
+        for (const badge of allBadges) {
+            const logic = logicMap.get(badge.id);
+            if (logic) {
+                const fullBadgeDef = { ...badge, ...logic };
+                if (categorized[fullBadgeDef.category]) {
+                    categorized[fullBadgeDef.category].push(fullBadgeDef);
+                }
+            }
+        }
+        return categorized;
+    }, [allBadges]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-12">
@@ -41,27 +59,27 @@ const AboutScreen: React.FC<AboutScreenProps> = ({ onBack }) => {
                 <div className="text-center">
                     <h1 className="text-4xl md:text-5xl font-bold tracking-tight">About NetControl</h1>
                     <p className="mt-4 max-w-3xl mx-auto text-lg text-dark-text-secondary">
-                        This application is designed to encourage Amateur Radio operators to get on the air, join a NET, and earn recognition for their participation and achievements.
+                        This application is designed to encourage Amateur Radio operators to get on the air, join a NET, and earn badges for their participation and achievements.
                     </p>
                 </div>
             </div>
 
             <AwardSection
                 title="Participation Awards"
-                description="This group of awards are for attending different NETs."
-                awards={participationAwards}
+                description="This group of awards are for attending different NETs tracked over a full calendar year."
+                awards={badgeCategories['Participation']}
             />
 
             <AwardSection
                 title="Loyalty Awards"
-                description="Awarded for staying with and checking into the same NET."
-                awards={loyaltyAwards}
+                description="Awarded for staying with and getting checked into the same NET tracked over a full calendar year."
+                awards={badgeCategories['Loyalty']}
             />
 
             <AwardSection
                 title="Special Awards"
-                description="Awards for checking into a NET under specific conditions."
-                awards={specialAwards}
+                description="Awards for checking into a NET under specific conditions tracked over a full calendar year."
+                awards={badgeCategories['Special']}
             />
         </div>
     );

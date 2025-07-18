@@ -145,16 +145,15 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
                     <div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                            <h1 className="text-3xl font-bold text-dark-text">{net.name}</h1>
-                            {renderTypeBadge()}
+                            <h1 className="text-3xl font-bold text-dark-text">{net.name} {renderTypeBadge()}</h1>
                         </div>
                          <div className="flex items-center gap-4 mt-2">
                             <p className="text-dark-text-secondary font-bold text-dark-text">
-                                {net.net_type} Net &bull; {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                             </p>
                         </div>
                         {net.description && (
-                            <p className="mt-4 text-dark-text-secondary max-w-2xl">{net.description}</p>
+                            <p className="mt-3 text-dark-text-secondary max-w-2xl">{net.description}</p>
                         )}
                         {net.website_url && (
                             <a href={net.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-brand-secondary hover:text-brand-primary mt-2 sm:mt-0">
