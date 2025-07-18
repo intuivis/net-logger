@@ -5,8 +5,8 @@ export enum NetType {
   TECHNICAL = "Technical",
   TRAFFIC = "Traffic",
   EMERGENCY = "Emergency",
-  ARES_RACES = "ARES/RACES",
-  SPECIAL_EVENT = "Special Event",
+  ARES_RACES = "Civil Service",
+  SPECIAL_EVENT = "Event",
 }
 
 export enum NetConfigType {
