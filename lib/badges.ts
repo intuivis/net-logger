@@ -88,8 +88,8 @@ const isDaybreaker = (
 export const BADGE_DEFINITIONS: Omit<BadgeDefinition, 'name' | 'description'>[] = [
   // Participation Awards
   { id: 'first_checkin', category: 'Participation', isEarned: hasNTotalCheckIns(1), sortOrder: 10 },
-  { id: 'pathfinder', category: 'Participation', isEarned: hasNUniqueNets(5), sortOrder: 20 },
-  { id: 'explorer', category: 'Participation', isEarned: hasNUniqueNets(10), sortOrder: 30 },
+  { id: 'explorer', category: 'Participation', isEarned: hasNUniqueNets(5), sortOrder: 20 },
+  { id: 'pathfinder', category: 'Participation', isEarned: hasNUniqueNets(10), sortOrder: 30 },
   { id: 'trailblazer', category: 'Participation', isEarned: hasNTotalCheckIns(25), sortOrder: 40 },
   { id: 'pioneer', category: 'Participation', isEarned: hasNTotalCheckIns(50), sortOrder: 50 },
   // Loyalty Awards

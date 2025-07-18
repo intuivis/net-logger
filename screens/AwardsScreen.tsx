@@ -71,7 +71,7 @@ const AwardsScreen: React.FC<AwardsScreenProps> = ({ allBadgeDefinitions }) => {
             />
 
             <AwardSection
-                title="Special Awards"
+                title="Special Achievements"
                 description="Awards for checking into a NET under specific conditions."
                 awards={badgeCategories['Special']}
             />

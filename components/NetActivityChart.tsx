@@ -57,7 +57,7 @@ export const NetActivityChart: React.FC<NetActivityChartProps> = ({ sessions, ch
 
   return (
     <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">
-       <h3 className="text-xl font-bold text-dark-text mb-6">Check-in Trend</h3>
+       <h3 className="text-xl font-bold text-dark-text mb-6">Check-In Actvity</h3>
         <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
             <LineChart
