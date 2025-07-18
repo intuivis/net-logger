@@ -1,4 +1,3 @@
-
 import { Database } from './database.types';
 
 export enum NetType {
@@ -81,6 +80,7 @@ export type BadgeCategory = "Participation" | "Loyalty" | "Special";
 
 export interface BadgeDefinition extends Badge {
   category: BadgeCategory;
+  sortOrder: number;
   isEarned: (
     allUserCheckIns: CheckIn[],
     allSessions: NetSession[],
@@ -99,4 +99,5 @@ export type View =
   | { type: 'netDetail'; netId: string }
   | { type: 'session'; sessionId: string }
   | { type: 'callsignProfile'; callsign: string }
-  | { type: 'about' };
+  | { type: 'about' }
+  | { type: 'awards' };

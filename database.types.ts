@@ -4,10 +4,10 @@ export type Json =
   | number
   | boolean
   | null
-  | { [key: string]: any }
-  | any[];
+  | { [key: string]: Json | undefined }
+  | Json[];
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       awarded_badges: {
@@ -248,4 +248,4 @@ export interface Database {
       [_ in never]: never;
     };
   };
-}
+};

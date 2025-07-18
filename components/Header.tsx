@@ -52,6 +52,12 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                         >
                             About
                         </button>
+                         <button
+                            onClick={() => handleNavClick({ type: 'awards' })}
+                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
+                        >
+                            Awards
+                        </button>
                         {profile ? (
                             <>
                                 {profile.role === 'admin' && (
@@ -122,6 +128,12 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
                         >
                             About
+                        </button>
+                        <button
+                            onClick={() => handleNavClick({ type: 'awards' })}
+                            className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
+                        >
+                            Awards
                         </button>
                        {profile ? (
                             <>

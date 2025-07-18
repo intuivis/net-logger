@@ -1,15 +1,4 @@
-
 import { CheckIn, BadgeDefinition, NetSession } from '../types';
-
-const getCheckInsInCurrentYear = (
-  allUserCheckIns: CheckIn[],
-  newCheckIn: CheckIn
-): CheckIn[] => {
-  const currentYear = new Date(newCheckIn.timestamp).getFullYear();
-  return allUserCheckIns.filter(
-    (ci) => new Date(ci.timestamp).getFullYear() === currentYear
-  );
-};
 
 // Helper to get distinct net IDs from a list of check-ins
 const getDistinctNetIds = (
@@ -48,19 +37,17 @@ const getCheckInCountsPerNet = (
 const hasNTotalCheckIns = (n: number) => (
   allUserCheckIns: CheckIn[],
   _: NetSession[],
-  newCheckIn: CheckIn
+  __: CheckIn
 ): boolean => {
-  const yearlyCheckIns = getCheckInsInCurrentYear(allUserCheckIns, newCheckIn);
-  return yearlyCheckIns.length >= n;
+  return allUserCheckIns.length >= n;
 };
 
 const hasNUniqueNets = (n: number) => (
   allUserCheckIns: CheckIn[],
   allSessions: NetSession[],
-  newCheckIn: CheckIn
+  __: CheckIn
 ): boolean => {
-  const yearlyCheckIns = getCheckInsInCurrentYear(allUserCheckIns, newCheckIn);
-  const distinctNetIds = getDistinctNetIds(yearlyCheckIns, allSessions);
+  const distinctNetIds = getDistinctNetIds(allUserCheckIns, allSessions);
   return distinctNetIds.size >= n;
 };
 
@@ -68,10 +55,9 @@ const hasNUniqueNets = (n: number) => (
 const hasNCheckInsOnSingleNet = (n: number) => (
   allUserCheckIns: CheckIn[],
   allSessions: NetSession[],
-  newCheckIn: CheckIn
+  __: CheckIn
 ): boolean => {
-  const yearlyCheckIns = getCheckInsInCurrentYear(allUserCheckIns, newCheckIn);
-  const countsPerNet = getCheckInCountsPerNet(yearlyCheckIns, allSessions);
+  const countsPerNet = getCheckInCountsPerNet(allUserCheckIns, allSessions);
   for (const count of countsPerNet.values()) {
     if (count >= n) {
       return true;
@@ -101,19 +87,19 @@ const isDaybreaker = (
 
 export const BADGE_DEFINITIONS: Omit<BadgeDefinition, 'name' | 'description'>[] = [
   // Participation Awards
-  { id: 'first_checkin', category: 'Participation', isEarned: hasNTotalCheckIns(1) },
-  { id: 'pathfinder', category: 'Participation', isEarned: hasNUniqueNets(5) },
-  { id: 'explorer', category: 'Participation', isEarned: hasNUniqueNets(10) },
-  { id: 'trailblazer', category: 'Participation', isEarned: hasNTotalCheckIns(25) },
-  { id: 'pioneer', category: 'Participation', isEarned: hasNTotalCheckIns(50) },
+  { id: 'first_checkin', category: 'Participation', isEarned: hasNTotalCheckIns(1), sortOrder: 10 },
+  { id: 'pathfinder', category: 'Participation', isEarned: hasNUniqueNets(5), sortOrder: 20 },
+  { id: 'explorer', category: 'Participation', isEarned: hasNUniqueNets(10), sortOrder: 30 },
+  { id: 'trailblazer', category: 'Participation', isEarned: hasNTotalCheckIns(25), sortOrder: 40 },
+  { id: 'pioneer', category: 'Participation', isEarned: hasNTotalCheckIns(50), sortOrder: 50 },
   // Loyalty Awards
-  { id: 'bronze_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(5) },
-  { id: 'silver_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(10) },
-  { id: 'gold_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(25) },
-  { id: 'platinum_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(50) },
+  { id: 'bronze_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(5), sortOrder: 10 },
+  { id: 'silver_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(10), sortOrder: 20 },
+  { id: 'gold_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(25), sortOrder: 30 },
+  { id: 'platinum_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(50), sortOrder: 40 },
   // Special Awards
-  { id: 'daybreaker', category: 'Special', isEarned: isDaybreaker },
-  { id: 'night_owl', category: 'Special', isEarned: isNightOwl },
+  { id: 'daybreaker', category: 'Special', isEarned: isDaybreaker, sortOrder: 10 },
+  { id: 'night_owl', category: 'Special', isEarned: isNightOwl, sortOrder: 20 },
 ];
 
 

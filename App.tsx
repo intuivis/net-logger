@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -23,6 +20,7 @@ import { BADGE_DEFINITIONS } from './lib/badges';
 import CallsignProfileScreen from './screens/CallSignProfileScreen';
 import { v4 as uuidv4 } from 'uuid';
 import AboutScreen from './screens/AboutScreen';
+import AwardsScreen from './screens/AwardsScreen';
 
 const App: React.FC = () => {
   const [viewHistory, setViewHistory] = useState<View[]>([{ type: 'home' }]);
@@ -51,7 +49,7 @@ const App: React.FC = () => {
           if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
 
           // Navigating to a main screen from the header should reset the stack
-          if (['home', 'login', 'register', 'manageNets', 'adminApprovals', 'about'].includes(newView.type)) {
+          if (['home', 'login', 'register', 'manageNets', 'adminApprovals', 'about', 'awards'].includes(newView.type)) {
               return [newView];
           }
           
@@ -220,7 +218,9 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
             setProfile(userProfile);
             await refreshAllData();
-            await backfillBadges();
+            if (session?.user) { // Only backfill if user is logged in
+                await backfillBadges();
+            }
 
         } catch (error) {
             console.error("An unexpected error occurred during session processing:", error);
@@ -245,7 +245,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
             setView({ type: 'home' });
         }
     } else if (!session) {
-        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about'];
+        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about', 'awards'];
         if (!publicViews.includes(view.type)) {
              setView({ type: 'login' });
         }
@@ -276,7 +276,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
             const { created_by, ...finalUpdateData } = sanitizedData;
             const updatePayload: Database['public']['Tables']['nets']['Update'] = {
                 ...finalUpdateData,
-                repeaters: finalUpdateData.repeaters ? JSON.stringify(finalUpdateData.repeaters) : '[]',
+                repeaters: (finalUpdateData.repeaters ?? []) as unknown as Json,
             };
             result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
@@ -296,7 +296,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
                 schedule: restData.schedule!,
                 time: restData.time!,
                 time_zone: restData.time_zone!,
-                repeaters: repeaters ? JSON.stringify(repeaters) : '[]',
+                repeaters: sanitizedData.repeaters as unknown as Json,
                 net_config_type: restData.net_config_type!,
                 frequency: restData.frequency ?? null,
                 band: restData.band ?? null,
@@ -504,7 +504,8 @@ Please verify your internet connection and ensure your Supabase credentials are 
     return allBadges.map(badge => ({
         ...badge,
         category: logicMap.get(badge.id)?.category || 'Special',
-        isEarned: logicMap.get(badge.id)?.isEarned || (() => false)
+        isEarned: logicMap.get(badge.id)?.isEarned || (() => false),
+        sortOrder: logicMap.get(badge.id)?.sortOrder || 999
     }));
   }, [allBadges]);
 
@@ -517,7 +518,9 @@ Please verify your internet connection and ensure your Supabase credentials are 
       case 'pendingApproval':
           return <PendingApprovalScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
       case 'about':
-          return <AboutScreen onBack={goBack} allBadges={allBadgeDefinitions} />;
+          return <AboutScreen />;
+      case 'awards':
+          return <AwardsScreen allBadgeDefinitions={allBadgeDefinitions} />;
       case 'home': {
         const activeSessions = sessions.filter(s => s.end_time === null);
         return (
@@ -616,7 +619,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
                 allNets={nets}
                 allSessions={sessions}
                 allCheckIns={checkIns}
-                allBadges={allBadges}
+                allBadgeDefinitions={allBadgeDefinitions}
                 awardedBadges={awardedBadges}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
                 onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}

@@ -1,4 +1,5 @@
 
+
 import { NetType, DayOfWeek, NetConfigType } from './types';
 
 export const NET_TYPE_OPTIONS: NetType[] = [
@@ -27,7 +28,7 @@ export const NET_TYPE_INFO: Record<NetType, { icon: string, classes: string, des
         description: 'For passing formal messages (radiograms). Practices skills used by the National Traffic System (NTS).',
     },
     [NetType.EMERGENCY]: {
-        icon: 'sos',
+        icon: 'campaign',
         classes: 'bg-red-500/20 text-red-300',
         description: 'For handling critical communications during actual emergencies like natural disasters or public safety incidents. Activation is often rapid, and participation may be restricted to trained operators from groups like ARES or RACES.',
     },

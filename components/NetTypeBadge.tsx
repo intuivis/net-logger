@@ -13,15 +13,15 @@ export const NetTypeBadge: React.FC<NetTypeBadgeProps> = ({ type, size = 'sm' })
     const info = NET_TYPE_INFO[type];
     if (!info) return null;
 
-    const baseClasses = "inline-flex items-center gap-1.5 font-semibold rounded-full";
+    const baseClasses = "inline-flex items-center gap-2 font-semibold rounded-lg";
 
     const sizeStyles = {
         sm: {
-            container: "px-2.5 py-1 text-xs",
+            container: "px-2 py-0.5 text-xs",
             icon: "text-sm"
         },
         base: {
-            container: "px-4 py-1 text-xs",
+            container: "px-4 py-2 text-sm",
             icon: "text-base"
         }
     }

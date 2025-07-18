@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Badge as BadgeType } from '../types';
 import { Icon } from './Icon';
@@ -10,6 +11,7 @@ import { BADGE_STYLES } from '../constants';
 interface BadgeProps {
   badge: BadgeType;
   variant?: 'pill' | 'icon' | 'profile';
+  size?: 'sm' | 'base';
 }
 
 const iconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
@@ -18,7 +20,7 @@ const iconMap: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
     sun: SunIcon,
 };
 
-export const Badge: React.FC<BadgeProps> = ({ badge, variant = 'pill' }) => {
+export const Badge: React.FC<BadgeProps> = ({ badge, variant = 'pill', size = 'base' }) => {
     const style = BADGE_STYLES[badge.id] || BADGE_STYLES.default;
     const IconComponent = iconMap[style.icon];
 
@@ -37,25 +39,45 @@ export const Badge: React.FC<BadgeProps> = ({ badge, variant = 'pill' }) => {
             </div>
         );
     }
+    
+    if (variant === 'pill') {
+        const pillSizeClasses = {
+            base: "px-4 py-2 text-sm",
+            sm: "px-2.5 py-1 text-xs"
+        };
+        const containerClasses = `inline-flex items-center gap-2 font-semibold rounded-lg ${style.color_classes} ${pillSizeClasses[size]}`;
+        const iconSize = size === 'sm' ? 'text-base' : 'text-lg';
 
-    const containerClasses = variant === 'pill'
-      ? `inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-full ${style.color_classes}`
-      : `inline-flex items-center justify-center p-1 rounded-full ${style.color_classes}`;
+        return (
+            <div
+                className={containerClasses}
+                title={badge.description}
+            >
+                {IconComponent ? (
+                    <IconComponent className={size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />
+                ) : (
+                    <Icon className={iconSize}>{style.icon}</Icon>
+                )}
+                <span>{badge.name}</span>
+            </div>
+        )
+    }
 
-    const iconContainerSize = variant === 'pill' ? 'w-3.5 h-3.5' : 'w-4 h-4';
-    const iconFontSize = variant === 'pill' ? 'text-sm' : 'text-base';
+    // Icon variant
+    const containerClasses = `inline-flex items-center justify-center p-1 rounded-full ${style.color_classes}`;
+    const iconContainerSize = 'w-4 h-4';
+    const iconFontSize = 'text-base';
     
     return (
         <div
             className={containerClasses}
-            title={variant === 'pill' ? badge.description : `${badge.name}: ${badge.description}`}
+            title={`${badge.name}: ${badge.description}`}
         >
             {IconComponent ? (
                 <IconComponent className={iconContainerSize} />
             ) : (
                 <Icon className={`${iconFontSize} ${iconContainerSize}`}>{style.icon}</Icon>
             )}
-            {variant === 'pill' && <span>{badge.name}</span>}
         </div>
     );
 };

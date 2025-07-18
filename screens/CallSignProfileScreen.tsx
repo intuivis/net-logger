@@ -1,6 +1,7 @@
 
+
 import React, { useMemo, useState } from 'react';
-import { Net, NetSession, CheckIn, AwardedBadge, Badge as BadgeType } from '../types';
+import { Net, NetSession, CheckIn, AwardedBadge, BadgeDefinition } from '../types';
 import { Icon } from '../components/Icon';
 import { Badge } from '../components/Badge';
 import { NetTypeBadge } from '../components/NetTypeBadge';
@@ -11,7 +12,7 @@ interface CallsignProfileScreenProps {
   allNets: Net[];
   allSessions: NetSession[];
   allCheckIns: CheckIn[];
-  allBadges: BadgeType[];
+  allBadgeDefinitions: BadgeDefinition[];
   awardedBadges: AwardedBadge[];
   onViewSession: (sessionId: string) => void;
   onViewNetDetails: (netId: string) => void;
@@ -35,7 +36,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   allNets,
   allSessions,
   allCheckIns,
-  allBadges,
+  allBadgeDefinitions,
   awardedBadges,
   onViewSession,
   onViewNetDetails,
@@ -50,14 +51,24 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
     [allCheckIns, callsign]
   );
 
-  const operatorBadges = useMemo(
-    () => awardedBadges
+  const operatorBadges = useMemo(() => {
+    const earnedBadges = awardedBadges
         .filter(ab => ab.call_sign === callsign)
-        .map(ab => allBadges.find(b => b.id === ab.badge_id))
-        .filter((b): b is BadgeType => !!b)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [awardedBadges, callsign, allBadges]
-  );
+        .map(ab => allBadgeDefinitions.find(def => def.id === ab.badge_id))
+        .filter((b): b is BadgeDefinition => !!b);
+
+    const loyaltyBadges = earnedBadges.filter(b => b.category === 'Loyalty');
+    const otherBadges = earnedBadges.filter(b => b.category !== 'Loyalty');
+
+    if (loyaltyBadges.length > 0) {
+        const highestLoyaltyBadge = loyaltyBadges.reduce((highest, current) => {
+            return current.sortOrder > highest.sortOrder ? current : highest;
+        });
+        return [...otherBadges, highestLoyaltyBadge].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    
+    return otherBadges.sort((a, b) => a.name.localeCompare(b.name));
+  }, [awardedBadges, callsign, allBadgeDefinitions]);
   
   const sessionsById = useMemo(() => new Map(allSessions.map(s => [s.id, s])), [allSessions]);
   const netsById = useMemo(() => new Map(allNets.map(n => [n.id, n])), [allNets]);
@@ -92,6 +103,22 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
     
     return result.sort((a, b) => b.checkInCount - a.checkInCount);
   }, [operatorCheckIns, sessionsById, netsById]);
+
+  const getLoyaltyBadgeForCount = (count: number): BadgeDefinition | null => {
+    const loyaltyThresholds = [
+      { id: 'platinum_member', threshold: 50 },
+      { id: 'gold_member', threshold: 25 },
+      { id: 'silver_member', threshold: 10 },
+      { id: 'bronze_member', threshold: 5 },
+    ];
+
+    for (const { id, threshold } of loyaltyThresholds) {
+      if (count >= threshold) {
+        return allBadgeDefinitions.find(b => b.id === id) || null;
+      }
+    }
+    return null;
+  };
 
   const toggleNetExpansion = (netId: string) => {
     setExpandedNets(prev => ({ ...prev, [netId]: !prev[netId] }));
@@ -141,93 +168,103 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
       <div className="bg-dark-800 shadow-lg rounded-lg p-6">
         <h3 className="text-xl font-bold text-dark-text mb-4">Awarded Badges</h3>
         {operatorBadges.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-center gap-6">
+            <div className="flex flex-wrap items-center gap-6">
                 {operatorBadges.map(badge => (
-                    <Badge key={badge.id} badge={badge} variant="profile" />
+                    <Badge key={badge.id} badge={badge} variant="pill" />
                 ))}
             </div>
         ) : (
             <p className="text-dark-text-secondary">No badges earned yet.</p>
         )}
       </div>
-
+      
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-6 border-b border-dark-700">
             <h3 className="text-xl font-bold text-dark-text">Check-In Activity</h3>
         </div>
         {detailedNetParticipation.length > 0 ? (
             <ul className="divide-y divide-dark-700">
-                {detailedNetParticipation.map(({ net, checkInCount, sessions }) => (
-                    <li key={net.id}>
-                        <div className="p-6 hover:bg-dark-700/30 transition-colors">
-                            <div className="flex justify-between items-start gap-4">
-                                <div className="flex-grow space-y-2">
-                                    <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
-                                        <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline">
-                                            {net.name}
-                                        </button>
-                                        <NetTypeBadge type={net.net_type} />
+                {detailedNetParticipation.map(({ net, checkInCount, sessions }) => {
+                    const loyaltyBadge = getLoyaltyBadgeForCount(checkInCount);
+                    return (
+                        <li key={net.id}>
+                            <div className="p-6 hover:bg-dark-700/30 transition-colors">
+                                <div className="flex justify-between items-start gap-4">
+                                    <div className="flex-grow space-y-2">
+                                        <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+                                            <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline">
+                                                {net.name}
+                                            </button>
+                                            <NetTypeBadge type={net.net_type} />
+                                        </div>
+                                        <div className="flex items-center gap-6 text-sm text-dark-text-secondary">
+                                            <span>
+                                                <Icon className="text-base mr-1.5 align-middle">calendar_month</Icon>
+                                                {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <Icon className="text-base align-middle">tag</Icon>
+                                                <span>{checkInCount} check-in{checkInCount > 1 ? 's' : ''}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-6 text-sm text-dark-text-secondary">
-                                        <span>
-                                            <Icon className="text-base mr-1.5 align-middle">calendar_month</Icon>
-                                            {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
-                                        </span>
-                                        <span>
-                                            <Icon className="text-base mr-1.5 align-middle">tag</Icon>
-                                            {checkInCount} check-in{checkInCount > 1 ? 's' : ''}
-                                        </span>
-                                    </div>
+                                    <button
+                                        className="flex-shrink-0 p-2 rounded-full hover:bg-dark-600"
+                                        onClick={() => toggleNetExpansion(net.id)}
+                                        aria-expanded={expandedNets[net.id]}
+                                        aria-label={`Show sessions for ${net.name}`}
+                                    >
+                                        <Icon className="text-2xl text-dark-text-secondary transition-transform" style={{ transform: expandedNets[net.id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
+                                    </button>
                                 </div>
-                                <button
-                                    className="flex-shrink-0 p-2 rounded-full hover:bg-dark-600"
-                                    onClick={() => toggleNetExpansion(net.id)}
-                                    aria-expanded={expandedNets[net.id]}
-                                    aria-label={`Show sessions for ${net.name}`}
-                                >
-                                    <Icon className="text-2xl text-dark-text-secondary transition-transform" style={{ transform: expandedNets[net.id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
-                                </button>
                             </div>
-                        </div>
-                        {expandedNets[net.id] && (
-                            <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
-                                <div className="mt-4 flow-root">
-                                    <div className="-mx-6 -my-2">
-                                        <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                                            <div className="divide-y divide-dark-600">
-                                                {sessions.map(({ session, checkIn }) => (
-                                                    <div key={session.id} className="py-4 grid grid-cols-1 sm:grid-cols-5 gap-4">
-                                                        <div className="sm:col-span-2">
-                                                            <button 
-                                                                onClick={() => onViewSession(session.id)} 
-                                                                className="text-sm font-semibold text-dark-text hover:text-brand-accent hover:underline focus:outline-none"
-                                                                title={`View session from ${new Date(session.start_time).toLocaleDateString()}`}
-                                                            >
-                                                                {new Date(checkIn.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                                                            </button>
+                            {expandedNets[net.id] && (
+                                <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
+                                    <div className="text-sm text-dark-text-secondary mb-2 p-2">
+                                    {loyaltyBadge ? (
+                                        <Badge badge={loyaltyBadge} variant="pill" size="sm" />
+                                    ) : (
+                                        <span className="italic">No loyalty badge earned yet</span>
+                                    )}
+                                    </div>
+                                    <div className="mt-4 flow-root">
+                                        <div className="-mx-6 -my-2">
+                                            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                                                <div className="divide-y divide-dark-600">
+                                                    {sessions.map(({ session, checkIn }) => (
+                                                        <div key={session.id} className="py-4 grid grid-cols-1 sm:grid-cols-5 gap-4">
+                                                            <div className="sm:col-span-2">
+                                                                <button 
+                                                                    onClick={() => onViewSession(session.id)} 
+                                                                    className="text-sm font-semibold text-dark-text hover:text-brand-accent hover:underline focus:outline-none"
+                                                                    title={`View session from ${new Date(session.start_time).toLocaleDateString()}`}
+                                                                >
+                                                                    {new Date(checkIn.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                                </button>
+                                                            </div>
+                                                            <div className="sm:col-span-1">
+                                                                <p className="text-sm text-dark-text-secondary">
+                                                                    {new Date(checkIn.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                                                </p>
+                                                            </div>
+                                                            <div className="sm:col-span-2">
+                                                                {checkIn.notes ? (
+                                                                    <p className="text-sm text-dark-text-secondary italic">"{checkIn.notes}"</p>
+                                                                ) : (
+                                                                    <p className="text-sm text-dark-text-secondary/50">-</p>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="sm:col-span-1">
-                                                            <p className="text-sm text-dark-text-secondary">
-                                                                {new Date(checkIn.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                                                            </p>
-                                                        </div>
-                                                        <div className="sm:col-span-2">
-                                                            {checkIn.notes ? (
-                                                                <p className="text-sm text-dark-text-secondary italic">"{checkIn.notes}"</p>
-                                                            ) : (
-                                                                <p className="text-sm text-dark-text-secondary/50">-</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </li>
-                ))}
+                            )}
+                        </li>
+                    )
+                })}
             </ul>
         ) : (
           <p className="text-dark-text-secondary text-center py-10">No check-in history found.</p>
