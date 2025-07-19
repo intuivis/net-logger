@@ -21,6 +21,7 @@
     "@types/react-dom": "^19.1.6",
     "@types/recharts": "^1.8.29",
     "@types/uuid": "^10.0.0",
+    "supabase": "^2.31.4",
     "typescript": "~5.7.2",
     "vite": "^6.2.0"
   }

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { View } from '../types';
@@ -24,7 +25,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
 
         // The user's profile will be created automatically by a database trigger.
         // We just need to sign them up and pass their details in the options.
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError } = await (supabase.auth as any).signUp({
             email,
             password,
             options: {
@@ -42,35 +43,6 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
         } else {
             // Success! The trigger will handle profile creation.
             setMessage('Registration successful! Please check your email to confirm your account. After confirmation, an admin must approve your account before you can log in.');
-            
-            // Fire-and-forget admin notification in the background
-            (async () => {
-                try {
-                    const emailSubject = `New User Registration: ${fullName} (${callSign.toUpperCase()})`;
-                    const emailBody = `A new user has registered for the Amateur Radio Net Logger application and is awaiting approval.
-
-                    User Details:
-                    - Name: ${fullName}
-                    - Call Sign: ${callSign.toUpperCase()}
-                    - Email: ${email}
-
-                    Please visit the admin panel to review and approve the user's account.`;
-
-                    const { error: invokeError } = await supabase.functions.invoke('notify-admins-on-signup', {
-                        body: {
-                            subject: emailSubject,
-                            body: emailBody,
-                        }
-                    });
-
-                    if (invokeError) throw invokeError;
-
-                    console.log('Admin notification function triggered successfully.');
-                } catch (notificationError) {
-                    // Log errors silently. The user's registration is more important.
-                    console.error('Failed to trigger admin notification process:', notificationError);
-                }
-            })();
         }       
 
         setLoading(false);

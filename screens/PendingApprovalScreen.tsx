@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { View } from '../types';
 
@@ -9,14 +9,21 @@ interface PendingApprovalScreenProps {
 }
 
 const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ email, onSetView }) => {
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    
     const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+
+        const { error } = await (supabase.auth as any).signOut();
+        
         if (error) {
             console.error('Error signing out:', error);
-            alert('Failed to sign out. Please try again.');
-        } else {
-            onSetView({ type: 'login' });
+            alert('An unexpected error occurred during logout. Please try again.');
         }
+        
+        // Always reset the loading state to prevent the button from getting stuck.
+        setIsLoggingOut(false);
     };
 
     return (
@@ -31,9 +38,10 @@ const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ email, on
                 </p>
                  <button
                     onClick={handleLogout}
-                    className="mt-6 w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800"
+                    disabled={isLoggingOut}
+                    className="mt-6 w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500 disabled:cursor-wait"
                 >
-                    Logout
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </button>
             </div>
         </div>

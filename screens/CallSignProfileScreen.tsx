@@ -221,10 +221,11 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
                             {expandedNets[net.id] && (
                                 <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
                                     <div className="text-sm text-dark-text-secondary mb-2 p-2">
+                                    <h3 className="font-semibold text-dark-text">NET Badges Awarded:</h3>
                                     {loyaltyBadge ? (
                                         <Badge badge={loyaltyBadge} variant="pill" size="sm" />
                                     ) : (
-                                        <span className="italic">No loyalty badge earned yet</span>
+                                        <p className="py-2 text-dark-text-secondary">Keep participating in this NET to earn badges. For questions regarding your check-ins contact your Net Control Operator.</p>
                                     )}
                                     </div>
                                     <div className="mt-4 flow-root">

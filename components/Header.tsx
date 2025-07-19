@@ -12,6 +12,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleNavClick = (view: View) => {
         onSetView(view);
@@ -19,17 +20,21 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
     };
 
     const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
         setIsMenuOpen(false);
-        const { error } = await supabase.auth.signOut();
+
+        const { error } = await (supabase.auth as any).signOut();
+        
         if (error) {
             console.error('Error signing out:', error);
-            alert('Failed to sign out. Please try again.');
-        } else {
-            // Explicitly navigate after a successful sign-out. This ensures a
-            // clean and immediate redirection, resolving the issue where the
-            // session was being cleared before the operation completed.
-            onSetView({ type: 'login' });
+            alert('An unexpected error occurred during logout. Please try again.');
         }
+
+        // Always reset the loading state. This is the fix.
+        // If logout succeeds, onAuthStateChange will cause a re-render and this state is destroyed.
+        // If it fails, or the re-render doesn't happen correctly, this ensures the button is usable.
+        setIsLoggingOut(false);
     };
 
     return (
@@ -48,13 +53,13 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                     <nav className="hidden md:flex items-center gap-4">
                         <button
                             onClick={() => handleNavClick({ type: 'about' })}
-                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
+                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text hover:bg-dark-700 rounded-lg transition-colors"
                         >
                             About
                         </button>
                          <button
                             onClick={() => handleNavClick({ type: 'awards' })}
-                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
+                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text hover:bg-dark-700 rounded-lg transition-colors"
                         >
                             Awards
                         </button>
@@ -65,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                         onClick={() => handleNavClick({type: 'adminApprovals'})}
                                         className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
                                     >
-                                        Approvals
+                                        NCO Approvals
                                     </button>
                                 )}
                                 {(profile.is_approved || profile.role === 'admin') && (
@@ -81,9 +86,10 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                 </span>
                                 <button
                                     onClick={handleLogout}
-                                    className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
+                                    disabled={isLoggingOut}
+                                    className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait"
                                 >
-                                    Logout
+                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                                 </button>
                             </>
                         ) : (
@@ -158,9 +164,10 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
+                                    disabled={isLoggingOut}
+                                    className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700 disabled:opacity-50"
                                 >
-                                    Logout
+                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                                 </button>
                             </>
                         ) : (

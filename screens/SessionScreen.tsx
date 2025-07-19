@@ -201,7 +201,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
 
   return (
     <div className="space-y-6">
-       <button onClick={onBack} className="flex items-center gap-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
+       <button onClick={onBack} className="flex items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
           <Icon className="text-xl">arrow_back</Icon>
           <span>Back to {net.name} Details</span>
       </button>
@@ -268,13 +268,14 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
             <table className="min-w-full divide-y divide-dark-700">
                 <thead className="bg-dark-700/50">
                     <tr>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
                         <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Awards</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
                         {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
-                        <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
+                        <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
                         {canManage && <th scope="col" className="relative px-6 py-4">
                             <span className="sr-only">Actions</span>
                         </th>}
@@ -296,26 +297,30 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ session, net, checkIns, a
 
                             return (
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
                                     <td className="px-6 py-4 text-sm font-bold text-brand-accent">
                                         <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                                             <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
                                                 {checkIn.call_sign}
                                             </button>
                                             {isNCO && <NCOBadge />}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm">{checkIn.name}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
                                             {newlyAwarded.map(award => {
                                                 const badgeDef = allBadges.find(b => b.id === award.badge_id);
-                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} variant="icon" /> : null;
+                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} variant="pill" size="sm" /> : null;
                                             })}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">{checkIn.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
                                     {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
+                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
                                     {canManage && (
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button onClick={() => onEditCheckIn(session.id, checkIn)} className="p-2 text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
                                                     <Icon className="text-xl">edit</Icon>

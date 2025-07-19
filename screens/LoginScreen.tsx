@@ -17,7 +17,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await (supabase.auth as any).signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
     }

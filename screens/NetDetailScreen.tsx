@@ -137,7 +137,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
 
     return (
         <div className="space-y-6">
-            <button onClick={onBack} className="flex items-center gap-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
+            <button onClick={onBack} className="flex items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
                 <Icon className="text-xl">arrow_back</Icon>
                 <span>Back to {profile ? 'NETs List' : 'NET Directory'}</span>
             </button>
@@ -151,7 +151,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                         </div>
                          <div className="flex items-center gap-4 mt-2">
                             <p className="text-dark-text-secondary font-bold text-dark-text">
-                                {net.net_type} Net &bull; {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                             </p>
                         </div>
                         {net.description && (

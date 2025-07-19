@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -276,7 +277,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
             const { created_by, ...finalUpdateData } = sanitizedData;
             const updatePayload: Database['public']['Tables']['nets']['Update'] = {
                 ...finalUpdateData,
-                repeaters: (finalUpdateData.repeaters ?? []) as unknown as Json,
+                repeaters: finalUpdateData.repeaters,
             };
             result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
@@ -296,7 +297,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
                 schedule: restData.schedule!,
                 time: restData.time!,
                 time_zone: restData.time_zone!,
-                repeaters: sanitizedData.repeaters as unknown as Json,
+                repeaters: sanitizedData.repeaters ?? [],
                 net_config_type: restData.net_config_type!,
                 frequency: restData.frequency ?? null,
                 band: restData.band ?? null,
