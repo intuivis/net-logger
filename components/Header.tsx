@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
@@ -67,10 +68,10 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             <>
                                 {profile.role === 'admin' && (
                                      <button
-                                        onClick={() => handleNavClick({type: 'adminApprovals'})}
+                                        onClick={() => handleNavClick({type: 'userManagement'})}
                                         className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
                                     >
-                                        NCO Approvals
+                                        User Management
                                     </button>
                                 )}
                                 {(profile.is_approved || profile.role === 'admin') && (
@@ -145,10 +146,10 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             <>
                                 {profile.role === 'admin' && (
                                      <button
-                                        onClick={() => handleNavClick({type: 'adminApprovals'})}
+                                        onClick={() => handleNavClick({type: 'userManagement'})}
                                         className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
                                     >
-                                        Approvals
+                                        User Management
                                     </button>
                                 )}
                                 {(profile.is_approved || profile.role === 'admin') && (

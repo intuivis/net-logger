@@ -1,14 +1,15 @@
 
+
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { View } from '../types';
 
-interface PendingApprovalScreenProps {
+interface AccessRevokedScreenProps {
     email: string | null;
     onSetView: (view: View) => void;
 }
 
-const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ email, onSetView }) => {
+const AccessRevokedScreen: React.FC<AccessRevokedScreenProps> = ({ email, onSetView }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     
     const handleLogout = async () => {
@@ -29,12 +30,12 @@ const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ email, on
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
             <div className="w-full max-w-md p-8 bg-dark-800 rounded-lg shadow-lg">
-                <h2 className="text-2xl text-center font-bold text-yellow-400">Account Pending Approval</h2>
+                <h2 className="text-2xl text-center font-bold text-red-500">Account Access Revoked</h2>
                 <p className="mt-4 text-dark-text-secondary">
-                    We take steps to verify each Net Control Operator prior to granting access. Your account ({email}) has been successfully created and is waiting for administrator approval.
+                    Your access to the application for the account ({email}) has been revoked by an administrator. You will not be able to create or manage NETs.
                 </p>
                 <p className="mt-2 text-dark-text-secondary">
-                    Once your account has been approved, you will be able to create and manage NETs. Thank you for your patience.
+                    If you believe this is a mistake, please contact the system administrator.
                 </p>
                  <button
                     onClick={handleLogout}
@@ -48,4 +49,4 @@ const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({ email, on
     );
 };
 
-export default PendingApprovalScreen;
+export default AccessRevokedScreen;

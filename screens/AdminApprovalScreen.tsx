@@ -6,11 +6,11 @@ import { Profile, View } from '../types';
 import { Database } from '../database.types';
 import { Icon } from '../components/Icon';
 
-interface AdminApprovalScreenProps {
+interface UserManagementScreenProps {
     onSetView: (view: View) => void;
 }
 
-const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) => {
+const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }) => {
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -68,7 +68,10 @@ const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) 
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold tracking-tight">User Approvals</h1>
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">NCO Management</h1>
+                <p className="text-dark-text-secondary mt-1">View all registered Net Control Operators and manage their access.</p>
+            </div>
             
             <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
                 <div className="overflow-x-auto">
@@ -84,7 +87,7 @@ const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) 
                         </thead>
                         <tbody className="divide-y divide-dark-700">
                              {profiles.filter(p => p.role !== 'admin').map(profile => (
-                                <tr key={profile.id} className="hover:bg-dark-700/30">
+                                <tr key={profile.id} className={`hover:bg-dark-700/30 transition-colors`}>
                                     <td className="px-6 py-4 whitespace-nowrap text-md font-medium text-dark-text">{profile.email}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-md text-dark-text-secondary">{profile.full_name || '-'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-md text-dark-text">
@@ -99,8 +102,8 @@ const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) 
                                         </button>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-md">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${profile.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
-                                            {profile.is_approved ? 'Approved' : 'Pending'}
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${profile.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
+                                            {profile.is_approved ? 'Active' : 'Revoked'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-md font-medium">
@@ -109,7 +112,7 @@ const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) 
                                             disabled={updatingProfileId === profile.id}
                                             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors disabled:bg-gray-500 disabled:cursor-wait ${profile.is_approved ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
                                         >
-                                            {updatingProfileId === profile.id ? 'Updating...' : (profile.is_approved ? 'Revoke' : 'Approve')}
+                                            {updatingProfileId === profile.id ? 'Updating...' : (profile.is_approved ? 'Revoke Access' : 'Reinstate Access')}
                                         </button>
                                     </td>
                                 </tr>
@@ -122,4 +125,4 @@ const AdminApprovalScreen: React.FC<AdminApprovalScreenProps> = ({ onSetView }) 
     );
 };
 
-export default AdminApprovalScreen;
+export default UserManagementScreen;

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -12,8 +13,8 @@ import StartSessionModal from './components/StartSessionModal';
 import { supabase } from './lib/supabaseClient';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
-import PendingApprovalScreen from './screens/PendingApprovalScreen';
-import AdminApprovalScreen from './screens/AdminApprovalScreen';
+import AccessRevokedScreen from './screens/PendingApprovalScreen';
+import UserManagementScreen from './screens/AdminApprovalScreen';
 import { Session } from '@supabase/supabase-js';
 import { Database } from './database.types';
 import { Json } from './database.types';
@@ -50,7 +51,7 @@ const App: React.FC = () => {
           if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
 
           // Navigating to a main screen from the header should reset the stack
-          if (['home', 'login', 'register', 'manageNets', 'adminApprovals', 'about', 'awards'].includes(newView.type)) {
+          if (['home', 'login', 'register', 'manageNets', 'userManagement', 'about', 'awards'].includes(newView.type)) {
               return [newView];
           }
           
@@ -78,9 +79,10 @@ const App: React.FC = () => {
         
         const typedNets: Net[] = rawNets.map((n): Net => {
             let migratedRepeaters: Repeater[] = [];
+            const unknownRepeaters = n.repeaters;
             
-            if (Array.isArray(n.repeaters)) {
-                const repeatersArray = n.repeaters as any[];
+            if (Array.isArray(unknownRepeaters)) {
+                const repeatersArray = unknownRepeaters as any[];
                 if (repeatersArray.length > 0 && repeatersArray[0] && repeatersArray[0].frequency !== undefined) {
                     migratedRepeaters = repeatersArray.map((r: any): Repeater => {
                         const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : null;
@@ -122,9 +124,7 @@ const App: React.FC = () => {
         let alertMessage = `Could not load application data. Please check your connection and refresh the page.\n\nDetails: ${error.message}`;
 
         if (error.message && error.message.includes('Failed to fetch')) {
-            alertMessage = `A network error occurred while trying to connect to the database. This can happen if you are offline or if the Supabase URL in lib/config.ts is incorrect.
-
-Please verify your internet connection and ensure your Supabase credentials are set correctly.`;
+            alertMessage = `A network error occurred while trying to connect to the database. This can happen if you are offline or if the Supabase URL in lib/config.ts is incorrect. Please verify your internet connection and ensure your Supabase credentials are set correctly.`;
         }
     
         alert(alertMessage);
@@ -239,10 +239,10 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
     if (session && profile) {
         if (!profile.is_approved && profile.role !== 'admin') {
-            if (view.type !== 'pendingApproval') {
-                setView({ type: 'pendingApproval' });
+            if (view.type !== 'accessRevoked') {
+                setView({ type: 'accessRevoked' });
             }
-        } else if (['login', 'register', 'pendingApproval'].includes(view.type)) {
+        } else if (['login', 'register', 'accessRevoked'].includes(view.type)) {
             setView({ type: 'home' });
         }
     } else if (!session) {
@@ -277,7 +277,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
             const { created_by, ...finalUpdateData } = sanitizedData;
             const updatePayload: Database['public']['Tables']['nets']['Update'] = {
                 ...finalUpdateData,
-                repeaters: finalUpdateData.repeaters,
+                repeaters: finalUpdateData.repeaters as unknown as Json,
             };
             result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
         } else {
@@ -297,7 +297,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
                 schedule: restData.schedule!,
                 time: restData.time!,
                 time_zone: restData.time_zone!,
-                repeaters: sanitizedData.repeaters ?? [],
+                repeaters: (sanitizedData.repeaters ?? []) as unknown as Json,
                 net_config_type: restData.net_config_type!,
                 frequency: restData.frequency ?? null,
                 band: restData.band ?? null,
@@ -516,8 +516,8 @@ Please verify your internet connection and ensure your Supabase credentials are 
           return <LoginScreen onSetView={setView} />;
       case 'register':
           return <RegisterScreen onSetView={setView} />;
-      case 'pendingApproval':
-          return <PendingApprovalScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
+      case 'accessRevoked':
+          return <AccessRevokedScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
       case 'about':
           return <AboutScreen />;
       case 'awards':
@@ -607,11 +607,11 @@ Please verify your internet connection and ensure your Supabase credentials are 
           />
         );
       }
-      case 'adminApprovals': {
+      case 'userManagement': {
         if (profile?.role !== 'admin') {
             return <div className="text-center py-20">Access Denied.</div>;
         }
-        return <AdminApprovalScreen onSetView={setView}/>;
+        return <UserManagementScreen onSetView={setView}/>;
       }
       case 'callsignProfile': {
         return (

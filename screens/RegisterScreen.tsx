@@ -42,7 +42,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
             setError(signUpError.message);
         } else {
             // Success! The trigger will handle profile creation.
-            setMessage('Registration successful! Please check your email to confirm your account. After confirmation, an admin must approve your account before you can log in.');
+            setMessage('Registration successful! Please check your email to verify your account. Once verified, you can log in and start managing NETs.');
         }       
 
         setLoading(false);
@@ -90,7 +90,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                          </div>
                     </div>
                     <div>
-                        <button type="submit" disabled={loading || !!message} className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                        <button type="submit" disabled={loading || !!message} className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-md font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500 disabled:cursor-not-allowed">
                             {loading ? 'Registering...' : 'Register'}
                         </button>
                     </div>

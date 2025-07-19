@@ -78,7 +78,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500"
+              className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-md font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

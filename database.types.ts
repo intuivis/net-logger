@@ -118,7 +118,7 @@ export type Database = {
           schedule: string;
           time: string;
           time_zone: string;
-          repeaters: any;
+          repeaters: Json;
           net_config_type: string;
           frequency: string | null;
           band: string | null;
@@ -139,7 +139,7 @@ export type Database = {
           schedule: string;
           time: string;
           time_zone: string;
-          repeaters: any;
+          repeaters: Json;
           net_config_type: string;
           frequency?: string | null;
           band?: string | null;
@@ -160,7 +160,7 @@ export type Database = {
           schedule?: string;
           time?: string;
           time_zone?: string;
-          repeaters?: any;
+          repeaters?: Json;
           net_config_type?: string;
           frequency?: string | null;
           band?: string | null;

@@ -5,8 +5,8 @@ export enum NetType {
   TECHNICAL = "Technical",
   TRAFFIC = "Traffic",
   EMERGENCY = "Emergency",
-  ARES_RACES = "Civil Service",
-  SPECIAL_EVENT = "Event",
+  ARES_RACES = "ARES/RACES",
+  SPECIAL_EVENT = "Special Event",
 }
 
 export enum NetConfigType {
@@ -92,8 +92,8 @@ export type View =
   | { type: 'home' }
   | { type: 'login' }
   | { type: 'register' }
-  | { type: 'pendingApproval' }
-  | { type: 'adminApprovals' }
+  | { type: 'accessRevoked' }
+  | { type: 'userManagement' }
   | { type: 'manageNets' }
   | { type: 'netEditor'; netId?: string }
   | { type: 'netDetail'; netId: string }
