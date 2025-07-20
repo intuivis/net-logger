@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -58,6 +57,15 @@ const App: React.FC = () => {
           return [...prev, newView];
       });
   }, []);
+  
+  const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
+      ...rawNet,
+      net_type: rawNet.net_type as NetType,
+      schedule: rawNet.schedule as DayOfWeek,
+      net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+      repeaters: (rawNet.repeaters as unknown as Repeater[]) || [],
+  }), []);
+
 
   const refreshAllData = useCallback(async () => {
     try {
@@ -248,18 +256,10 @@ Please verify your internet connection and ensure your Supabase credentials are 
       setter(prev => prev.filter(item => item.id !== payload.old.id));
     };
 
-    const transformNetPayload = (rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
-      ...rawNet,
-      net_type: rawNet.net_type as NetType,
-      schedule: rawNet.schedule as DayOfWeek,
-      net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
-      repeaters: (rawNet.repeaters as unknown as Repeater[]) || [],
-    });
-
     const netsChannel = supabase.channel('public:nets')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nets' }, payload => {
         const newNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
-        setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet]));
+        setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name))));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'nets' }, payload => {
         const updatedNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
@@ -294,7 +294,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
       supabase.removeChannel(checkInsChannel);
       supabase.removeChannel(awardedBadgesChannel);
     };
-  }, [refreshAllData]);
+  }, [refreshAllData, transformNetPayload]);
 
 
   useEffect(() => {
@@ -334,15 +334,19 @@ Please verify your internet connection and ensure your Supabase credentials are 
             sanitizedData.mode = null;
         }
 
-        let result;
-
         if (id) {
             const { created_by, ...finalUpdateData } = sanitizedData;
             const updatePayload: Database['public']['Tables']['nets']['Update'] = {
                 ...finalUpdateData,
                 repeaters: finalUpdateData.repeaters as unknown as Json,
             };
-            result = await supabase.from('nets').update(updatePayload).eq('id', id).select('id').single();
+            const {data, error} = await supabase.from('nets').update(updatePayload).eq('id', id).select('*').single();
+            if(error) throw error;
+            if(!data) throw new Error("No data returned after update operation.");
+            
+            const updatedNet = transformNetPayload(data);
+            setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
+            setView({ type: 'netDetail', netId: updatedNet.id });
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
@@ -367,29 +371,26 @@ Please verify your internet connection and ensure your Supabase credentials are 
                 mode: restData.mode ?? null,
             };
 
-            result = await supabase.from('nets').insert([insertPayload]).select('id').single();
-        }
+            const {data, error} = await supabase.from('nets').insert([insertPayload]).select('*').single();
+            if(error) throw error;
+            if(!data) throw new Error("No data returned after create operation.");
 
-        if (result.error) throw result.error;
-        if (!result.data?.id) throw new Error("No data returned after save operation.");
-        
-        const newNetId = result.data.id;
-        // No longer needed due to real-time subscription
-        // await refreshAllData();
-        setView({ type: 'netDetail', netId: newNetId });
+            const newNet = transformNetPayload(data);
+            setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
+            setView({ type: 'netDetail', netId: newNet.id });
+        }
     } catch (error: any) {
         console.error("Error saving NET:", error);
         alert(`Failed to save NET: ${error.message}`);
     }
-  }, [profile, setView]);
+  }, [profile, setView, transformNetPayload]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
     if (window.confirm('Are you sure you want to delete this NET and all its sessions? This cannot be undone.')) {
         try {
             const { error } = await supabase.from('nets').delete().eq('id', netId);
             if (error) throw error;
-            // No longer needed due to real-time subscription
-            // await refreshAllData();
+            setNets(prev => prev.filter(n => n.id !== netId));
             setView({ type: 'manageNets' });
         } catch(error: any) {
              console.error("Error deleting NET:", error);
@@ -418,10 +419,11 @@ Please verify your internet connection and ensure your Supabase credentials are 
         if (error) throw error;
         if (!data) throw new Error("Failed to create session.");
         
-        // No longer needed due to real-time subscription
-        // await refreshAllData();
+        const newSession = data as NetSession;
+        setSessions(prev => [newSession, ...prev]);
+
         setStartingNet(null);
-        setView({ type: 'session', sessionId: data.id });
+        setView({ type: 'session', sessionId: newSession.id });
     } catch (error: any) {
         console.error("Error starting session:", error);
         alert(`Failed to start session: ${error.message}`);
@@ -446,8 +448,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         alert(`Failed to end session: ${error.message}`);
         throw error;
       }
-      // No longer needed due to real-time subscription
-      // await refreshAllData();
+      setSessions(prev => prev.map(s => s.id === sessionId ? {...s, end_time: endedTime} : s));
     } catch (error) {
       console.error("Error ending session:", error);
     }
@@ -458,8 +459,8 @@ Please verify your internet connection and ensure your Supabase credentials are 
         try {
             const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
             if (error) throw error;
-            // No longer needed due to real-time subscription
-            // await refreshAllData();
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
         } catch (error: any) {
             console.error("Error deleting session:", error);
             alert(`Failed to delete session: ${error.message}`);
@@ -471,8 +472,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
     try {
         const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
         if (error) throw error;
-        // No longer needed due to real-time subscription
-        // await refreshAllData();
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
     } catch (error: any) {
         console.error("Error updating session notes:", error);
         alert(`Failed to save notes: ${error.message}`);
@@ -490,6 +490,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         if (checkInError || !newCheckInData) throw checkInError || new Error("Failed to create check-in");
         
         const newCheckIn = newCheckInData as CheckIn;
+        setCheckIns(prev => [newCheckIn, ...prev]);
 
         const callSign = newCheckIn.call_sign;
         
@@ -525,8 +526,6 @@ Please verify your internet connection and ensure your Supabase credentials are 
             alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
         }
         
-        // No longer needed due to real-time subscription
-        // await refreshAllData();
     } catch (error: any) {
         console.error("Error adding check-in and awarding badges:", error);
         alert(`Failed to add check-in: ${error.message}`);
@@ -543,8 +542,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         const payload: Database['public']['Tables']['check_ins']['Update'] = updateData;
         const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
         if (error) throw error;
-        // No longer needed due to real-time subscription
-        // await refreshAllData();
+        setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
         setEditingCheckIn(null);
     } catch (error: any) {
         console.error("Error updating check-in:", error);
@@ -557,8 +555,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         try {
             const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
             if (error) throw error;
-            // No longer needed due to real-time subscription
-            // await refreshAllData();
+            setCheckIns(prev => prev.filter(c => c.id !== checkInId));
         } catch (error: any) {
             console.error("Error deleting check-in:", error);
             alert(`Failed to delete check-in: ${error.message}`);
