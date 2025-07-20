@@ -100,7 +100,7 @@ const App: React.FC = () => {
                         };
                     });
                 } else {
-                    migratedRepeaters = repeatersArray as Repeater[];
+                    migratedRepeaters = repeatersArray as unknown as Repeater[];
                 }
             }
 
@@ -124,7 +124,9 @@ const App: React.FC = () => {
         let alertMessage = `Could not load application data. Please check your connection and refresh the page.\n\nDetails: ${error.message}`;
 
         if (error.message && error.message.includes('Failed to fetch')) {
-            alertMessage = `A network error occurred while trying to connect to the database. This can happen if you are offline or if the Supabase URL in lib/config.ts is incorrect. Please verify your internet connection and ensure your Supabase credentials are set correctly.`;
+            alertMessage = `A network error occurred while trying to connect to the database. This can happen if you are offline or if the Supabase URL in lib/config.ts is incorrect.
+
+Please verify your internet connection and ensure your Supabase credentials are set correctly.`;
         }
     
         alert(alertMessage);
@@ -235,6 +237,67 @@ const App: React.FC = () => {
   }, [session, refreshAllData, backfillBadges]);
 
   useEffect(() => {
+    // This effect sets up real-time listeners for database changes.
+    const handleInsert = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+      setter(prev => (prev.some(item => item.id === payload.new.id) ? prev : [...prev, payload.new as T]));
+    };
+    const handleUpdate = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+      setter(prev => prev.map(item => (item.id === payload.new.id ? (payload.new as T) : item)));
+    };
+    const handleDelete = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+      setter(prev => prev.filter(item => item.id !== payload.old.id));
+    };
+
+    const transformNetPayload = (rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
+      ...rawNet,
+      net_type: rawNet.net_type as NetType,
+      schedule: rawNet.schedule as DayOfWeek,
+      net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+      repeaters: (rawNet.repeaters as unknown as Repeater[]) || [],
+    });
+
+    const netsChannel = supabase.channel('public:nets')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nets' }, payload => {
+        const newNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
+        setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet]));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'nets' }, payload => {
+        const updatedNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
+        setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nets' }, payload => handleDelete<Net>(payload, setNets))
+      .subscribe();
+
+    const sessionsChannel = supabase.channel('public:sessions')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sessions' }, payload => handleInsert<NetSession>(payload, setSessions))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' }, payload => handleUpdate<NetSession>(payload, setSessions))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sessions' }, payload => handleDelete<NetSession>(payload, setSessions))
+      .subscribe();
+
+    const checkInsChannel = supabase.channel('public:check_ins')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'check_ins' }, payload => handleInsert<CheckIn>(payload, setCheckIns))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'check_ins' }, payload => handleUpdate<CheckIn>(payload, setCheckIns))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'check_ins' }, payload => handleDelete<CheckIn>(payload, setCheckIns))
+      .subscribe();
+      
+    const awardedBadgesChannel = supabase.channel('public:awarded_badges')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'awarded_badges' }, () => {
+            // Because badge logic can be complex, a full refresh is safest for now.
+            refreshAllData();
+        })
+        .subscribe();
+
+
+    return () => {
+      supabase.removeChannel(netsChannel);
+      supabase.removeChannel(sessionsChannel);
+      supabase.removeChannel(checkInsChannel);
+      supabase.removeChannel(awardedBadgesChannel);
+    };
+  }, [refreshAllData]);
+
+
+  useEffect(() => {
     if (loading) return;
 
     if (session && profile) {
@@ -311,27 +374,29 @@ const App: React.FC = () => {
         if (!result.data?.id) throw new Error("No data returned after save operation.");
         
         const newNetId = result.data.id;
-        await refreshAllData();
+        // No longer needed due to real-time subscription
+        // await refreshAllData();
         setView({ type: 'netDetail', netId: newNetId });
     } catch (error: any) {
         console.error("Error saving NET:", error);
         alert(`Failed to save NET: ${error.message}`);
     }
-  }, [refreshAllData, profile, setView]);
+  }, [profile, setView]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
     if (window.confirm('Are you sure you want to delete this NET and all its sessions? This cannot be undone.')) {
         try {
             const { error } = await supabase.from('nets').delete().eq('id', netId);
             if (error) throw error;
-            await refreshAllData();
+            // No longer needed due to real-time subscription
+            // await refreshAllData();
             setView({ type: 'manageNets' });
         } catch(error: any) {
              console.error("Error deleting NET:", error);
              alert(`Failed to delete NET: ${error.message}`);
         }
     }
-  }, [refreshAllData, setView]);
+  }, [setView]);
 
   const handleStartSessionRequest = useCallback((netId: string) => {
     const netToStart = nets.find(n => n.id === netId);
@@ -353,24 +418,19 @@ const App: React.FC = () => {
         if (error) throw error;
         if (!data) throw new Error("Failed to create session.");
         
-        await refreshAllData();
+        // No longer needed due to real-time subscription
+        // await refreshAllData();
         setStartingNet(null);
         setView({ type: 'session', sessionId: data.id });
     } catch (error: any) {
         console.error("Error starting session:", error);
         alert(`Failed to start session: ${error.message}`);
     }
-  }, [refreshAllData, setView]);
+  }, [setView]);
 
   const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
     const endedTime = new Date().toISOString();
-    const originalSessions = [...sessions];
 
-    setSessions(prevSessions =>
-      prevSessions.map(s =>
-        s.id === sessionId ? { ...s, end_time: endedTime } : s
-      )
-    );
     if (view.type === 'session' && view.sessionId === sessionId) {
         setView({ type: 'netDetail', netId });
     }
@@ -383,40 +443,41 @@ const App: React.FC = () => {
         .eq('id', sessionId);
 
       if (error) {
-        setSessions(originalSessions);
         alert(`Failed to end session: ${error.message}`);
         throw error;
       }
-      
-      await refreshAllData();
+      // No longer needed due to real-time subscription
+      // await refreshAllData();
     } catch (error) {
       console.error("Error ending session:", error);
     }
-  }, [refreshAllData, sessions, view.type, setView]);
+  }, [view.type, setView]);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     if (window.confirm('Are you sure you want to permanently delete this session and its log?')) {
         try {
             const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
             if (error) throw error;
-            await refreshAllData();
+            // No longer needed due to real-time subscription
+            // await refreshAllData();
         } catch (error: any) {
             console.error("Error deleting session:", error);
             alert(`Failed to delete session: ${error.message}`);
         }
     }
-  }, [refreshAllData]);
+  }, []);
   
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
         const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
         if (error) throw error;
-        await refreshAllData();
+        // No longer needed due to real-time subscription
+        // await refreshAllData();
     } catch (error: any) {
         console.error("Error updating session notes:", error);
         alert(`Failed to save notes: ${error.message}`);
     }
-  }, [refreshAllData]);
+  }, []);
 
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     try {
@@ -432,7 +493,9 @@ const App: React.FC = () => {
 
         const callSign = newCheckIn.call_sign;
         
-        const allUserCheckInsIncludingNew = [...checkIns.filter(ci => ci.call_sign === callSign), newCheckIn];
+        const { data: allUserCheckInsData, error: userCheckInsError } = await supabase.from('check_ins').select('*').eq('call_sign', callSign);
+        if (userCheckInsError) throw userCheckInsError;
+        const allUserCheckInsIncludingNew = allUserCheckInsData as CheckIn[];
 
         const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
         if (awardsError) throw awardsError;
@@ -461,13 +524,14 @@ const App: React.FC = () => {
             const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
             alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
         }
-
-        await refreshAllData();
+        
+        // No longer needed due to real-time subscription
+        // await refreshAllData();
     } catch (error: any) {
         console.error("Error adding check-in and awarding badges:", error);
         alert(`Failed to add check-in: ${error.message}`);
     }
-  }, [refreshAllData, checkIns, sessions, allBadges]);
+  }, [sessions, allBadges]);
 
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
     setEditingCheckIn({ sessionId, checkIn });
@@ -479,26 +543,28 @@ const App: React.FC = () => {
         const payload: Database['public']['Tables']['check_ins']['Update'] = updateData;
         const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
         if (error) throw error;
-        await refreshAllData();
+        // No longer needed due to real-time subscription
+        // await refreshAllData();
         setEditingCheckIn(null);
     } catch (error: any) {
         console.error("Error updating check-in:", error);
         alert(`Failed to update check-in: ${error.message}`);
     }
-  }, [refreshAllData]);
+  }, []);
 
   const handleDeleteCheckIn = useCallback(async (checkInId: string) => {
     if (window.confirm('Are you sure you want to delete this check-in?')) {
         try {
             const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
             if (error) throw error;
-            await refreshAllData();
+            // No longer needed due to real-time subscription
+            // await refreshAllData();
         } catch (error: any) {
             console.error("Error deleting check-in:", error);
             alert(`Failed to delete check-in: ${error.message}`);
         }
     }
-  }, [refreshAllData]);
+  }, []);
   
   const allBadgeDefinitions = React.useMemo(() => {
     const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
