@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -246,6 +247,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
   useEffect(() => {
     // This effect sets up real-time listeners for database changes.
+    // SessionScreen now handles its own check-in and session updates for better performance.
     const handleInsert = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
       setter(prev => (prev.some(item => item.id === payload.new.id) ? prev : [...prev, payload.new as T]));
     };
@@ -268,18 +270,16 @@ Please verify your internet connection and ensure your Supabase credentials are 
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nets' }, payload => handleDelete<Net>(payload, setNets))
       .subscribe();
 
+    // Global session listener for HomeScreen and NetDetailScreen updates
     const sessionsChannel = supabase.channel('public:sessions')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sessions' }, payload => handleInsert<NetSession>(payload, setSessions))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' }, payload => handleUpdate<NetSession>(payload, setSessions))
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sessions' }, payload => handleDelete<NetSession>(payload, setSessions))
-      .subscribe();
-
-    const checkInsChannel = supabase.channel('public:check_ins')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'check_ins' }, payload => handleInsert<CheckIn>(payload, setCheckIns))
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'check_ins' }, payload => handleUpdate<CheckIn>(payload, setCheckIns))
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'check_ins' }, payload => handleDelete<CheckIn>(payload, setCheckIns))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
+          // A full refresh is safer here to keep all screens in sync,
+          // except for the active SessionScreen which manages its own state.
+          refreshAllData();
+      })
       .subscribe();
       
+    // Global listener for awarded badges.
     const awardedBadgesChannel = supabase.channel('public:awarded_badges')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'awarded_badges' }, () => {
             // Because badge logic can be complex, a full refresh is safest for now.
@@ -291,7 +291,6 @@ Please verify your internet connection and ensure your Supabase credentials are 
     return () => {
       supabase.removeChannel(netsChannel);
       supabase.removeChannel(sessionsChannel);
-      supabase.removeChannel(checkInsChannel);
       supabase.removeChannel(awardedBadgesChannel);
     };
   }, [refreshAllData, transformNetPayload]);
@@ -481,53 +480,70 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     try {
+        console.log('[handleAddCheckIn] Attempting to add check-in:', { sessionId, checkInData });
         const { data: newCheckInData, error: checkInError } = await supabase
             .from('check_ins')
             .insert([{ ...checkInData, session_id: sessionId }])
             .select()
             .single();
-            
-        if (checkInError || !newCheckInData) throw checkInError || new Error("Failed to create check-in");
-        
+
+        if (checkInError || !newCheckInData) {
+            console.error('[handleAddCheckIn] Check-in insert failed:', checkInError, newCheckInData);
+            alert(`Failed to add check-in: ${checkInError?.message || 'No data returned from insert.'}`);
+            return;
+        }
+
+        console.log('[handleAddCheckIn] Check-in insert succeeded:', newCheckInData);
         const newCheckIn = newCheckInData as CheckIn;
         setCheckIns(prev => [newCheckIn, ...prev]);
 
         const callSign = newCheckIn.call_sign;
-        
         const { data: allUserCheckInsData, error: userCheckInsError } = await supabase.from('check_ins').select('*').eq('call_sign', callSign);
-        if (userCheckInsError) throw userCheckInsError;
+        if (userCheckInsError) {
+            console.error('[handleAddCheckIn] Error fetching user check-ins:', userCheckInsError);
+            alert(`Failed to fetch user check-ins: ${userCheckInsError.message}`);
+            return;
+        }
         const allUserCheckInsIncludingNew = allUserCheckInsData as CheckIn[];
 
         const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
-        if (awardsError) throw awardsError;
+        if (awardsError) {
+            console.error('[handleAddCheckIn] Error fetching awarded badges:', awardsError);
+            alert(`Failed to fetch awarded badges: ${awardsError.message}`);
+            return;
+        }
         const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
-        
         const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
-        
+
         const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-        
         const badgeLogicDefinitions = BADGE_DEFINITIONS;
 
         for (const badgeLogic of badgeLogicDefinitions) {
-            if (!awardedBadgeIds.has(badgeLogic.id) && badgeLogic.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
-                badgesToAward.push({
-                    call_sign: callSign,
-                    badge_id: badgeLogic.id,
-                    session_id: sessionId,
-                });
+            try {
+                if (!awardedBadgeIds.has(badgeLogic.id) && badgeLogic.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
+                    badgesToAward.push({
+                        call_sign: callSign,
+                        badge_id: badgeLogic.id,
+                        session_id: sessionId,
+                    });
+                }
+            } catch (badgeError) {
+                console.error(`[handleAddCheckIn] Error in badge logic for ${badgeLogic.id}:`, badgeError);
             }
         }
-        
+
         if (badgesToAward.length > 0) {
             const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
-            if (newBadgeError) throw newBadgeError;
-            
-            const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
-            alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
+            if (newBadgeError) {
+                console.error('[handleAddCheckIn] Error inserting new badges:', newBadgeError);
+                alert(`Failed to award badges: ${newBadgeError.message}`);
+            } else {
+                const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
+                alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
+            }
         }
-        
     } catch (error: any) {
-        console.error("Error adding check-in and awarding badges:", error);
+        console.error('[handleAddCheckIn] Unexpected error:', error);
         alert(`Failed to add check-in: ${error.message}`);
     }
   }, [sessions, allBadges]);
@@ -542,6 +558,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         const payload: Database['public']['Tables']['check_ins']['Update'] = updateData;
         const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
         if (error) throw error;
+        // The SessionScreen will update its own check-ins via its real-time subscription.
         setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
         setEditingCheckIn(null);
     } catch (error: any) {
@@ -555,6 +572,7 @@ Please verify your internet connection and ensure your Supabase credentials are 
         try {
             const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
             if (error) throw error;
+            // The SessionScreen will update its own check-ins via its real-time subscription.
             setCheckIns(prev => prev.filter(c => c.id !== checkInId));
         } catch (error: any) {
             console.error("Error deleting check-in:", error);
@@ -647,16 +665,9 @@ Please verify your internet connection and ensure your Supabase credentials are 
         );
       }
       case 'session': {
-        const sessionData = sessions.find(s => s.id === view.sessionId);
-        if (!sessionData) return <div className="text-center py-20">Session not found.</div>;
-        const net = nets.find(n => n.id === sessionData.net_id);
-        if (!net) return <div className="text-center py-20">Associated NET not found.</div>;
-        const sessionCheckIns = checkIns.filter(ci => ci.session_id === view.sessionId);
         return (
           <SessionScreen
-            session={sessionData}
-            net={net}
-            checkIns={sessionCheckIns}
+            sessionId={view.sessionId}
             allBadges={allBadges}
             awardedBadges={awardedBadges}
             profile={profile}

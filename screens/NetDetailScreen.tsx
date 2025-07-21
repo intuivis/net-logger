@@ -155,11 +155,11 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             </p>
                         </div>
                         {net.description && (
-                            <p className="mt-4 text-dark-text-secondary max-w-2xl">{net.description}</p>
+                            <p className="mt-4 text-dark-text-secondary max-w-3xl">{net.description}</p>
                         )}
                         {net.website_url && (
-                            <a href={net.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-brand-secondary hover:text-brand-primary mt-2 sm:mt-0">
-                                <span>Visit Website</span><Icon className="text-base">open_in_new</Icon>
+                            <a href={net.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 font-medium text-sm text-dark-text-secondary text-dark-text mt-3 sm:mt-1">
+                                <span>Visit Website</span><Icon className="text-dark-text text-sm">open_in_new</Icon>
                             </a>
                         )}
                     </div>

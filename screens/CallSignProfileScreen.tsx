@@ -132,7 +132,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
       <div className="text-center py-20">
         <h1 className="text-3xl font-bold tracking-tight mb-2">{callsign}</h1>
         <p className="text-dark-text-secondary">This callsign has not checked into any nets yet.</p>
-        <button onClick={onBack} className="mt-8 flex mx-auto items-center gap-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
+        <button onClick={onBack} className="mt-8 flex mx-auto items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
           <Icon className="text-xl">arrow_back</Icon>
           <span>Back</span>
         </button>
@@ -152,7 +152,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
                 <h1 className="text-4xl font-bold tracking-tight">{callsign}</h1>
                 <p className="text-dark-text-secondary mt-1">{operatorCheckIns[0]?.name}</p>
             </div>
-            <a href={`https://www.qrz.com/db/${callsign}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-dark-700 rounded-lg shadow-md hover:bg-dark-600 transition-colors">
+            <a href={`https://www.qrz.com/db/${callsign}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary transition-colors">
                 View on QRZ.com
                 <Icon className="text-base">open_in_new</Icon>
             </a>
@@ -197,14 +197,14 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
                                             </button>
                                             <NetTypeBadge type={net.net_type} />
                                         </div>
-                                        <div className="flex items-center gap-6 text-sm text-dark-text-secondary">
+                                        <div className="flex items-center gap-6 text-md text-dark-text-secondary">
                                             <span>
-                                                <Icon className="text-base mr-1.5 align-middle">calendar_month</Icon>
+                                                <Icon className="text-base mr-1.5 align-middle text-dark-text">calendar_month</Icon>
                                                 {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                                             </span>
                                             <div className="flex items-center gap-2">
-                                                <Icon className="text-base align-middle">tag</Icon>
-                                                <span>{checkInCount} check-in{checkInCount > 1 ? 's' : ''}</span>
+                                                <Icon className="text-base align-middle text-dark-text">tag</Icon>
+                                                <span>{checkInCount} Check-In{checkInCount > 1 ? 's' : ''}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -221,11 +221,11 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
                             {expandedNets[net.id] && (
                                 <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
                                     <div className="text-sm text-dark-text-secondary mb-2 p-2">
-                                    <h3 className="font-semibold text-dark-text">NET Badges Awarded:</h3>
+                                    <h3 className="font-semibold text-dark-text mb-4">NET Awarded Badges:</h3>
                                     {loyaltyBadge ? (
                                         <Badge badge={loyaltyBadge} variant="pill" size="sm" />
                                     ) : (
-                                        <p className="py-2 text-dark-text-secondary">Keep participating in this NET to earn badges. For questions regarding your check-ins contact your Net Control Operator.</p>
+                                        <p className="text-dark-text-secondary">Keep participating in this NET to earn badges. For questions regarding your check-ins contact your Net Control Operator.</p>
                                     )}
                                     </div>
                                     <div className="mt-4 flow-root">

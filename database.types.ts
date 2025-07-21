@@ -4,8 +4,8 @@ export type Json =
   | number
   | boolean
   | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+  | { [key: string]: any }
+  | any[];
 
 export type Database = {
   public: {
@@ -19,14 +19,12 @@ export type Database = {
           session_id: string;
         };
         Insert: {
-          id?: string;
           call_sign: string;
           badge_id: string;
           awarded_at?: string;
           session_id: string;
         };
         Update: {
-          id?: string;
           call_sign?: string;
           badge_id?: string;
           awarded_at?: string;
@@ -45,7 +43,6 @@ export type Database = {
           description: string;
         };
         Update: {
-          id?: string;
           name?: string;
           description?: string;
         };
@@ -82,7 +79,6 @@ export type Database = {
           repeater_id: string | null;
         };
         Insert: {
-          id?: string;
           session_id: string;
           timestamp?: string;
           call_sign: string;
@@ -92,7 +88,6 @@ export type Database = {
           repeater_id?: string | null;
         };
         Update: {
-          id?: string;
           session_id?: string;
           timestamp?: string;
           call_sign?: string;
@@ -125,7 +120,6 @@ export type Database = {
           mode: string | null;
         };
         Insert: {
-          id?: string;
           created_at?: string;
           created_by: string;
           name: string;
@@ -146,7 +140,6 @@ export type Database = {
           mode?: string | null;
         };
         Update: {
-          id?: string;
           created_at?: string;
           created_by?: string;
           name?: string;
@@ -178,7 +171,6 @@ export type Database = {
           is_approved: boolean;
         };
         Insert: {
-          id?: string;
           updated_at?: string | null;
           email?: string | null;
           full_name?: string | null;
@@ -187,7 +179,6 @@ export type Database = {
           is_approved?: boolean;
         };
         Update: {
-          id?: string;
           updated_at?: string | null;
           email?: string | null;
           full_name?: string | null;
@@ -210,7 +201,6 @@ export type Database = {
           notes: string | null;
         };
         Insert: {
-          id?: string;
           created_at?: string;
           net_id: string;
           start_time?: string;
@@ -222,7 +212,6 @@ export type Database = {
           notes?: string | null;
         };
         Update: {
-          id?: string;
           created_at?: string;
           net_id?: string;
           start_time?: string;
