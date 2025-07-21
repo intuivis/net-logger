@@ -43,9 +43,9 @@ export const Badge: React.FC<BadgeProps> = ({ badge, variant = 'pill', size = 'b
     if (variant === 'pill') {
         const pillSizeClasses = {
             base: "px-4 py-2 text-sm",
-            sm: "px-2.5 py-1 text-xs"
+            sm: "px-3 py-1 text-xs"
         };
-        const containerClasses = `inline-flex items-center gap-2 font-semibold rounded-lg ${style.color_classes} ${pillSizeClasses[size]}`;
+        const containerClasses = `inline-flex items-center gap-2 font-semibold whitespace-nowrap rounded-lg ${style.color_classes} ${pillSizeClasses[size]}`;
         const iconSize = size === 'sm' ? 'text-base' : 'text-lg';
 
         return (
