@@ -168,7 +168,7 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
       <div className="bg-dark-800 shadow-lg rounded-lg p-6">
         <h3 className="text-xl font-bold text-dark-text mb-4">Awarded Badges</h3>
         {operatorBadges.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-wrap items-center gap-4">
                 {operatorBadges.map(badge => (
                     <Badge key={badge.id} badge={badge} variant="pill" />
                 ))}

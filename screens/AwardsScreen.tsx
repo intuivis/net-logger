@@ -16,7 +16,7 @@ const AwardSection: React.FC<{title: string, description: string, awards: BadgeD
         <ul className="divide-y divide-dark-700">
             {awards.map(badgeDef => (
                 <InfoListItem key={badgeDef.id} badge={<Badge badge={badgeDef} />}>
-                    <div className="pl-4">
+                    <div className="">
                         <h3 className="font-semibold text-dark-text text-lg">{badgeDef.name}</h3>
                         <p className="text-sm text-dark-text-secondary mt-1">{badgeDef.description}</p>
                     </div>
