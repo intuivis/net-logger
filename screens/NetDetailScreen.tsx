@@ -44,7 +44,8 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Location</dt>
-                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'}, {repeater.grid_square || '-'}</dd>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'} {repeater?.grid_square && (<span>, {repeater.grid_square}</span>
+            )}</dd>
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Frequency &amp; Offset</dt>

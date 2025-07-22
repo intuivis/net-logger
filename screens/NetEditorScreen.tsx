@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS } from '../types';
@@ -61,7 +62,7 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
         <FormInput label="Uplink Tone (Hz)" id={`r-uplink-tone-${index}`} type="text" value={repeater.uplink_tone || ''} onChange={e => onUpdate(index, 'uplink_tone', e.target.value)} placeholder="e.g., 156.7" />
         <FormInput label="Downlink Tone (Hz)" id={`r-downlink-tone-${index}`} type="text" value={repeater.downlink_tone || ''} onChange={e => onUpdate(index, 'downlink_tone', e.target.value)} placeholder="e.g., 156.7" />
 
-        <FormInput label="County" id={`r-county-${index}`} type="text" value={repeater.county || ''} onChange={e => onUpdate(index, 'county', e.target.value)} placeholder="e.g., Coweta" />
+        <FormInput label="Location" id={`r-county-${index}`} type="text" value={repeater.county || ''} onChange={e => onUpdate(index, 'county', e.target.value)} placeholder="e.g., Coweta" />
         <FormInput label="Grid Square" id={`r-grid-${index}`} type="text" value={repeater.grid_square || ''} onChange={e => onUpdate(index, 'grid_square', e.target.value)} placeholder="e.g., EM73oj" />
         <FormInput className="md:col-span-2" label="Website URL" id={`r-website-${index}`} type="url" value={repeater.website_url || ''} onChange={e => onUpdate(index, 'website_url', e.target.value)} placeholder="https://example.com" />
     </div>
@@ -101,18 +102,18 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
     if (baseNet.repeaters && baseNet.repeaters.length > 0) {
         baseNet.repeaters = baseNet.repeaters.map((r: any) => {
             if (r.frequency !== undefined) { // This property only existed on the old format
-                const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : '';
+                const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : null;
                 return {
                     id: r.id || uuidv4(),
                     name: r.name || '',
-                    owner_callsign: '',
-                    grid_square: '',
-                    county: '',
+                    owner_callsign: null,
+                    grid_square: null,
+                    county: null,
                     downlink_freq: r.frequency || '',
                     offset: offset,
-                    uplink_tone: r.tone || '',
-                    downlink_tone: r.tone || '', // Assume downlink tone is same as old tone
-                    website_url: '',
+                    uplink_tone: r.tone || null,
+                    downlink_tone: r.tone || null,
+                    website_url: null,
                 };
             }
             return r; // Already in new format
@@ -121,7 +122,7 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
 
     // Ensure there's always at least one repeater object for repeater-based nets
     if ((baseNet.net_config_type === NetConfigType.SINGLE_REPEATER || baseNet.net_config_type === NetConfigType.LINKED_REPEATER) && (!baseNet.repeaters || baseNet.repeaters.length === 0)) {
-        baseNet.repeaters = [{ id: uuidv4(), name: '', owner_callsign: '', grid_square: '', county: '', downlink_freq: '', offset: '', uplink_tone: '', downlink_tone: '', website_url: '' }];
+        baseNet.repeaters = [{ id: uuidv4(), name: '', owner_callsign: null, grid_square: null, county: null, downlink_freq: '', offset: null, uplink_tone: null, downlink_tone: null, website_url: null }];
     }
 
     return baseNet;
@@ -131,7 +132,27 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
     const { name, value } = e.target;
     const finalValue = name.toLowerCase().includes('callsign') ? value.toUpperCase() : value;
     
-    setNet(prev => ({ ...prev, [name]: finalValue }));
+    setNet(prev => {
+        const newNet = { ...prev, [name]: finalValue };
+
+        if (name === 'net_config_type') {
+            const newConfigType = value as NetConfigType;
+            
+            if (newConfigType === NetConfigType.SINGLE_REPEATER) {
+                if (!newNet.repeaters || newNet.repeaters.length === 0) {
+                    newNet.repeaters = [{ id: uuidv4(), name: '', owner_callsign: null, grid_square: null, county: null, downlink_freq: '', offset: null, uplink_tone: null, downlink_tone: null, website_url: null }];
+                } else if (newNet.repeaters.length > 1) {
+                    newNet.repeaters = [newNet.repeaters[0]];
+                }
+            } else if (newConfigType === NetConfigType.LINKED_REPEATER) {
+                if (!newNet.repeaters || newNet.repeaters.length === 0) {
+                     newNet.repeaters = [{ id: uuidv4(), name: '', owner_callsign: null, grid_square: null, county: null, downlink_freq: '', offset: null, uplink_tone: null, downlink_tone: null, website_url: null }];
+                }
+            }
+        }
+        
+        return newNet;
+    });
   };
 
   const addRepeater = useCallback(() => {
@@ -213,7 +234,6 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit NET' : 'Create New NET'}</h1>
       <form onSubmit={handleSubmit} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-8">
-        
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormInput label="NET Name" id="name" name="name" type="text" value={net.name || ''} onChange={handleInputChange} required className="md:col-span-2"/>
@@ -235,15 +255,15 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                 <FormSelect label="Type of NET" id="net_type" name="net_type" value={net.net_type} onChange={handleInputChange}>
                     {NET_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </FormSelect>
-                <FormInput label="Primary NCO Name" id="primary_nco" name="primary_nco" type="text" value={net.primary_nco || ''} onChange={handleInputChange} required />
-                <FormInput label="Primary NCO Callsign" id="primary_nco_callsign" name="primary_nco_callsign" type="text" value={net.primary_nco_callsign || ''} onChange={handleInputChange} required />
-                <FormInput label="Backup NCO Name" id="backup_nco" name="backup_nco" type="text" value={net.backup_nco || ''} onChange={handleInputChange} />
-                <FormInput label="Backup NCO Callsign" id="backup_nco_callsign" name="backup_nco_callsign" type="text" value={net.backup_nco_callsign || ''} onChange={handleInputChange} />
+                <FormInput label="Primary Net Control Callsign" id="primary_nco_callsign" name="primary_nco_callsign" type="text" value={net.primary_nco_callsign || ''} onChange={handleInputChange} required />
+                <FormInput label="Primary Net Control Name" id="primary_nco" name="primary_nco" type="text" value={net.primary_nco || ''} onChange={handleInputChange} required />
+                <FormInput label="Backup Net Control Callsign" id="backup_nco_callsign" name="backup_nco_callsign" type="text" value={net.backup_nco_callsign || ''} onChange={handleInputChange} />
+                <FormInput label="Backup Net Control Name" id="backup_nco" name="backup_nco" type="text" value={net.backup_nco || ''} onChange={handleInputChange} />
             </div>
         </div>
 
         <fieldset className="border-t border-dark-700 pt-6">
-            <legend className="text-lg font-medium text-dark-text">Default Schedule</legend>
+            <legend className="text-lg font-medium text-dark-text">Schedule</legend>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                 <FormSelect label="Day of Week" id="schedule" name="schedule" value={net.schedule} onChange={handleInputChange}>
                     {DAY_OF_WEEK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}

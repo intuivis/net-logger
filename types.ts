@@ -5,8 +5,8 @@ export enum NetType {
   TECHNICAL = "Technical",
   TRAFFIC = "Traffic",
   EMERGENCY = "Emergency",
-  ARES_RACES = "Service",
-  SPECIAL_EVENT = "Event",
+  ARES_RACES = "Civil Service",
+  SPECIAL_EVENT = "Special Event",
 }
 
 export enum NetConfigType {
@@ -18,7 +18,7 @@ export enum NetConfigType {
 export const NET_CONFIG_TYPE_LABELS: Record<NetConfigType, string> = {
     [NetConfigType.SINGLE_REPEATER]: "Single Repeater",
     [NetConfigType.LINKED_REPEATER]: "Linked Repeater System",
-    [NetConfigType.GROUP]: "Group/Simplex",
+    [NetConfigType.GROUP]: "HF/Simplex",
 };
 
 export enum DayOfWeek {
