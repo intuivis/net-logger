@@ -100,4 +100,6 @@ export type View =
   | { type: 'session'; sessionId: string }
   | { type: 'callsignProfile'; callsign: string }
   | { type: 'about' }
-  | { type: 'awards' };
+  | { type: 'awards' }
+  | { type: 'userAgreement' }
+  | { type: 'releaseNotes' };

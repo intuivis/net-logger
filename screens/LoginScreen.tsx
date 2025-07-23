@@ -26,14 +26,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
+    <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
       <div className="w-full max-w-md p-8 space-y-8 bg-dark-800 rounded-lg shadow-lg">
         <div>
           <h2 className="text-2xl font-bold text-center text-dark-text">Sign in to your account</h2>
-          <p className="mt-2 text-center text-sm text-dark-text-secondary">
+          <p className="mt-2 text-center text-md text-dark-text-secondary">
             Or{' '}
             <button onClick={() => onSetView({type: 'register'})} className="font-medium text-brand-secondary hover:text-brand-primary">
-              create a new account
+              Create a New Account
             </button>
           </p>
         </div>
