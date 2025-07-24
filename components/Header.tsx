@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { AuthSessionMissingError } from '@supabase/supabase-js';
 import {LogoSignal} from './icons/LogoSignal';
 
 interface HeaderProps {
@@ -25,17 +26,16 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
         setIsLoggingOut(true);
         setIsMenuOpen(false);
 
-        // The signOut function can throw an error if the session is already expired.
-        // We wrap this in a try/catch block to prevent an unhandled rejection
-        // and a scary error message for the user. The onAuthStateChange listener
-        // in App.tsx will handle the UI update regardless.
         try {
             const { error } = await supabase.auth.signOut();
-            if (error) {
-                 // Log error for debugging, but don't show a disruptive alert.
+            // We expect an AuthSessionMissingError if the session is already expired.
+            // In that case, we don't need to log it as an error. The user is logged
+            // out locally anyway by the onAuthStateChange listener.
+            if (error && !(error instanceof AuthSessionMissingError)) {
                 console.error('Error signing out:', error);
             }
         } catch (error) {
+            // Catch other unexpected exceptions.
             console.error('Exception during sign out:', error);
         } finally {
             // This component might unmount if logout is successful, but this prevents

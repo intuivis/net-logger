@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { AuthSessionMissingError } from '@supabase/supabase-js';
 import { View } from '../types';
 
 interface AccessRevokedScreenProps {
@@ -18,7 +19,7 @@ const AccessRevokedScreen: React.FC<AccessRevokedScreenProps> = ({ email, onSetV
 
         try {
             const { error } = await supabase.auth.signOut();
-            if (error) {
+            if (error && !(error instanceof AuthSessionMissingError)) {
                 console.error('Error signing out:', error);
             }
         } catch (error) {
