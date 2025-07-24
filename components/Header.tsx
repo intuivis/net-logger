@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
@@ -26,22 +25,21 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
         setIsLoggingOut(true);
         setIsMenuOpen(false);
 
-        try {
-            const { error } = await supabase.auth.signOut();
-            // We expect an AuthSessionMissingError if the session is already expired.
-            // In that case, we don't need to log it as an error. The user is logged
-            // out locally anyway by the onAuthStateChange listener.
-            if (error && !(error instanceof AuthSessionMissingError)) {
-                console.error('Error signing out:', error);
-            }
-        } catch (error) {
-            // Catch other unexpected exceptions.
-            console.error('Exception during sign out:', error);
-        } finally {
-            // This component might unmount if logout is successful, but this prevents
-            // the button from getting stuck in a loading state if an error occurs.
-            setIsLoggingOut(false);
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+            // This can happen if the session is already expired.
+            // The most robust way to ensure the user is in a logged-out state
+            // is to reload the page. This will clear all React state and force
+            // the app to re-check the session from scratch, breaking any loops.
+            console.error('Error during sign out, forcing reload:', error.message);
+            window.location.reload();
         }
+        
+        // If sign-out is successful, the onAuthStateChange listener handles the redirect.
+        // We only reach here if there was no error. In case the component doesn't
+        // unmount right away, we reset the loading state.
+        setIsLoggingOut(false);
     };
 
     return (

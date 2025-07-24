@@ -1,11 +1,10 @@
-
 export type Json =
   | string
   | number
   | boolean
   | null
-  | { [key: string]: any }
-  | any[];
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type PermissionKey =
   | "editNet"
