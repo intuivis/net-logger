@@ -1,7 +1,7 @@
 
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
@@ -14,6 +14,7 @@ interface SessionScreenProps {
   allBadges: BadgeType[];
   awardedBadges: AwardedBadge[];
   profile: Profile | null;
+  hasPermission: (permission: PermissionKey) => boolean;
   onEndSession: (sessionId: string, netId: string) => void;
   onAddCheckIn: (sessionId: string, checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
@@ -176,7 +177,7 @@ const handleSubmit = (e: React.FormEvent) => {
     );
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, profile, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
+const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, profile, hasPermission, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
   const [session, setSession] = useState<NetSession | null>(null);
   const [net, setNet] = useState<Net | null>(null);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -219,6 +220,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             schedule: netData.schedule as DayOfWeek,
             net_config_type: netData.net_config_type as NetConfigType,
             repeaters: (netData.repeaters as unknown as Repeater[]) || [],
+            passcode: netData.passcode,
+            passcode_permissions: (netData.passcode_permissions as unknown as PasscodePermissions | null),
         };
 
         setSession(sessionData as NetSession);
@@ -281,7 +284,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
   }, [sessionId, fetchSessionData]);
 
   const isActive = useMemo(() => session?.end_time === null, [session]);
-  const canManage = useMemo(() => profile && (profile.role === 'admin' || (net && net.created_by === profile.id)), [profile, net]);
+  
+  const canLogContacts = hasPermission('logContacts');
+  const canManageSession = hasPermission('manageSessions');
 
   const handleSaveNotes = async () => {
     setIsSavingNotes(true);
@@ -312,7 +317,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
   if (!session || !net) return <div className="text-center py-20">Session not found.</div>;
   
   const showRepeaterColumn = net.net_config_type === NetConfigType.LINKED_REPEATER;
-  const tableColSpan = (canManage ? 1 : 0) + (showRepeaterColumn ? 1 : 0) + 6;
+  const tableColSpan = 7 + (showRepeaterColumn ? 1 : 0) + (canLogContacts ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -333,7 +338,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                 </p>
                 <p className="text-dark-text-secondary mt-1">Net Control: <span className="text-dark-text font-semibold">{session.primary_nco} ({session.primary_nco_callsign})</span></p>
             </div>
-            {canManage && isActive && (
+            {canManageSession && isActive && (
                 <button
                     onClick={handleEnd}
                     className="px-6 py-2.5 font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-dark-800 transition-transform transform hover:scale-105"
@@ -344,7 +349,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         </div>
       </div>
 
-      { canManage ? (
+      { canLogContacts ? (
         <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6 space-y-4">
             <h3 className="text-xl font-bold text-dark-text">Session Notes</h3>
             <textarea
@@ -353,12 +358,12 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                 className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
                 rows={5}
                 placeholder="Capture general notes for the session..."
-                disabled={isSavingNotes}
+                disabled={isSavingNotes || !isActive}
             />
             <div className="flex justify-end">
                 <button
                     onClick={handleSaveNotes}
-                    disabled={isSavingNotes}
+                    disabled={isSavingNotes || !isActive}
                     className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:bg-gray-500 disabled:cursor-wait"
                 >
                     {isSavingNotes ? 'Saving...' : 'Save Notes'}
@@ -372,7 +377,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         </div>
       ) : null }
       
-      {canManage && isActive && <CheckInForm net={net} checkIns={checkIns} onAdd={handleAdd} />}
+      {canLogContacts && isActive && <CheckInForm net={net} checkIns={checkIns} onAdd={handleAdd} />}
       
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-dark-700">
@@ -391,7 +396,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                         <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
                         {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
                         <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
-                        {canManage && <th scope="col" className="relative px-6 py-4">
+                        {canLogContacts && <th scope="col" className="relative px-6 py-4">
                             <span className="sr-only">Actions</span>
                         </th>}
                     </tr>
@@ -400,7 +405,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                     {sortedCheckIns.length === 0 ? (
                         <tr>
                             <td colSpan={tableColSpan} className="px-6 py-12 text-center text-dark-text-secondary">
-                                {isActive && canManage ? 'Waiting for first check-in...' : 'No check-ins have been logged yet.'}
+                                {isActive && canLogContacts ? 'Waiting for first check-in...' : 'No check-ins have been logged yet.'}
                             </td>
                         </tr>
                     ) : (
@@ -408,7 +413,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                             const repeater = showRepeaterColumn ? net.repeaters.find(r => r.id === checkIn.repeater_id) : null;
                             const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
                             const newlyAwarded = awardedBadges.filter(ab => ab.session_id === sessionId && ab.call_sign === checkIn.call_sign);
-                            const isNCO = checkIn.call_sign === session.primary_nco_callsign || (session.backup_nco_callsign && checkIn.call_sign === session.backup_nco_callsign);
+                            const isNCO = checkIn.call_sign === session.primary_nco_callsign;
 
                             return (
                                 <tr key={checkIn.id} className="hover:bg-dark-700/30">
@@ -434,7 +439,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
                                     {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
-                                    {canManage && (
+                                    {canLogContacts && (
                                         <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button onClick={() => onEditCheckIn(sessionId, checkIn)} className="p-2 text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
@@ -459,3 +464,5 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 };
 
 export default SessionScreen;
+// This code defines a React component for displaying and managing a net session in an amateur radio logging application.
+// It includes features for viewing session details, logging check-ins, and managing session notes.

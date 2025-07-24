@@ -20,7 +20,25 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.0.1 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.1.0 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Thursday, July, 24 2024</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Removed the Javascript alert for new badge awards to speed up adding stations to log.</li>
+                            <li>Addressed a session timeout bug and offered modal to direct login.</li>
+                            <li>
+                                <span className="font-bold text-dark-text">New Feature:</span> Passcode Permissions
+                                <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
+                                    <li>Net control stations can now grant permission to authenticated users with a passcode.</li>
+                                    <li>Users can enter the passcode to gain access to the net control station's permission settings.</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.0.1</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, July, 23 2024</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Added application footer with user agreement, release notes, and feedback links.</li>

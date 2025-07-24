@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Net, NetSession, Profile } from '../types';
+import { Net, NetSession, Profile, PermissionKey } from '../types';
 import { NetCard } from '../components/NetCard';
 import { Icon } from '../components/Icon';
 
@@ -8,6 +8,7 @@ interface ManageNetsScreenProps {
   nets: Net[];
   sessions: NetSession[];
   profile: Profile | null;
+  hasPermission: (net: Net, permission: PermissionKey) => boolean;
   onStartSession: (netId: string) => void;
   onEditNet: (netId: string) => void;
   onDeleteNet: (netId: string) => void;
@@ -19,6 +20,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
   nets,
   sessions,
   profile,
+  hasPermission,
   onStartSession,
   onEditNet,
   onDeleteNet,
@@ -47,10 +49,10 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {profile?.role === 'admin' ? 'Manage NETs' : 'My NETs'}
+            My Manageable NETs
           </h1>
           <p className="text-dark-text-secondary mt-1">
-            {profile?.role === 'admin' ? 'As an admin, you can manage all configured NETs.' : 'Create, edit, and start sessions for the NETs you manage.'}
+            Create, edit, and start sessions for NETs you own or have been given permission to manage.
           </p>
         </div>
         <AddNetButton />
@@ -59,7 +61,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       {nets.length === 0 ? (
         <div className="text-center py-16 px-4 border-2 border-dashed border-dark-700 rounded-lg">
             <h2 className="text-xl font-semibold text-dark-text-secondary">No NETs Found</h2>
-            <p className="mt-2 text-dark-text-secondary">Get started by creating your first NET.</p>
+            <p className="mt-2 text-dark-text-secondary">You don't own or have permission to manage any NETs. Get started by creating one!</p>
             <div className="mt-6 flex justify-center">
               <AddNetButton />
             </div>
@@ -73,6 +75,9 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
               sessionCount={sessions.filter(s => s.net_id === net.id).length}
               isActive={activeSessionNetIds.has(net.id)}
               profile={profile}
+              canStartSession={hasPermission(net, 'manageSessions')}
+              canEditNet={hasPermission(net, 'editNet')}
+              isOwnerOrAdmin={profile?.role === 'admin' || net.created_by === profile?.id}
               onStartSession={() => onStartSession(net.id)}
               onEditNet={() => onEditNet(net.id)}
               onDeleteNet={() => onDeleteNet(net.id)}

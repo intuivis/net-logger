@@ -1,8 +1,7 @@
 
 
-
-import React, { useState, useCallback, useEffect } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, BadgeDefinition, Badge } from './types';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -18,21 +17,24 @@ import AccessRevokedScreen from './screens/PendingApprovalScreen';
 import UserManagementScreen from './screens/AdminApprovalScreen';
 import { Session } from '@supabase/supabase-js';
 import { Database } from './database.types';
-import { Json } from './database.types';
 import { BADGE_DEFINITIONS } from './lib/badges';
 import CallsignProfileScreen from './screens/CallSignProfileScreen';
-import { v4 as uuidv4 } from 'uuid';
+//import { v4 as uuidv4 } from 'uuid'; /*I see no point this import*/
 import AboutScreen from './screens/AboutScreen';
 import AwardsScreen from './screens/AwardsScreen';
 import Footer from './components/Footer';
 import UserAgreementScreen from './screens/UserAgreementScreen';
 import ReleaseNotesScreen from './screens/ReleaseNotesScreen';
+import PasscodeModal from './components/PasscodeModal';
+import SessionExpiredModal from './components/SessionExpiredModal';
+
+type SessionStartOverrides = Partial<Pick<NetSession, 'primary_nco' | 'primary_nco_callsign'>>;
 
 
-function App() {
+const App: React.FC = () => {
   const [viewHistory, setViewHistory] = useState<View[]>([{ type: 'home' }]);
   const view = viewHistory[viewHistory.length - 1];
-
+  
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [nets, setNets] = useState<Net[]>([]);
@@ -40,162 +42,157 @@ function App() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [allBadges, setAllBadges] = useState<Badge[]>([]);
   const [awardedBadges, setAwardedBadges] = useState<AwardedBadge[]>([]);
-
+  
   const [loading, setLoading] = useState(true);
 
-  const [editingCheckIn, setEditingCheckIn] = useState<{ sessionId: string; checkIn: CheckIn; } | null>(null);
+  const [editingCheckIn, setEditingCheckIn] = useState<{ sessionId: string; checkIn: CheckIn } | null>(null);
   const [startingNet, setStartingNet] = useState<Net | null>(null);
+  const [verifyingPasscodeForNet, setVerifyingPasscodeForNet] = useState<Net | null>(null);
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  
+  const [grantedPermissions, setGrantedPermissions] = useState<Record<string, PasscodePermissions>>({});
+  const [verifiedPasscodes, setVerifiedPasscodes] = useState<Record<string, string>>({});
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
 
   const goBack = useCallback(() => {
-    setViewHistory(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
+      setViewHistory(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
 
   const setView = useCallback((newView: View) => {
-    setViewHistory(prev => {
-      const currentView = prev[prev.length - 1];
-      if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
+      setViewHistory(prev => {
+          const currentView = prev[prev.length - 1];
+          if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
 
-      // Navigating to a main screen from the header should reset the stack
-      if (['home', 'login', 'register', 'manageNets', 'userManagement', 'about', 'awards'].includes(newView.type)) {
-        return [newView];
-      }
-
-      return [...prev, newView];
-    });
+          // Navigating to a main screen from the header should reset the stack
+          if (['home', 'login', 'register', 'manageNets', 'userManagement', 'about', 'awards'].includes(newView.type)) {
+              return [newView];
+          }
+          
+          return [...prev, newView];
+      });
   }, []);
 
+  const handleApiError = useCallback((error: any, context?: string) => {
+      console.error(`API Error${context ? ` in ${context}`: ''}:`, error);
+      
+      const isAuthError = (error?.message?.includes('JWT expired') ||
+                           error?.status === 401 ||
+                           (error?.message?.includes('invalid') && error?.message?.includes('token'))
+                          );
+
+      if (isAuthError) {
+          setIsSessionExpired(true);
+      } else {
+          alert(`An unexpected error occurred: ${error.message}. Please try again.`);
+      }
+  }, []);
+  
   const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
-    ...rawNet,
+    id: rawNet.id,
+    created_by: rawNet.created_by,
+    name: rawNet.name,
+    description: rawNet.description,
+    website_url: rawNet.website_url,
+    primary_nco: rawNet.primary_nco,
+    primary_nco_callsign: rawNet.primary_nco_callsign,
     net_type: rawNet.net_type as NetType,
     schedule: rawNet.schedule as DayOfWeek,
+    time: rawNet.time,
+    time_zone: rawNet.time_zone,
     net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
     repeaters: (rawNet.repeaters as unknown as Repeater[]) || [],
+    frequency: rawNet.frequency,
+    band: rawNet.band,
+    mode: rawNet.mode,
+    passcode: rawNet.passcode || null,
+    passcode_permissions: (rawNet.passcode_permissions as unknown as PasscodePermissions | null),
   }), []);
 
 
   const refreshAllData = useCallback(async () => {
     try {
-      const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes] = await Promise.all([
-        supabase.from('nets').select('*').order('name'),
-        supabase.from('sessions').select('*').order('start_time', { ascending: false }),
-        supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
-        supabase.from('awarded_badges').select('*'),
-        supabase.from('badges').select('*'),
-      ]);
+        const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes] = await Promise.all([
+            supabase.from('nets').select('*').order('name'),
+            supabase.from('sessions').select('*').order('start_time', { ascending: false }),
+            supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
+            supabase.from('awarded_badges').select('*'),
+            supabase.from('badges').select('*'),
+        ]);
 
-      if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
-      if (sessionsRes.error) throw new Error(`Failed to load sessions: ${sessionsRes.error.message}`);
-      if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
-      if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
-      if (allBadgesRes.error) throw new Error(`Failed to load badge definitions: ${allBadgesRes.error.message}`);
+        if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
+        if (sessionsRes.error) throw new Error(`Failed to load sessions: ${sessionsRes.error.message}`);
+        if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
+        if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
+        if (allBadgesRes.error) throw new Error(`Failed to load badge definitions: ${allBadgesRes.error.message}`);
 
-      const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
-
-      const typedNets: Net[] = rawNets.map((n): Net => {
-        let migratedRepeaters: Repeater[] = [];
-        const unknownRepeaters = n.repeaters;
-
-        if (Array.isArray(unknownRepeaters)) {
-          const repeatersArray = unknownRepeaters as any[];
-          if (repeatersArray.length > 0 && repeatersArray[0] && repeatersArray[0].frequency !== undefined) {
-            migratedRepeaters = repeatersArray.map((r: any): Repeater => {
-              const offset = r.tone_offset === 'plus' ? '+0.600' : r.tone_offset === 'minus' ? '-0.600' : null;
-              return {
-                id: r.id || uuidv4(),
-                name: r.name || 'Imported Repeater',
-                owner_callsign: null,
-                grid_square: null,
-                county: null,
-                downlink_freq: r.frequency || '',
-                offset: offset,
-                uplink_tone: r.tone || null,
-                downlink_tone: r.tone || null,
-                website_url: null,
-              };
-            });
-          } else {
-            migratedRepeaters = repeatersArray as unknown as Repeater[];
-          }
-        }
-
-        return {
-          ...n,
-          net_type: n.net_type as NetType,
-          schedule: n.schedule as DayOfWeek,
-          net_config_type: (n.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
-          repeaters: migratedRepeaters,
-        };
-      });
-
-      setNets(typedNets);
-      setSessions((sessionsRes.data as NetSession[]) || []);
-      setCheckIns((checkInsRes.data as CheckIn[]) || []);
-      setAllBadges((allBadgesRes.data as Badge[]) || []);
-      setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
+        const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
+        
+        const typedNets: Net[] = rawNets.map(transformNetPayload);
+        
+        setNets(typedNets);
+        setSessions((sessionsRes.data as NetSession[]) || []);
+        setCheckIns((checkInsRes.data as CheckIn[]) || []);
+        setAllBadges((allBadgesRes.data as Badge[]) || []);
+        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
     } catch (error: any) {
-      console.error("Error refreshing application data:", error);
-
-      let alertMessage = `Could not load application data. Please check your connection and refresh the page.\n\nDetails: ${error.message}`;
-
-      if (error.message && error.message.includes('Failed to fetch')) {
-        alertMessage = `A network error occurred while trying to connect to the database. This can happen if you are offline or if the Supabase URL in lib/config.ts is incorrect.
-
-Please verify your internet connection and ensure your Supabase credentials are set correctly.`;
-      }
-
-      alert(alertMessage);
+        if (error.message && error.message.includes('Failed to fetch')) {
+             alert(`A network error occurred while trying to connect to the database. Please verify your internet connection.`);
+        } else {
+            handleApiError(error, 'refreshAllData');
+        }
     }
-  }, []);
+  }, [transformNetPayload, handleApiError]);
 
   const backfillBadges = useCallback(async () => {
     const firstCheckinBadgeId = 'first_checkin';
 
     try {
-      const [checkInsRes, awardedBadgesRes] = await Promise.all([
-        supabase.from('check_ins').select('call_sign, timestamp, session_id'),
-        supabase.from('awarded_badges').select('call_sign').eq('badge_id', firstCheckinBadgeId)
-      ]);
+        const [checkInsRes, awardedBadgesRes] = await Promise.all([
+            supabase.from('check_ins').select('call_sign, timestamp, session_id'),
+            supabase.from('awarded_badges').select('call_sign').eq('badge_id', firstCheckinBadgeId)
+        ]);
 
-      if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
-      if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
+        if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
+        if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
 
-      const allCheckIns = (checkInsRes.data as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
-      const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
+        const allCheckIns = (checkInsRes.data as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
+        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
 
-      const firstCheckIns = new Map<string, { timestamp: string; session_id: string; }>();
-      for (const checkIn of allCheckIns) {
-        const existingFirst = firstCheckIns.get(checkIn.call_sign);
-        if (!existingFirst || new Date(checkIn.timestamp) < new Date(existingFirst.timestamp)) {
-          firstCheckIns.set(checkIn.call_sign, { timestamp: checkIn.timestamp, session_id: checkIn.session_id });
-        }
-      }
-
-      const newAwards: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-      for (const [callsign, firstCheckIn] of firstCheckIns.entries()) {
-        if (!operatorsWithFirstBadge.has(callsign)) {
-          newAwards.push({
-            call_sign: callsign,
-            badge_id: firstCheckinBadgeId,
-            session_id: firstCheckIn.session_id,
-          });
-        }
-      }
-
-      if (newAwards.length > 0) {
-        console.log(`Backfilling ${newAwards.length} '${firstCheckinBadgeId}' badges...`);
-        const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards);
-
-        if (insertError) {
-          throw new Error(`Error inserting backfilled badges: ${insertError.message}`);
+        const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
+        for (const checkIn of allCheckIns) {
+            const existingFirst = firstCheckIns.get(checkIn.call_sign);
+            if (!existingFirst || new Date(checkIn.timestamp) < new Date(existingFirst.timestamp)) {
+                firstCheckIns.set(checkIn.call_sign, { timestamp: checkIn.timestamp, session_id: checkIn.session_id });
+            }
         }
 
-        await refreshAllData();
-      }
+        const newAwards: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
+        for (const [callsign, firstCheckIn] of firstCheckIns.entries()) {
+            if (!operatorsWithFirstBadge.has(callsign)) {
+                newAwards.push({
+                    call_sign: callsign,
+                    badge_id: firstCheckinBadgeId,
+                    session_id: firstCheckIn.session_id,
+                });
+            }
+        }
+
+        if (newAwards.length > 0) {
+            console.log(`Backfilling ${newAwards.length} '${firstCheckinBadgeId}' badges...`);
+            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards);
+
+            if (insertError) {
+                throw new Error(`Error inserting backfilled badges: ${insertError.message}`);
+            }
+            
+            await refreshAllData();
+        }
     } catch (error) {
-      console.error("Error during badge backfill process:", error);
+        console.error("Error during badge backfill process:", error);
     }
   }, [refreshAllData]);
-
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -203,6 +200,11 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if(!session) {
+        setGrantedPermissions({}); // Clear permissions on logout
+        setVerifiedPasscodes({}); // Clear verified passcodes on logout
+        setIsSessionExpired(false); // Clear expired modal on logout
+      }
     });
 
     return () => subscription?.unsubscribe();
@@ -210,63 +212,56 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
   useEffect(() => {
     const onSessionChange = async () => {
-      try {
-        setLoading(true);
-        let userProfile: Profile | null = null;
+        try {
+            setLoading(true);
+            let userProfile: Profile | null = null;
 
-        if (session?.user?.id) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+            if (session?.user?.id) {
+                const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
 
-          if (profileError) {
-            console.error("Error fetching user profile:", profileError);
-            alert("A problem occurred while loading your profile. The app may not function correctly. Please check your connection and refresh.");
-          } else if (!profileData) {
-            console.warn(`Profile not found for user ${session.user.id}. Signing out.`);
-            await supabase.auth.signOut();
-            return;
-          } else {
-            userProfile = profileData;
-          }
+                if (profileError) {
+                    console.error("Error fetching user profile:", profileError);
+                    handleApiError(profileError, 'fetch-profile');
+                } else if (!profileData) {
+                    console.warn(`Profile not found for user ${session.user.id}. Signing out.`);
+                    await supabase.auth.signOut();
+                    return;
+                } else {
+                    userProfile = profileData;
+                }
+            }
+
+            setProfile(userProfile);
+            await refreshAllData();
+            if (session?.user) { // Only backfill if user is logged in
+                await backfillBadges();
+            }
+
+        } catch (error) {
+            console.error("An unexpected error occurred during session processing:", error);
+        } finally {
+            setLoading(false);
         }
-
-        setProfile(userProfile);
-        await refreshAllData();
-        if (session?.user) { // Only backfill if user is logged in
-          await backfillBadges();
-        }
-
-      } catch (error) {
-        console.error("An unexpected error occurred during session processing:", error);
-        alert("An unexpected error occurred. Please refresh the page.");
-      } finally {
-        setLoading(false);
-      }
     };
 
     onSessionChange();
-  }, [session, refreshAllData, backfillBadges]);
+  }, [session, refreshAllData, backfillBadges, handleApiError]);
 
   useEffect(() => {
     // This effect sets up real-time listeners for database changes.
     // SessionScreen now handles its own check-in and session updates for better performance.
-    const handleInsert = <T extends { id: string; }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-      setter(prev => (prev.some(item => item.id === payload.new.id) ? prev : [...prev, payload.new as T]));
-    };
-    const handleUpdate = <T extends { id: string; }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-      setter(prev => prev.map(item => (item.id === payload.new.id ? (payload.new as T) : item)));
-    };
-    const handleDelete = <T extends { id: string; }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
+    const handleDelete = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
       setter(prev => prev.filter(item => item.id !== payload.old.id));
     };
 
     const netsChannel = supabase.channel('public:nets')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nets' }, payload => {
         const newNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
-        setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet].sort((a, b) => a.name.localeCompare(b.name))));
+        setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name))));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'nets' }, payload => {
         const updatedNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
@@ -278,19 +273,19 @@ Please verify your internet connection and ensure your Supabase credentials are 
     // Global session listener for HomeScreen and NetDetailScreen updates
     const sessionsChannel = supabase.channel('public:sessions')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-        // A full refresh is safer here to keep all screens in sync,
-        // except for the active SessionScreen which manages its own state.
-        refreshAllData();
+          // A full refresh is safer here to keep all screens in sync,
+          // except for the active SessionScreen which manages its own state.
+          refreshAllData();
       })
       .subscribe();
-
+      
     // Global listener for awarded badges.
     const awardedBadgesChannel = supabase.channel('public:awarded_badges')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'awarded_badges' }, () => {
-        // Because badge logic can be complex, a full refresh is safest for now.
-        refreshAllData();
-      })
-      .subscribe();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'awarded_badges' }, () => {
+            // Because badge logic can be complex, a full refresh is safest for now.
+            refreshAllData();
+        })
+        .subscribe();
 
 
     return () => {
@@ -305,253 +300,224 @@ Please verify your internet connection and ensure your Supabase credentials are 
     if (loading) return;
 
     if (session && profile) {
-      if (!profile.is_approved && profile.role !== 'admin') {
-        if (view.type !== 'accessRevoked') {
-          setView({ type: 'accessRevoked' });
+        if (!profile.is_approved && profile.role !== 'admin') {
+            if (view.type !== 'accessRevoked') {
+                setView({ type: 'accessRevoked' });
+            }
+        } else if (['login', 'register', 'accessRevoked'].includes(view.type)) {
+            setView({ type: 'home' });
         }
-      } else if (['login', 'register', 'accessRevoked'].includes(view.type)) {
-        setView({ type: 'home' });
-      }
     } else if (!session) {
-      const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about', 'awards', 'userAgreement', 'releaseNotes'];
-      if (!publicViews.includes(view.type)) {
-        setView({ type: 'login' });
-      }
+        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about', 'awards', 'userAgreement', 'releaseNotes'];
+        if (!publicViews.includes(view.type)) {
+             setView({ type: 'login' });
+        }
     }
   }, [view, session, profile, loading, setView]);
 
   const handleSaveNet = useCallback(async (netData: Partial<Net>) => {
     try {
-      const { id, ...updateData } = netData;
-
-      const sanitizedData: Omit<typeof updateData, 'id'> & { created_by?: string; } = { ...updateData };
-      if (sanitizedData.description === '') sanitizedData.description = null;
-      if (sanitizedData.website_url === '') sanitizedData.website_url = null;
-      if (sanitizedData.backup_nco === '') sanitizedData.backup_nco = null;
-      if (sanitizedData.backup_nco_callsign === '') sanitizedData.backup_nco_callsign = null;
-
-      if (sanitizedData.net_config_type === NetConfigType.GROUP) {
-        sanitizedData.repeaters = [];
-      } else {
-        sanitizedData.frequency = null;
-        sanitizedData.band = null;
-        sanitizedData.mode = null;
-      }
-
-      if (id) {
-        const { created_by, ...finalUpdateData } = sanitizedData;
-        const updatePayload: Database['public']['Tables']['nets']['Update'] = {
-          ...finalUpdateData,
-          repeaters: finalUpdateData.repeaters,
-        };
-        const { data, error } = await supabase.from('nets').update(updatePayload).eq('id', id).select('*').single();
-        if (error) throw error;
-        if (!data) throw new Error("No data returned after update operation.");
-
-        const updatedNet = transformNetPayload(data);
-        setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
-        setView({ type: 'netDetail', netId: updatedNet.id });
-      } else {
-        if (!profile) throw new Error("User must be logged in to create a net.");
-
-        const { repeaters, ...restData } = sanitizedData;
-        const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
-          name: restData.name!,
-          created_by: profile.id,
-          description: restData.description ?? null,
-          website_url: restData.website_url ?? null,
-          primary_nco: restData.primary_nco!,
-          primary_nco_callsign: restData.primary_nco_callsign!,
-          backup_nco: restData.backup_nco ?? null,
-          backup_nco_callsign: restData.backup_nco_callsign ?? null,
-          net_type: restData.net_type!,
-          schedule: restData.schedule!,
-          time: restData.time!,
-          time_zone: restData.time_zone!,
-          repeaters: (sanitizedData.repeaters ?? []),
-          net_config_type: restData.net_config_type!,
-          frequency: restData.frequency ?? null,
-          band: restData.band ?? null,
-          mode: restData.mode ?? null,
+        const { id } = netData;
+        
+        const dbPayload: Omit<Database['public']['Tables']['nets']['Update'], 'id' | 'created_at' | 'created_by'> = {
+            name: netData.name,
+            description: netData.description || null,
+            website_url: netData.website_url || null,
+            primary_nco: netData.primary_nco,
+            primary_nco_callsign: netData.primary_nco_callsign,
+            net_type: netData.net_type,
+            schedule: netData.schedule,
+            time: netData.time,
+            time_zone: netData.time_zone,
+            net_config_type: netData.net_config_type,
+            repeaters: netData.net_config_type === NetConfigType.GROUP ? [] : (netData.repeaters ?? []),
+            frequency: netData.net_config_type !== NetConfigType.GROUP ? null : netData.frequency || null,
+            band: netData.net_config_type !== NetConfigType.GROUP ? null : netData.band || null,
+            mode: netData.net_config_type !== NetConfigType.GROUP ? null : netData.mode || null,
+            passcode: netData.passcode || null,
+            passcode_permissions: (netData.passcode ? (netData.passcode_permissions ?? {}) : null),
         };
 
-        const { data, error } = await supabase.from('nets').insert([insertPayload]).select('*').single();
-        if (error) throw error;
-        if (!data) throw new Error("No data returned after create operation.");
+        if (id) {
+            const { error, data } = await supabase.from('nets').update(dbPayload).eq('id', id).select().single();
+            if (error) throw error;
+            if (!data) throw new Error("No data returned after update operation.");
+            
+            const updatedNet = transformNetPayload(data);
+            setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
+            setView({ type: 'netDetail', netId: updatedNet.id });
+        } else {
+            if (!profile) throw new Error("User must be logged in to create a net.");
+            
+            const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
+                ...dbPayload,
+                name: dbPayload.name!,
+                primary_nco: dbPayload.primary_nco!,
+                primary_nco_callsign: dbPayload.primary_nco_callsign!,
+                net_type: dbPayload.net_type!,
+                schedule: dbPayload.schedule!,
+                time: dbPayload.time!,
+                time_zone: dbPayload.time_zone!,
+                net_config_type: dbPayload.net_config_type!,
+                created_by: profile.id,
+                repeaters: dbPayload.repeaters!,
+            };
 
-        const newNet = transformNetPayload(data);
-        setNets(prev => [...prev, newNet].sort((a, b) => a.name.localeCompare(b.name)));
-        setView({ type: 'netDetail', netId: newNet.id });
-      }
+            const { data, error } = await supabase.from('nets').insert(insertPayload).select().single();
+            if (error) throw error;
+            if (!data) throw new Error("No data returned after create operation.");
+
+            const newNet = transformNetPayload(data);
+            setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
+            setView({ type: 'netDetail', netId: newNet.id });
+        }
     } catch (error: any) {
-      console.error("Error saving NET:", error);
-      alert(`Failed to save NET: ${error.message}`);
+        handleApiError(error, 'handleSaveNet');
     }
-  }, [profile, setView, transformNetPayload]);
+  }, [profile, setView, transformNetPayload, handleApiError]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
     if (window.confirm('Are you sure you want to delete this NET and all its sessions? This cannot be undone.')) {
-      try {
-        const { error } = await supabase.from('nets').delete().eq('id', netId);
-        if (error) throw error;
-        setNets(prev => prev.filter(n => n.id !== netId));
-        setView({ type: 'manageNets' });
-      } catch (error: any) {
-        console.error("Error deleting NET:", error);
-        alert(`Failed to delete NET: ${error.message}`);
-      }
+        try {
+            const { error } = await supabase.from('nets').delete().eq('id', netId);
+            if (error) throw error;
+            setNets(prev => prev.filter(n => n.id !== netId));
+            setView({ type: 'manageNets' });
+        } catch(error: any) {
+             handleApiError(error, 'handleDeleteNet');
+        }
     }
-  }, [setView]);
+  }, [setView, handleApiError]);
 
   const handleStartSessionRequest = useCallback((netId: string) => {
     const netToStart = nets.find(n => n.id === netId);
-    if (netToStart) setStartingNet(netToStart);
+    if(netToStart) setStartingNet(netToStart);
   }, [nets]);
-
-  const handleConfirmStartSession = useCallback(async (net: Net, overrides: Partial<NetSession>) => {
+  
+  const handleConfirmStartSession = useCallback(async (net: Net, overrides: SessionStartOverrides) => {
     try {
-      const payload: Database['public']['Tables']['sessions']['Insert'] = {
-        net_id: net.id,
-        primary_nco: overrides.primary_nco || net.primary_nco,
-        primary_nco_callsign: overrides.primary_nco_callsign || net.primary_nco_callsign,
-        backup_nco: overrides.backup_nco || net.backup_nco,
-        backup_nco_callsign: overrides.backup_nco_callsign || net.backup_nco_callsign,
-      };
+        const passcode = verifiedPasscodes[net.id] || null;
 
-      const { data, error } = await supabase.from('sessions').insert([payload]).select().single();
+        const { data, error } = await supabase.rpc('start_session', {
+            p_net_id: net.id,
+            p_primary_nco: overrides.primary_nco || net.primary_nco,
+            p_primary_nco_callsign: overrides.primary_nco_callsign || net.primary_nco_callsign,
+            p_passcode: passcode
+        });
+        
+        if (error) throw error;
+        if (!data) throw new Error("Failed to create session: No data returned from RPC.");
+        
+        const newSession = data as unknown as NetSession;
+        setSessions(prev => [newSession, ...prev]);
 
-      if (error) throw error;
-      if (!data) throw new Error("Failed to create session.");
-
-      const newSession = data as NetSession;
-      setSessions(prev => [newSession, ...prev]);
-
-      setStartingNet(null);
-      setView({ type: 'session', sessionId: newSession.id });
+        setStartingNet(null);
+        setView({ type: 'session', sessionId: newSession.id });
     } catch (error: any) {
-      console.error("Error starting session:", error);
-      alert(`Failed to start session: ${error.message}`);
+        handleApiError(error, 'handleConfirmStartSession');
     }
-  }, [setView]);
+  }, [setView, handleApiError, verifiedPasscodes]);
 
   const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
-    const endedTime = new Date().toISOString();
-
     if (view.type === 'session' && view.sessionId === sessionId) {
-      setView({ type: 'netDetail', netId });
+        setView({ type: 'netDetail', netId });
     }
 
     try {
-      const updatePayload: Database['public']['Tables']['sessions']['Update'] = { end_time: endedTime };
-      const { error } = await supabase
-        .from('sessions')
-        .update(updatePayload)
-        .eq('id', sessionId);
+      const passcode = verifiedPasscodes[netId] || null;
 
-      if (error) {
-        alert(`Failed to end session: ${error.message}`);
-        throw error;
-      }
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, end_time: endedTime } : s));
-    } catch (error) {
-      console.error("Error ending session:", error);
+      const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
+          p_session_id: sessionId,
+          p_passcode: passcode
+      });
+      
+      if (error) throw error;
+      if (!updatedSessionData) throw new Error("Failed to end session: No data returned from RPC.");
+
+      const updatedSession = updatedSessionData as unknown as NetSession;
+      
+      setSessions(prev => prev.map(s => s.id === sessionId ? updatedSession : s));
+    } catch (error: any) {
+      handleApiError(error, 'handleEndSession');
     }
-  }, [view.type, setView]);
+  }, [view, setView, handleApiError, verifiedPasscodes]);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     if (window.confirm('Are you sure you want to permanently delete this session and its log?')) {
-      try {
-        const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
-        if (error) throw error;
-        setSessions(prev => prev.filter(s => s.id !== sessionId));
-        setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
-      } catch (error: any) {
-        console.error("Error deleting session:", error);
-        alert(`Failed to delete session: ${error.message}`);
-      }
+        try {
+            const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
+            if (error) throw error;
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
+        } catch (error: any) {
+            handleApiError(error, 'handleDeleteSession');
+        }
     }
-  }, []);
-
+  }, [handleApiError]);
+  
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
-      const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
-      if (error) throw error;
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
+        const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
+        if (error) throw error;
+        setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
     } catch (error: any) {
-      console.error("Error updating session notes:", error);
-      alert(`Failed to save notes: ${error.message}`);
+        handleApiError(error, 'handleUpdateSessionNotes');
     }
-  }, []);
+  }, [handleApiError]);
 
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     try {
-      console.log('[handleAddCheckIn] Attempting to add check-in:', { sessionId, checkInData });
-      const { data: newCheckInData, error: checkInError } = await supabase
-        .from('check_ins')
-        .insert([{ ...checkInData, session_id: sessionId }])
-        .select()
-        .single();
+        const { data: newCheckInData, error: checkInError } = await supabase
+            .from('check_ins')
+            .insert({ ...checkInData, session_id: sessionId })
+            .select()
+            .single();
 
-      if (checkInError || !newCheckInData) {
-        console.error('[handleAddCheckIn] Check-in insert failed:', checkInError, newCheckInData);
-        alert(`Failed to add check-in: ${checkInError?.message || 'No data returned from insert.'}`);
-        return;
-      }
+        if (checkInError || !newCheckInData) throw checkInError || new Error('No data returned from insert.');
 
-      console.log('[handleAddCheckIn] Check-in insert succeeded:', newCheckInData);
-      const newCheckIn = newCheckInData as CheckIn;
-      setCheckIns(prev => [newCheckIn, ...prev]);
+        const newCheckIn = newCheckInData as CheckIn;
+        setCheckIns(prev => [newCheckIn, ...prev]);
 
-      const callSign = newCheckIn.call_sign;
-      const { data: allUserCheckInsData, error: userCheckInsError } = await supabase.from('check_ins').select('*').eq('call_sign', callSign);
-      if (userCheckInsError) {
-        console.error('[handleAddCheckIn] Error fetching user check-ins:', userCheckInsError);
-        alert(`Failed to fetch user check-ins: ${userCheckInsError.message}`);
-        return;
-      }
-      const allUserCheckInsIncludingNew = allUserCheckInsData as CheckIn[];
+        const callSign = newCheckIn.call_sign;
+        const { data: allUserCheckInsData, error: userCheckInsError } = await supabase.from('check_ins').select('*').eq('call_sign', callSign);
+        if (userCheckInsError) throw userCheckInsError;
 
-      const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
-      if (awardsError) {
-        console.error('[handleAddCheckIn] Error fetching awarded badges:', awardsError);
-        alert(`Failed to fetch awarded badges: ${awardsError.message}`);
-        return;
-      }
-      const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
-      const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
+        const allUserCheckInsIncludingNew = allUserCheckInsData as CheckIn[];
 
-      const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-      const badgeLogicDefinitions = BADGE_DEFINITIONS;
+        const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
+        if (awardsError) throw awardsError;
 
-      for (const badgeLogic of badgeLogicDefinitions) {
-        try {
-          if (!awardedBadgeIds.has(badgeLogic.id) && badgeLogic.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
-            badgesToAward.push({
-              call_sign: callSign,
-              badge_id: badgeLogic.id,
-              session_id: sessionId,
-            });
-          }
-        } catch (badgeError) {
-          console.error(`[handleAddCheckIn] Error in badge logic for ${badgeLogic.id}:`, badgeError);
+        const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
+        const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
+
+        const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
+        const badgeLogicDefinitions = BADGE_DEFINITIONS;
+
+        for (const badgeLogic of badgeLogicDefinitions) {
+            try {
+                if (!awardedBadgeIds.has(badgeLogic.id) && badgeLogic.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
+                    badgesToAward.push({
+                        call_sign: callSign,
+                        badge_id: badgeLogic.id,
+                        session_id: sessionId,
+                    });
+                }
+            } catch (badgeError) {
+                console.error(`[handleAddCheckIn] Error in badge logic for ${badgeLogic.id}:`, badgeError);
+            }
         }
-      }
 
-      if (badgesToAward.length > 0) {
-        const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
-        if (newBadgeError) {
-          console.error('[handleAddCheckIn] Error inserting new badges:', newBadgeError);
-          alert(`Failed to award badges: ${newBadgeError.message}`);
-        } else {
-          const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
-          alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
+        if (badgesToAward.length > 0) {
+            const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
+            if (newBadgeError) throw newBadgeError;
+            
+            const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
+            alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
         }
-      }
     } catch (error: any) {
-      console.error('[handleAddCheckIn] Unexpected error:', error);
-      alert(`Failed to add check-in: ${error.message}`);
+        handleApiError(error, 'handleAddCheckIn');
     }
-  }, [sessions, allBadges]);
+  }, [sessions, allBadges, handleApiError]);
 
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
     setEditingCheckIn({ sessionId, checkIn });
@@ -559,151 +525,235 @@ Please verify your internet connection and ensure your Supabase credentials are 
 
   const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn) => {
     try {
-      const { id, ...updateData } = updatedCheckIn;
-      const payload: Database['public']['Tables']['check_ins']['Update'] = updateData;
-      const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
-      if (error) throw error;
-      // The SessionScreen will update its own check-ins via its real-time subscription.
-      setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
-      setEditingCheckIn(null);
+        const { id, ...updateData } = updatedCheckIn;
+        const { error } = await supabase.from('check_ins').update(updateData).eq('id', id);
+        if (error) throw error;
+        // The SessionScreen will update its own check-ins via its real-time subscription.
+        setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
+        setEditingCheckIn(null);
     } catch (error: any) {
-      console.error("Error updating check-in:", error);
-      alert(`Failed to update check-in: ${error.message}`);
+        handleApiError(error, 'handleUpdateCheckIn');
     }
-  }, []);
+  }, [handleApiError]);
 
   const handleDeleteCheckIn = useCallback(async (checkInId: string) => {
     if (window.confirm('Are you sure you want to delete this check-in?')) {
-      try {
-        const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
-        if (error) throw error;
-        // The SessionScreen will update its own check-ins via its real-time subscription.
-        setCheckIns(prev => prev.filter(c => c.id !== checkInId));
-      } catch (error: any) {
-        console.error("Error deleting check-in:", error);
-        alert(`Failed to delete check-in: ${error.message}`);
-      }
+        try {
+            const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
+            if (error) throw error;
+            // The SessionScreen will update its own check-ins via its real-time subscription.
+            setCheckIns(prev => prev.filter(c => c.id !== checkInId));
+        } catch (error: any) {
+            handleApiError(error, 'handleDeleteCheckIn');
+        }
     }
-  }, []);
+  }, [handleApiError]);
 
+  const hasPermission = useMemo(() => {
+    return (net: Net | null, permission: PermissionKey): boolean => {
+        if (!profile || !net) return false;
+        if (profile.role === 'admin') return true;
+        if (net.created_by === profile.id) return true;
+        return grantedPermissions[net.id]?.[permission] || false;
+    };
+  }, [profile, grantedPermissions]);
+
+  const isNetManagedByUser = useCallback((net: Net): boolean => {
+    if (!profile) return false;
+    // An admin can manage everything.
+    if (profile.role === 'admin') return true;
+    // The owner can manage their own net.
+    if (net.created_by === profile.id) return true;
+    // Check for any delegated permissions via a verified passcode.
+    const netPermissions = grantedPermissions[net.id];
+    if (netPermissions && Object.keys(netPermissions).length > 0) {
+        return true;
+    }
+    return false;
+  }, [profile, grantedPermissions]);
+  
   const allBadgeDefinitions = React.useMemo(() => {
     const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
     return allBadges.map(badge => ({
-      ...badge,
-      category: logicMap.get(badge.id)?.category || 'Special',
-      isEarned: logicMap.get(badge.id)?.isEarned || (() => false),
-      sortOrder: logicMap.get(badge.id)?.sortOrder || 999
+        ...badge,
+        category: logicMap.get(badge.id)?.category || 'Special',
+        isEarned: logicMap.get(badge.id)?.isEarned || (() => false),
+        sortOrder: logicMap.get(badge.id)?.sortOrder || 999
     }));
   }, [allBadges]);
+
+  const handleVerifyPasscode = useCallback(async (passcode: string) => {
+    if (!verifyingPasscodeForNet) return;
+
+    setIsVerifying(true);
+    setPasscodeError(null);
+
+    const { data, error } = await supabase.rpc('verify_passcode', {
+        p_net_id: verifyingPasscodeForNet.id,
+        p_passcode_attempt: passcode,
+    });
+
+    if (error) {
+        setPasscodeError(error.message);
+    } else if (data) {
+        // On success, the RPC returns the permissions object.
+        const permissions = data as PasscodePermissions;
+        setGrantedPermissions(prev => ({
+            ...prev,
+            [verifyingPasscodeForNet.id]: permissions,
+        }));
+        setVerifiedPasscodes(prev => ({
+            ...prev,
+            [verifyingPasscodeForNet.id]: passcode,
+        }));
+        setVerifyingPasscodeForNet(null);
+    } else {
+        // If data is null, the passcode was incorrect.
+        setPasscodeError("Invalid passcode. Please try again.");
+    }
+
+    setIsVerifying(false);
+  }, [verifyingPasscodeForNet]);
+
 
   const renderContent = () => {
     switch (view.type) {
       case 'login':
-        return <LoginScreen onSetView={setView} />;
+          return <LoginScreen onSetView={setView} />;
       case 'register':
-        return <RegisterScreen onSetView={setView} />;
+          return <RegisterScreen onSetView={setView} />;
       case 'accessRevoked':
-        return <AccessRevokedScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
+          return <AccessRevokedScreen email={profile?.email || session?.user?.email || null} onSetView={setView} />;
       case 'about':
-        return <AboutScreen />;
+          return <AboutScreen />;
       case 'awards':
-        return <AwardsScreen allBadgeDefinitions={allBadgeDefinitions} />;
+          return <AwardsScreen allBadgeDefinitions={allBadgeDefinitions} />;
       case 'userAgreement':
         return <UserAgreementScreen onBack={goBack} onReleaseNotes={() => setView({ type: 'releaseNotes' })} />;
       case 'releaseNotes':
-        return <ReleaseNotesScreen onBack={goBack} />;
+          return <ReleaseNotesScreen onBack={goBack} />;
       case 'home': {
         const activeSessions = sessions.filter(s => s.end_time === null);
         return (
-          <HomeScreen
-            activeSessions={activeSessions}
-            nets={nets}
-            checkIns={checkIns}
-            onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
-            onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
-            profile={profile} />
+            <HomeScreen 
+                activeSessions={activeSessions}
+                nets={nets}
+                checkIns={checkIns}
+                onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
+                onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
+                profile={profile}
+            />
         );
       }
       case 'manageNets': {
-        const managedNets = nets.filter(n => profile?.role === 'admin' || n.created_by === profile?.id);
-        return (
+         const managedNets = nets.filter(isNetManagedByUser);
+         return (
           <ManageNetsScreen
             nets={managedNets}
             sessions={sessions}
             profile={profile}
+            hasPermission={hasPermission}
             onStartSession={handleStartSessionRequest}
             onEditNet={(netId) => setView({ type: 'netEditor', netId })}
             onDeleteNet={handleDeleteNet}
             onAddNet={() => setView({ type: 'netEditor' })}
-            onViewDetails={(netId) => setView({ type: 'netDetail', netId })} />
+            onViewDetails={(netId) => setView({ type: 'netDetail', netId })}
+          />
         );
       }
       case 'netEditor': {
-        const netToEdit = nets.find(n => n.id === view.netId);
-        if (view.netId && netToEdit?.created_by !== profile?.id && profile?.role !== 'admin') {
-          return <div className="text-center py-20">Access Denied. You do not own this NET.</div>;
+        // "Create new" flow
+        if (!view.netId) {
+          return (
+            <NetEditorScreen
+              initialNet={undefined}
+              onSave={handleSaveNet}
+              onCancel={goBack}
+            />
+          );
         }
+
+        // "Edit existing" flow
+        const netToEdit = nets.find(n => n.id === view.netId);
+
+        if (!netToEdit) {
+          return <div className="text-center py-20">Net not found. It may have been deleted.</div>;
+        }
+
+        if (!hasPermission(netToEdit, 'editNet')) {
+          return <div className="text-center py-20">Access Denied. You do not have permission to edit this NET.</div>;
+        }
+        
         return (
           <NetEditorScreen
             initialNet={netToEdit}
             onSave={handleSaveNet}
-            onCancel={goBack} />
+            onCancel={goBack}
+          />
         );
       }
-      case 'netDetail': {
+       case 'netDetail': {
         const detailNet = nets.find(n => n.id === view.netId);
         if (!detailNet) return <div className="text-center py-20">Net not found.</div>;
         const netSessions = sessions.filter(s => s.net_id === view.netId);
         return (
-          <NetDetailScreen
-            net={detailNet}
-            sessions={netSessions}
-            checkIns={checkIns}
-            profile={profile}
-            onStartSession={() => handleStartSessionRequest(view.netId)}
-            onEndSession={handleEndSession}
-            onEditNet={() => setView({ type: 'netEditor', netId: view.netId })}
-            onDeleteNet={() => handleDeleteNet(view.netId)}
-            onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
-            onBack={goBack}
-            onDeleteSession={handleDeleteSession} />
+            <NetDetailScreen
+                net={detailNet}
+                sessions={netSessions}
+                checkIns={checkIns}
+                profile={profile}
+                hasPermission={hasPermission}
+                onStartSession={() => handleStartSessionRequest(view.netId)}
+                onEndSession={handleEndSession}
+                onEditNet={() => setView({ type: 'netEditor', netId: view.netId })}
+                onDeleteNet={() => handleDeleteNet(view.netId)}
+                onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
+                onBack={goBack}
+                onDeleteSession={handleDeleteSession}
+                onVerifyPasscodeRequest={() => setVerifyingPasscodeForNet(detailNet)}
+            />
         );
       }
       case 'session': {
+        const sessionForPerms = sessions.find(s => s.id === view.sessionId);
+        const netForPerms = sessionForPerms ? nets.find(n => n.id === sessionForPerms.net_id) : null;
         return (
           <SessionScreen
             sessionId={view.sessionId}
             allBadges={allBadges}
             awardedBadges={awardedBadges}
             profile={profile}
+            hasPermission={(permission) => hasPermission(netForPerms, permission)}
             onEndSession={handleEndSession}
             onAddCheckIn={handleAddCheckIn}
             onEditCheckIn={handleEditCheckIn}
             onDeleteCheckIn={handleDeleteCheckIn}
             onBack={goBack}
             onUpdateSessionNotes={handleUpdateSessionNotes}
-            onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })} />
+            onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
+          />
         );
       }
       case 'userManagement': {
         if (profile?.role !== 'admin') {
-          return <div className="text-center py-20">Access Denied.</div>;
+            return <div className="text-center py-20">Access Denied.</div>;
         }
-        return <UserManagementScreen onSetView={setView} />;
+        return <UserManagementScreen onSetView={setView}/>;
       }
       case 'callsignProfile': {
         return (
-          <CallsignProfileScreen
-            callsign={view.callsign}
-            allNets={nets}
-            allSessions={sessions}
-            allCheckIns={checkIns}
-            allBadgeDefinitions={allBadgeDefinitions}
-            awardedBadges={awardedBadges}
-            onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
-            onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
-            onBack={goBack} />
-        );
+            <CallsignProfileScreen
+                callsign={view.callsign}
+                allNets={nets}
+                allSessions={sessions}
+                allCheckIns={checkIns}
+                allBadgeDefinitions={allBadgeDefinitions}
+                awardedBadges={awardedBadges}
+                onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
+                onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
+                onBack={goBack}
+            />
+        )
       }
       default:
         setView({ type: 'home' });
@@ -715,39 +765,61 @@ Please verify your internet connection and ensure your Supabase credentials are 
     const session = sessions.find(s => s.id === sessionId);
     return session ? nets.find(n => n.id === session.net_id) : undefined;
   };
-
+  
   const getNetForCheckIn = () => {
-    if (!editingCheckIn) return undefined;
-    return getNetForSession(editingCheckIn.sessionId);
-  };
+      if (!editingCheckIn) return undefined;
+      return getNetForSession(editingCheckIn.sessionId);
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-light-bg dark:bg-dark-900 text-light-text dark:text-dark-text">
       <Header profile={profile} onSetView={setView} />
       <main className="container mx-auto p-4 sm:p-6 lg:p-8 flex-grow">
         {loading && !profile && !session ? (
-          <div className="text-center py-20 text-dark-text-secondary">Loading...</div>
+            <div className="text-center py-20 text-dark-text-secondary">Loading...</div>
         ) : (
-          renderContent()
+            renderContent()
         )}
       </main>
       {editingCheckIn && getNetForCheckIn() && (
         <EditCheckInModal
-          session={sessions.find(s => s.id === editingCheckIn.sessionId)!}
-          net={getNetForCheckIn()!}
-          checkIn={editingCheckIn.checkIn}
-          onSave={handleUpdateCheckIn}
-          onClose={() => setEditingCheckIn(null)} />
+            session={sessions.find(s => s.id === editingCheckIn.sessionId)!}
+            net={getNetForCheckIn()!}
+            checkIn={editingCheckIn.checkIn}
+            onSave={handleUpdateCheckIn}
+            onClose={() => setEditingCheckIn(null)}
+        />
       )}
       {startingNet && (
-        <StartSessionModal
-          net={startingNet}
-          onStart={handleConfirmStartSession}
-          onClose={() => setStartingNet(null)} />
+            <StartSessionModal 
+                net={startingNet}
+                onStart={handleConfirmStartSession}
+                onClose={() => setStartingNet(null)}
+            />
+      )}
+      {verifyingPasscodeForNet && (
+        <PasscodeModal
+            netName={verifyingPasscodeForNet.name}
+            onVerify={handleVerifyPasscode}
+            onClose={() => {
+              setVerifyingPasscodeForNet(null);
+              setPasscodeError(null);
+            }}
+            error={passcodeError}
+            isVerifying={isVerifying}
+        />
+      )}
+      {isSessionExpired && (
+        <SessionExpiredModal
+          onLogin={() => {
+            setIsSessionExpired(false);
+            setView({ type: 'login' });
+          }}
+        />
       )}
       <Footer onSetView={setView} />
     </div>
   );
-}
+};
 
 export default App;

@@ -1,9 +1,12 @@
+
 import React, { useState } from 'react';
 import { Net, NetSession } from '../types';
 
+type SessionStartOverrides = Partial<Pick<NetSession, 'primary_nco' | 'primary_nco_callsign'>>;
+
 interface StartSessionModalProps {
   net: Net;
-  onStart: (net: Net, overrides: Partial<NetSession>) => void;
+  onStart: (net: Net, overrides: SessionStartOverrides) => void;
   onClose: () => void;
 }
 
@@ -22,23 +25,21 @@ const FormInput = ({ label, id, ...props }: {label: string, id: string} & React.
 );
 
 const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onClose }) => {
-  const [overrides, setOverrides] = useState({
+  const [overrides, setOverrides] = useState<SessionStartOverrides>({
       primary_nco: net.primary_nco,
       primary_nco_callsign: net.primary_nco_callsign,
-      backup_nco: net.backup_nco,
-      backup_nco_callsign: net.backup_nco_callsign,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const { name, value } = e.target;
       const finalValue = name.toLowerCase().includes('callsign') ? value.toUpperCase() : value;
-      setOverrides(prev => ({ ...prev, [name]: finalValue }));
+      setOverrides(prev => ({ ...prev, [name as keyof SessionStartOverrides]: finalValue }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrides.primary_nco || !overrides.primary_nco_callsign) {
-        alert("Primary Net Conotrol Name and Callsign are required for this session.");
+        alert("Primary NCO Name and Callsign are required for this session.");
         return;
     }
     onStart(net, overrides);
@@ -50,12 +51,12 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
         <form onSubmit={handleSubmit}>
           <div className="p-6">
               <h2 className="text-xl font-bold text-dark-text">Start New Session for "{net.name}"</h2>
-              <p className="text-sm text-dark-text-secondary">Confirm or override the Net Control Operators for this session.</p>
+              <p className="text-sm text-dark-text-secondary">Confirm or override the Net Control Operator for this session.</p>
           </div>
           <div className="p-6 border-y border-dark-700 space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormInput 
-                    label="Primary Net Control Name" 
+                    label="Primary NCO Name" 
                     id="session-primaryNCO" 
                     name="primary_nco" 
                     value={overrides.primary_nco} 
@@ -63,26 +64,12 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
                     required 
                 />
                 <FormInput 
-                    label="Primary Net Control Callsign" 
+                    label="Primary NCO Callsign" 
                     id="session-primaryNCOCallsign" 
                     name="primary_nco_callsign" 
                     value={overrides.primary_nco_callsign} 
                     onChange={handleChange} 
                     required 
-                />
-                <FormInput 
-                    label="Backup Net Control Name" 
-                    id="session-backupNCO" 
-                    name="backup_nco" 
-                    value={overrides.backup_nco || ''} 
-                    onChange={handleChange} 
-                />
-                 <FormInput 
-                    label="Backup Net Control Callsign" 
-                    id="session-backupNCOCallsign" 
-                    name="backup_nco_callsign" 
-                    value={overrides.backup_nco_callsign || ''} 
-                    onChange={handleChange} 
                 />
              </div>
           </div>
@@ -101,3 +88,5 @@ const StartSessionModal: React.FC<StartSessionModalProps> = ({ net, onStart, onC
 };
 
 export default StartSessionModal;
+// This code defines a modal component for starting a new session in a NET application.
+// It allows the user to confirm or override the primary NCO's name and callsign for

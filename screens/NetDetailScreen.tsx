@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
 import { formatTime, formatRepeaterCondensed, formatTimeZone } from '../lib/time';
 import { Icon } from '../components/Icon';
 import { NetTypeBadge } from '../components/NetTypeBadge';
@@ -10,6 +11,7 @@ interface NetDetailScreenProps {
     sessions: NetSession[];
     checkIns: CheckIn[];
     profile: Profile | null;
+    hasPermission: (net: Net, permission: PermissionKey) => boolean;
     onStartSession: () => void;
     onEndSession: (sessionId: string, netId: string) => void;
     onEditNet: () => void;
@@ -17,6 +19,7 @@ interface NetDetailScreenProps {
     onViewSession: (sessionId: string) => void;
     onBack: () => void;
     onDeleteSession: (sessionId: string) => void;
+    onVerifyPasscodeRequest: () => void;
 }
 
 const formatDuration = (start: Date, end: Date | null): string => {
@@ -44,8 +47,7 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Location</dt>
-                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'} {repeater?.grid_square && (<span>, {repeater.grid_square}</span>
-            )}</dd>
+                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'}, {repeater.grid_square || '-'}</dd>
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Frequency &amp; Offset</dt>
@@ -70,10 +72,14 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
 );
 
 
-const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, onStartSession, onEndSession, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession }) => {
+const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, hasPermission, onStartSession, onEndSession, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession, onVerifyPasscodeRequest }) => {
     const [isRepeaterListVisible, setIsRepeaterListVisible] = useState(false);
     const activeSession = sessions.find(s => s.end_time === null);
-    const canManage = profile && (profile.role === 'admin' || net.created_by === profile.id);
+    
+    const canEditNet = hasPermission(net, 'editNet');
+    const canManageSessions = hasPermission(net, 'manageSessions');
+    const canDeleteSessions = hasPermission(net, 'deleteSessions');
+    const isOwnerOrAdmin = profile && (profile.role === 'admin' || net.created_by === profile.id);
 
     const handleEndSessionClick = () => {
         if (activeSession && window.confirm('Are you sure you want to end this net session?')) {
@@ -135,6 +141,8 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 return null;
         }
     }
+    
+    const showManagementButtons = canEditNet || canManageSessions || (profile && !isOwnerOrAdmin && net.passcode);
 
     return (
         <div className="space-y-6">
@@ -164,31 +172,38 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             </a>
                         )}
                     </div>
-                    {canManage && (
+                    {showManagementButtons && (
                         <div className="flex items-center gap-2 flex-shrink-0 mt-4 md:mt-0">
-                            <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
+                            {profile && !isOwnerOrAdmin && net.passcode && (
+                                <button onClick={onVerifyPasscodeRequest} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-brand-secondary rounded-md hover:bg-brand-primary transition-colors" aria-label="Use Passcode">
+                                    <Icon className="text-xl">key</Icon>
+                                </button>
+                            )}
+                            {canEditNet && <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
                                <Icon className="text-xl">settings</Icon>
-                            </button>
-                            <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
+                            </button>}
+                            {isOwnerOrAdmin && <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
                                <Icon className="text-xl">delete</Icon>
-                            </button>
-                            {activeSession ? (
-                                <button
-                                    onClick={handleEndSessionClick}
-                                    className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-                                >
-                                    <Icon className="text-base">stop</Icon>
-                                    End Session
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={onStartSession}
-                                    disabled={!!activeSession}
-                                    className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-                                >
-                                    <Icon className="text-base">play_arrow</Icon>
-                                    Start New Session
-                                </button>
+                            </button>}
+                            {canManageSessions && (
+                                activeSession ? (
+                                    <button
+                                        onClick={handleEndSessionClick}
+                                        className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                                    >
+                                        <Icon className="text-base">stop</Icon>
+                                        End Session
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={onStartSession}
+                                        disabled={!!activeSession}
+                                        className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                    >
+                                        <Icon className="text-base">play_arrow</Icon>
+                                        Start New Session
+                                    </button>
+                                )
                             )}
                         </div>
                     )}
@@ -237,7 +252,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                                 </div>
                                             </div>
                                         </button>
-                                        {canManage && (
+                                        {canDeleteSessions && (
                                             <div className="pl-4">
                                                 <button 
                                                     onClick={() => onDeleteSession(session.id)}

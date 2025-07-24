@@ -1,8 +1,7 @@
 
-
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS } from '../types';
+import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey } from '../types';
 import { NET_TYPE_OPTIONS, DAY_OF_WEEK_OPTIONS, TIME_ZONE_OPTIONS, NET_CONFIG_TYPE_OPTIONS } from '../constants';
 import { Icon } from '../components/Icon';
 
@@ -62,7 +61,7 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
         <FormInput label="Uplink Tone (Hz)" id={`r-uplink-tone-${index}`} type="text" value={repeater.uplink_tone || ''} onChange={e => onUpdate(index, 'uplink_tone', e.target.value)} placeholder="e.g., 156.7" />
         <FormInput label="Downlink Tone (Hz)" id={`r-downlink-tone-${index}`} type="text" value={repeater.downlink_tone || ''} onChange={e => onUpdate(index, 'downlink_tone', e.target.value)} placeholder="e.g., 156.7" />
 
-        <FormInput label="Location" id={`r-county-${index}`} type="text" value={repeater.county || ''} onChange={e => onUpdate(index, 'county', e.target.value)} placeholder="e.g., Coweta" />
+        <FormInput label="County" id={`r-county-${index}`} type="text" value={repeater.county || ''} onChange={e => onUpdate(index, 'county', e.target.value)} placeholder="e.g., Coweta" />
         <FormInput label="Grid Square" id={`r-grid-${index}`} type="text" value={repeater.grid_square || ''} onChange={e => onUpdate(index, 'grid_square', e.target.value)} placeholder="e.g., EM73oj" />
         <FormInput className="md:col-span-2" label="Website URL" id={`r-website-${index}`} type="url" value={repeater.website_url || ''} onChange={e => onUpdate(index, 'website_url', e.target.value)} placeholder="https://example.com" />
     </div>
@@ -85,8 +84,6 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
       website_url: '',
       primary_nco: '',
       primary_nco_callsign: '',
-      backup_nco: '',
-      backup_nco_callsign: '',
       net_type: NetType.TECHNICAL,
       schedule: DayOfWeek.TUESDAY,
       time: '19:00',
@@ -95,7 +92,9 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
       repeaters: [],
       frequency: '',
       band: '',
-      mode: ''
+      mode: '',
+      passcode: null,
+      passcode_permissions: {},
     };
     
     // On-the-fly migration for repeaters from old format to new format
@@ -130,8 +129,21 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    const finalValue = name.toLowerCase().includes('callsign') ? value.toUpperCase() : value;
+    let finalValue: string | PasscodePermissions = value;
+
+    if (name.toLowerCase().includes('callsign')) {
+      finalValue = value.toUpperCase();
+    }
     
+    if (name === 'passcode') {
+        const ALPHANUMERIC_REGEX = /^[a-zA-Z0-9]*$/;
+        if (ALPHANUMERIC_REGEX.test(value) && value.length <= 8) {
+            finalValue = value;
+        } else {
+            return; // Don't update state if invalid
+        }
+    }
+
     setNet(prev => {
         const newNet = { ...prev, [name]: finalValue };
 
@@ -152,6 +164,20 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         }
         
         return newNet;
+    });
+  };
+
+  const handlePermissionChange = (key: PermissionKey, checked: boolean) => {
+    setNet(prev => {
+        const newPermissions = { ...prev.passcode_permissions, [key]: checked };
+        // Clean up false values
+        if (!checked) {
+            delete newPermissions[key];
+        }
+        return {
+            ...prev,
+            passcode_permissions: newPermissions
+        };
     });
   };
 
@@ -202,7 +228,17 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!net.name || !net.primary_nco || !net.primary_nco_callsign) {
-        alert("Net Name, Primary NCO Name, and Primary NCO Callsign are required.");
+        alert("Net Name and Primary NCO fields are required.");
+        return;
+    }
+
+    if (net.passcode && (net.passcode.length < 4 || net.passcode.length > 8)) {
+        alert("Passcode must be between 4 and 8 alphanumeric characters.");
+        return;
+    }
+
+    if (net.passcode && (!net.passcode_permissions || Object.keys(net.passcode_permissions).length === 0)) {
+        alert("If you set a passcode, you must select at least one permission.");
         return;
     }
     
@@ -234,6 +270,7 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit NET' : 'Create New NET'}</h1>
       <form onSubmit={handleSubmit} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-8">
+        
         <div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormInput label="NET Name" id="name" name="name" type="text" value={net.name || ''} onChange={handleInputChange} required className="md:col-span-2"/>
@@ -255,15 +292,13 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                 <FormSelect label="Type of NET" id="net_type" name="net_type" value={net.net_type} onChange={handleInputChange}>
                     {NET_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </FormSelect>
-                <FormInput label="Primary Net Control Callsign" id="primary_nco_callsign" name="primary_nco_callsign" type="text" value={net.primary_nco_callsign || ''} onChange={handleInputChange} required />
-                <FormInput label="Primary Net Control Name" id="primary_nco" name="primary_nco" type="text" value={net.primary_nco || ''} onChange={handleInputChange} required />
-                <FormInput label="Backup Net Control Callsign" id="backup_nco_callsign" name="backup_nco_callsign" type="text" value={net.backup_nco_callsign || ''} onChange={handleInputChange} />
-                <FormInput label="Backup Net Control Name" id="backup_nco" name="backup_nco" type="text" value={net.backup_nco || ''} onChange={handleInputChange} />
+                <FormInput label="Primary NCO Name" id="primary_nco" name="primary_nco" type="text" value={net.primary_nco || ''} onChange={handleInputChange} required />
+                <FormInput label="Primary NCO Callsign" id="primary_nco_callsign" name="primary_nco_callsign" type="text" value={net.primary_nco_callsign || ''} onChange={handleInputChange} required />
             </div>
         </div>
 
         <fieldset className="border-t border-dark-700 pt-6">
-            <legend className="text-lg font-medium text-dark-text">Schedule</legend>
+            <legend className="text-lg font-medium text-dark-text">Default Schedule</legend>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                 <FormSelect label="Day of Week" id="schedule" name="schedule" value={net.schedule} onChange={handleInputChange}>
                     {DAY_OF_WEEK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -321,11 +356,54 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
             )}
         </fieldset>
 
+         <fieldset className="border-t border-dark-700 pt-6">
+            <legend className="text-lg font-medium text-dark-text">Delegate Permissions via Passcode</legend>
+             <p className="text-sm text-dark-text-secondary mt-1 mb-4">Optionally, create a passcode to allow other authenticated users to help manage this NET. If you set a passcode, you must select at least one permission.</p>
+            
+            <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
+                <div className="max-w-sm">
+                    <FormInput 
+                        label="Passcode (4-8 alphanumeric characters)" 
+                        id="passcode" 
+                        name="passcode" 
+                        type="text" 
+                        value={net.passcode || ''} 
+                        onChange={handleInputChange}
+                        placeholder="Leave blank to disable"
+                    />
+                </div>
+
+                {net.passcode && (
+                    <div className="mt-6">
+                        <h4 className="text-md font-medium text-dark-text-secondary mb-2">Permissions</h4>
+                        <div className="space-y-4">
+                           {PERMISSION_DEFINITIONS.map(p => (
+                               <div key={p.key} className="relative flex items-start">
+                                    <div className="flex h-6 items-center">
+                                        <input
+                                            id={`perm-${p.key}`}
+                                            name={`perm-${p.key}`}
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+                                            checked={net.passcode_permissions?.[p.key] || false}
+                                            onChange={(e) => handlePermissionChange(p.key, e.target.checked)}
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm leading-6">
+                                        <label htmlFor={`perm-${p.key}`} className="font-medium text-dark-text">{p.label}</label>
+                                        <p className="text-dark-text-secondary">{p.description}</p>
+                                    </div>
+                                </div>
+                           ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </fieldset>
+
         <div className="flex justify-end gap-4 pt-4 border-t border-dark-700">
-            <button type="button" onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600 focus:outline-none focus:ring-2 focus:ring-dark-600 focus:ring-offset-2 focus:ring-offset-dark-800">
-                Cancel
-            </button>
-            <button type="submit" className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-dark-800">
+            <button type="button" onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">Cancel</button>
+            <button type="submit" className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary">
                 {initialNet ? 'Save Changes' : 'Create NET'}
             </button>
         </div>

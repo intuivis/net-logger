@@ -1,4 +1,6 @@
-import { Database } from './database.types';
+
+
+import { Database, Repeater as DbRepeater, PasscodePermissions as DbPasscodePermissions, PermissionKey as DbPermissionKey } from './database.types';
 
 export enum NetType {
   SOCIAL = "Social",
@@ -31,18 +33,16 @@ export enum DayOfWeek {
   SATURDAY = "Saturday",
 }
 
-export interface Repeater {
-  id: string;
-  name: string;
-  owner_callsign: string | null;
-  grid_square: string | null;
-  county: string | null;
-  downlink_freq: string;
-  offset: string | null;
-  uplink_tone: string | null;
-  downlink_tone: string | null;
-  website_url: string | null;
-}
+export type Repeater = DbRepeater;
+export type PermissionKey = DbPermissionKey;
+export type PasscodePermissions = DbPasscodePermissions;
+
+export const PERMISSION_DEFINITIONS: { key: PermissionKey; label: string; description: string }[] = [
+    { key: 'editNet', label: 'Edit Net Details', description: 'Allows user to change the net name, description, schedule, and technical configuration.' },
+    { key: 'manageSessions', label: 'Start / End Sessions', description: 'Allows user to start a new session or end an active one.' },
+    { key: 'deleteSessions', label: 'Delete Session History', description: 'Allows user to permanently delete historical session logs for this net.' },
+    { key: 'logContacts', label: 'Manage Check-ins', description: 'Allows user to add, edit, and delete check-ins in an active session.' }
+];
 
 // Re-defining Net to avoid complex recursive types that cause TS errors.
 export interface Net {
@@ -53,8 +53,6 @@ export interface Net {
     website_url: string | null;
     primary_nco: string;
     primary_nco_callsign: string;
-    backup_nco: string | null;
-    backup_nco_callsign: string | null;
     net_type: NetType;
     schedule: DayOfWeek;
     time: string;
@@ -64,6 +62,8 @@ export interface Net {
     frequency: string | null;
     band: string | null;
     mode: string | null;
+    passcode: string | null;
+    passcode_permissions: PasscodePermissions | null;
 }
 
 export type CheckIn = Database['public']['Tables']['check_ins']['Row'];

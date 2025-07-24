@@ -16,15 +16,16 @@ const AccessRevokedScreen: React.FC<AccessRevokedScreenProps> = ({ email, onSetV
         if (isLoggingOut) return;
         setIsLoggingOut(true);
 
-        const { error } = await (supabase.auth as any).signOut();
-        
-        if (error) {
-            console.error('Error signing out:', error);
-            alert('An unexpected error occurred during logout. Please try again.');
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                console.error('Error signing out:', error);
+            }
+        } catch (error) {
+            console.error('Exception during sign out:', error);
+        } finally {
+            setIsLoggingOut(false);
         }
-        
-        // Always reset the loading state to prevent the button from getting stuck.
-        setIsLoggingOut(false);
     };
 
     return (

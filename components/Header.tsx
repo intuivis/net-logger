@@ -25,17 +25,23 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
         setIsLoggingOut(true);
         setIsMenuOpen(false);
 
-        const { error } = await (supabase.auth as any).signOut();
-        
-        if (error) {
-            console.error('Error signing out:', error);
-            alert('An unexpected error occurred during logout. Please try again.');
+        // The signOut function can throw an error if the session is already expired.
+        // We wrap this in a try/catch block to prevent an unhandled rejection
+        // and a scary error message for the user. The onAuthStateChange listener
+        // in App.tsx will handle the UI update regardless.
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                 // Log error for debugging, but don't show a disruptive alert.
+                console.error('Error signing out:', error);
+            }
+        } catch (error) {
+            console.error('Exception during sign out:', error);
+        } finally {
+            // This component might unmount if logout is successful, but this prevents
+            // the button from getting stuck in a loading state if an error occurs.
+            setIsLoggingOut(false);
         }
-
-        // Always reset the loading state. This is the fix.
-        // If logout succeeds, onAuthStateChange will cause a re-render and this state is destroyed.
-        // If it fails, or the re-render doesn't happen correctly, this ensures the button is usable.
-        setIsLoggingOut(false);
     };
 
     return (

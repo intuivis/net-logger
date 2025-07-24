@@ -27,7 +27,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
 
         // The user's profile will be created automatically by a database trigger.
         // We just need to sign them up and pass their details in the options.
-        const { error: signUpError } = await (supabase.auth as any).signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -51,14 +51,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+        <div className="flex items-center justify-center min-h-[calc(100vh-150px)]">
             <div className="w-full max-w-md p-8 space-y-8 bg-dark-800 rounded-lg shadow-lg">
                 <div>
                     <h2 className="text-2xl font-bold text-center text-dark-text">Create a new account</h2>
-                     <p className="mt-2 text-center text-md text-dark-text-secondary">
+                     <p className="mt-2 text-center text-sm text-dark-text-secondary">
                         Already have an account?{' '}
                         <button onClick={() => onSetView({type: 'login'})} className="font-medium text-brand-secondary hover:text-brand-primary">
-                          Sign In
+                          Sign in
                         </button>
                     </p>
                 </div>
@@ -86,7 +86,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                          </div>
                          <div>
                             <label htmlFor="register-call-sign" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Callsign
+                                Call Sign
                             </label>
                             <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Call Sign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
                          </div>

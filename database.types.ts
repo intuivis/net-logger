@@ -1,5 +1,32 @@
 
-export type Json = any;
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type PermissionKey =
+  | "editNet"
+  | "manageSessions"
+  | "deleteSessions"
+  | "logContacts";
+
+export type PasscodePermissions = Partial<Record<PermissionKey, boolean>>;
+
+export interface Repeater {
+  id: string;
+  name: string;
+  owner_callsign: string | null;
+  grid_square: string | null;
+  county: string | null;
+  downlink_freq: string;
+  offset: string | null;
+  uplink_tone: string | null;
+  downlink_tone: string | null;
+  website_url: string | null;
+}
 
 export type Database = {
   public: {
@@ -101,8 +128,6 @@ export type Database = {
           website_url: string | null;
           primary_nco: string;
           primary_nco_callsign: string;
-          backup_nco: string | null;
-          backup_nco_callsign: string | null;
           net_type: string;
           schedule: string;
           time: string;
@@ -112,6 +137,8 @@ export type Database = {
           frequency: string | null;
           band: string | null;
           mode: string | null;
+          passcode: string | null;
+          passcode_permissions: Json | null;
         };
         Insert: {
           created_at?: string;
@@ -121,8 +148,6 @@ export type Database = {
           website_url?: string | null;
           primary_nco: string;
           primary_nco_callsign: string;
-          backup_nco?: string | null;
-          backup_nco_callsign?: string | null;
           net_type: string;
           schedule: string;
           time: string;
@@ -132,6 +157,8 @@ export type Database = {
           frequency?: string | null;
           band?: string | null;
           mode?: string | null;
+          passcode?: string | null;
+          passcode_permissions?: Json | null;
         };
         Update: {
           created_at?: string;
@@ -141,8 +168,6 @@ export type Database = {
           website_url?: string | null;
           primary_nco?: string;
           primary_nco_callsign?: string;
-          backup_nco?: string | null;
-          backup_nco_callsign?: string | null;
           net_type?: string;
           schedule?: string;
           time?: string;
@@ -152,6 +177,8 @@ export type Database = {
           frequency?: string | null;
           band?: string | null;
           mode?: string | null;
+          passcode?: string | null;
+          passcode_permissions?: Json | null;
         };
       };
       profiles: {
@@ -190,8 +217,6 @@ export type Database = {
           end_time: string | null;
           primary_nco: string;
           primary_nco_callsign: string;
-          backup_nco: string | null;
-          backup_nco_callsign: string | null;
           notes: string | null;
         };
         Insert: {
@@ -201,8 +226,6 @@ export type Database = {
           end_time?: string | null;
           primary_nco: string;
           primary_nco_callsign: string;
-          backup_nco?: string | null;
-          backup_nco_callsign?: string | null;
           notes?: string | null;
         };
         Update: {
@@ -212,8 +235,6 @@ export type Database = {
           end_time?: string | null;
           primary_nco?: string;
           primary_nco_callsign?: string;
-          backup_nco?: string | null;
-          backup_nco_callsign?: string | null;
           notes?: string | null;
         };
       };

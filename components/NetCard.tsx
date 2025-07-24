@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Net, Profile } from '../types';
 import { formatTime, formatTimeZone } from '../lib/time';
@@ -9,14 +10,17 @@ interface NetCardProps {
   sessionCount?: number;
   isActive?: boolean;
   profile: Profile | null;
+  canStartSession?: boolean;
+  canEditNet?: boolean;
+  isOwnerOrAdmin?: boolean;
   onViewDetails: () => void;
   onStartSession?: () => void;
   onEditNet?: () => void;
   onDeleteNet?: () => void;
 }
 
-export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, profile, onStartSession, onEditNet, onDeleteNet, onViewDetails }) => {
-  const canManage = profile && (profile.role === 'admin' || net.created_by === profile.id);
+export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, profile, canStartSession = false, canEditNet = false, isOwnerOrAdmin = false, onStartSession, onEditNet, onDeleteNet, onViewDetails }) => {
+  const showActionFooter = onStartSession && onEditNet && onDeleteNet && (canStartSession || canEditNet || isOwnerOrAdmin);
 
   return (
     <div className="bg-light-card dark:bg-dark-800 rounded-lg shadow-lg overflow-hidden flex flex-col transition-transform hover:scale-[1.02] focus-within:ring-2 focus-within:ring-brand-primary">
@@ -46,29 +50,35 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, p
         </div>
         
         <div className="text-sm space-y-2 text-gray-600 dark:text-dark-text-secondary">
-            <p><span className="font-semibold text-light-text dark:text-dark-text">Net Control:</span> {net.primary_nco} ({net.primary_nco_callsign})</p>
+            <p><span className="font-semibold text-light-text dark:text-dark-text">NCO:</span> {net.primary_nco} ({net.primary_nco_callsign})</p>
             <p><span className="font-semibold text-light-text dark:text-dark-text">Schedule:</span> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}</p>
             {typeof sessionCount === 'number' && <p><span className="font-semibold text-light-text dark:text-dark-text">Sessions:</span> {sessionCount}</p>}
         </div>
       </div>
 
-      {canManage && onStartSession && onEditNet && onDeleteNet && (
+      {showActionFooter && (
           <div className="bg-dark-800/50 dark:bg-dark-700/50 px-5 py-3 flex justify-between items-center">
-            <button 
-              onClick={onStartSession} 
-              disabled={isActive}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-            >
-              <Icon className="text-base">play_arrow</Icon>
-              Start Session
-            </button>
+            {canStartSession ? (
+              <button 
+                onClick={onStartSession} 
+                disabled={isActive}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+              >
+                <Icon className="text-base">play_arrow</Icon>
+                Start Session
+              </button>
+            ) : <div /> /* Spacer */}
             <div className="flex items-center gap-2">
-                <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
-                    <Icon className="text-xl">settings</Icon>
-                </button>
-                <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
-                    <Icon className="text-xl">delete</Icon>
-                </button>
+                {canEditNet && (
+                  <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
+                      <Icon className="text-xl">settings</Icon>
+                  </button>
+                )}
+                {isOwnerOrAdmin && (
+                  <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
+                      <Icon className="text-xl">delete</Icon>
+                  </button>
+                )}
             </div>
           </div>
       )}
