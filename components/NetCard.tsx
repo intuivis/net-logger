@@ -13,14 +13,16 @@ interface NetCardProps {
   canStartSession?: boolean;
   canEditNet?: boolean;
   isOwnerOrAdmin?: boolean;
+  hasRoster?: boolean;
   onViewDetails: () => void;
   onStartSession?: () => void;
   onEditNet?: () => void;
   onDeleteNet?: () => void;
+  onEditRoster?: () => void;
 }
 
-export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, profile, canStartSession = false, canEditNet = false, isOwnerOrAdmin = false, onStartSession, onEditNet, onDeleteNet, onViewDetails }) => {
-  const showActionFooter = onStartSession && onEditNet && onDeleteNet && (canStartSession || canEditNet || isOwnerOrAdmin);
+export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, canStartSession = false, canEditNet = false, isOwnerOrAdmin = false, hasRoster = false, onStartSession, onEditNet, onDeleteNet, onViewDetails, onEditRoster }) => {
+  const showActionFooter = onStartSession && onEditNet && onDeleteNet && onEditRoster && (canStartSession || canEditNet || isOwnerOrAdmin);
 
   return (
     <div className="bg-light-card dark:bg-dark-800 rounded-lg shadow-lg overflow-hidden flex flex-col transition-transform hover:scale-[1.02] focus-within:ring-2 focus-within:ring-brand-primary">
@@ -68,14 +70,19 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, p
                 Start Session
               </button>
             ) : <div /> /* Spacer */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+                {hasRoster && canEditNet && (
+                    <button onClick={onEditRoster} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit Roster">
+                        <Icon className="text-xl">groups</Icon>
+                    </button>
+                )}
                 {canEditNet && (
-                  <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
+                  <button onClick={onEditNet} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
                       <Icon className="text-xl">settings</Icon>
                   </button>
                 )}
                 {isOwnerOrAdmin && (
-                  <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
+                  <button onClick={onDeleteNet} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
                       <Icon className="text-xl">delete</Icon>
                   </button>
                 )}

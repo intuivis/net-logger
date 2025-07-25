@@ -67,7 +67,7 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
     </div>
     {configType === NetConfigType.LINKED_REPEATER && repeaterCount > 1 && (
         <div className="flex justify-end mt-3">
-            <button type="button" onClick={() => onRemove(repeater.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors">
+            <button type="button" onClick={() => onRemove(repeater.id)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors">
                 <Icon className="text-xl">delete</Icon>
             </button>
         </div>

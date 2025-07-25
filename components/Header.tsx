@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { AuthSessionMissingError } from '@supabase/supabase-js';
+//import { AuthSessionMissingError } from '@supabase/supabase-js';
 import {LogoSignal} from './icons/LogoSignal';
 
 interface HeaderProps {

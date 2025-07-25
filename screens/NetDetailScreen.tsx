@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
 import { formatTime, formatRepeaterCondensed, formatTimeZone } from '../lib/time';
 import { Icon } from '../components/Icon';
@@ -13,13 +13,14 @@ interface NetDetailScreenProps {
     profile: Profile | null;
     hasPermission: (net: Net, permission: PermissionKey) => boolean;
     onStartSession: () => void;
-    onEndSession: (sessionId: string, netId: string) => void;
+    onEndSessionRequest: (sessionId: string, netId: string) => void;
     onEditNet: () => void;
     onDeleteNet: () => void;
     onViewSession: (sessionId: string) => void;
     onBack: () => void;
     onDeleteSession: (sessionId: string) => void;
     onVerifyPasscodeRequest: () => void;
+    onEditRoster: () => void;
 }
 
 const formatDuration = (start: Date, end: Date | null): string => {
@@ -72,8 +73,8 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
 );
 
 
-const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, hasPermission, onStartSession, onEndSession, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession, onVerifyPasscodeRequest }) => {
-    const [isRepeaterListVisible, setIsRepeaterListVisible] = useState(false);
+const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, hasPermission, onStartSession, onEndSessionRequest, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession, onVerifyPasscodeRequest, onEditRoster }) => {
+    const [isRepeaterListVisible, setIsRepeaterListVisible] = React.useState(false);
     const activeSession = sessions.find(s => s.end_time === null);
     
     const canEditNet = hasPermission(net, 'editNet');
@@ -82,8 +83,8 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
     const isOwnerOrAdmin = profile && (profile.role === 'admin' || net.created_by === profile.id);
 
     const handleEndSessionClick = () => {
-        if (activeSession && window.confirm('Are you sure you want to end this net session?')) {
-            onEndSession(activeSession.id, net.id);
+        if (activeSession) {
+            onEndSessionRequest(activeSession.id, net.id);
         }
     };
 
@@ -156,10 +157,10 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                     <div>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
                             <h1 className="text-3xl font-bold text-dark-text">{net.name}</h1>
-                            {renderTypeBadge()}
+                        {renderTypeBadge()}    
                         </div>
                          <div className="flex items-center gap-4 mt-2">
-                            <p className="text-dark-text-secondary font-bold text-dark-text">
+                            <p className="font-bold text-dark-text">
                                 {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                             </p>
                         </div>
@@ -177,14 +178,22 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             {profile && !isOwnerOrAdmin && net.passcode && (
                                 <button onClick={onVerifyPasscodeRequest} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-brand-secondary rounded-md hover:bg-brand-primary transition-colors" aria-label="Use Passcode">
                                     <Icon className="text-xl">key</Icon>
+                                    Use Passcode
                                 </button>
                             )}
-                            {canEditNet && <button onClick={onEditNet} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
-                               <Icon className="text-xl">settings</Icon>
-                            </button>}
-                            {isOwnerOrAdmin && <button onClick={onDeleteNet} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
-                               <Icon className="text-xl">delete</Icon>
-                            </button>}
+                            <div className="flex items-center gap-1">
+                                {canEditNet && (
+                                <button onClick={onEditRoster} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit Roster">
+                                    <Icon className="text-xl">groups</Icon>
+                                </button>
+                                )}
+                                {canEditNet && <button onClick={onEditNet} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors" aria-label="Edit NET">
+                                <Icon className="text-xl">settings</Icon>
+                                </button>}
+                                {isOwnerOrAdmin && <button onClick={onDeleteNet} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10 transition-colors" aria-label="Delete NET">
+                                <Icon className="text-xl">delete</Icon>
+                                </button>}
+                            </div>
                             {canManageSessions && (
                                 activeSession ? (
                                     <button
@@ -219,8 +228,9 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
             <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
                 <div className="p-5 sm:p-6 border-b border-dark-700">
                     <h3 className="text-xl font-bold text-dark-text">Session History</h3>
-                    <p className="text-sm text-dark-text-secondary">Total Sessions: {sessions.length}</p>
+                    <p className="text-sm text-dark-text-secondary">Review past sessions for this NET.</p>
                 </div>
+                
                 {sessions.length === 0 ? (
                     <div className="text-center py-12 px-4">
                         <h2 className="text-lg font-semibold text-dark-text-secondary">No Sessions Logged</h2>
@@ -256,7 +266,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                             <div className="pl-4">
                                                 <button 
                                                     onClick={() => onDeleteSession(session.id)}
-                                                    className="p-2 text-gray-500 hover:text-red-500 rounded-full hover:bg-red-500/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-red-500 rounded-full hover:bg-red-500/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                                                     aria-label="Delete Session"
                                                 >
                                                     <Icon className="text-xl">delete</Icon>

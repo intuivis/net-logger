@@ -76,6 +76,8 @@ export type Badge = Database['public']['Tables']['badges']['Row'];
 
 export type AwardedBadge = Database['public']['Tables']['awarded_badges']['Row'];
 
+export type RosterMember = Database['public']['Tables']['roster_members']['Row'];
+
 export type BadgeCategory = "Participation" | "Loyalty" | "Special";
 
 export interface BadgeDefinition extends Badge {
@@ -96,6 +98,7 @@ export type View =
   | { type: 'userManagement' }
   | { type: 'manageNets' }
   | { type: 'netEditor'; netId?: string }
+  | { type: 'rosterEditor'; netId: string; }
   | { type: 'netDetail'; netId: string }
   | { type: 'session'; sessionId: string }
   | { type: 'callsignProfile'; callsign: string }

@@ -1,10 +1,11 @@
+
 export type Json =
   | string
   | number
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type PermissionKey =
   | "editNet"
@@ -45,6 +46,7 @@ export type Database = {
           session_id: string;
         };
         Update: {
+          id?: string;
           call_sign?: string;
           badge_id?: string;
           awarded_at?: string;
@@ -63,6 +65,7 @@ export type Database = {
           description: string;
         };
         Update: {
+          id?: string;
           name?: string;
           description?: string;
         };
@@ -108,6 +111,7 @@ export type Database = {
           repeater_id?: string | null;
         };
         Update: {
+          id?: string;
           session_id?: string;
           timestamp?: string;
           call_sign?: string;
@@ -160,6 +164,7 @@ export type Database = {
           passcode_permissions?: Json | null;
         };
         Update: {
+          id?: string;
           created_at?: string;
           created_by?: string;
           name?: string;
@@ -191,6 +196,7 @@ export type Database = {
           is_approved: boolean;
         };
         Insert: {
+          id?: string;
           updated_at?: string | null;
           email?: string | null;
           full_name?: string | null;
@@ -199,12 +205,39 @@ export type Database = {
           is_approved?: boolean;
         };
         Update: {
+          id?: string;
           updated_at?: string | null;
           email?: string | null;
           full_name?: string | null;
           call_sign?: string | null;
           role?: "admin" | "nco";
           is_approved?: boolean;
+        };
+      };
+      roster_members: {
+        Row: {
+          id: string;
+          net_id: string;
+          call_sign: string;
+          name: string | null;
+          location: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          net_id: string;
+          call_sign: string;
+          name?: string | null;
+          location?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          net_id?: string;
+          call_sign?: string;
+          name?: string | null;
+          location?: string | null;
+          created_at?: string;
         };
       };
       sessions: {
@@ -219,6 +252,7 @@ export type Database = {
           notes: string | null;
         };
         Insert: {
+          id?: string;
           created_at?: string;
           net_id: string;
           start_time?: string;
@@ -228,6 +262,7 @@ export type Database = {
           notes?: string | null;
         };
         Update: {
+          id?: string;
           created_at?: string;
           net_id?: string;
           start_time?: string;

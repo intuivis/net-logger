@@ -1,7 +1,6 @@
 
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, Repeater, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -9,7 +8,6 @@ import SessionScreen from './screens/SessionScreen';
 import NetDetailScreen from './screens/NetDetailScreen';
 import Header from './components/Header';
 import EditCheckInModal from './components/EditCheckInModal';
-import StartSessionModal from './components/StartSessionModal';
 import { supabase } from './lib/supabaseClient';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -19,7 +17,6 @@ import { Session } from '@supabase/supabase-js';
 import { Database } from './database.types';
 import { BADGE_DEFINITIONS } from './lib/badges';
 import CallsignProfileScreen from './screens/CallSignProfileScreen';
-//import { v4 as uuidv4 } from 'uuid'; /*I see no point this import*/
 import AboutScreen from './screens/AboutScreen';
 import AwardsScreen from './screens/AwardsScreen';
 import Footer from './components/Footer';
@@ -27,9 +24,8 @@ import UserAgreementScreen from './screens/UserAgreementScreen';
 import ReleaseNotesScreen from './screens/ReleaseNotesScreen';
 import PasscodeModal from './components/PasscodeModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
-
-type SessionStartOverrides = Partial<Pick<NetSession, 'primary_nco' | 'primary_nco_callsign'>>;
-
+import RosterEditorScreen from './screens/RosterEditorScreen';
+import ConfirmModal from './components/ConfirmModal';
 
 const App: React.FC = () => {
   const [viewHistory, setViewHistory] = useState<View[]>([{ type: 'home' }]);
@@ -42,11 +38,11 @@ const App: React.FC = () => {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [allBadges, setAllBadges] = useState<Badge[]>([]);
   const [awardedBadges, setAwardedBadges] = useState<AwardedBadge[]>([]);
+  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]);
   
   const [loading, setLoading] = useState(true);
 
   const [editingCheckIn, setEditingCheckIn] = useState<{ sessionId: string; checkIn: CheckIn } | null>(null);
-  const [startingNet, setStartingNet] = useState<Net | null>(null);
   const [verifyingPasscodeForNet, setVerifyingPasscodeForNet] = useState<Net | null>(null);
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -54,6 +50,20 @@ const App: React.FC = () => {
   const [grantedPermissions, setGrantedPermissions] = useState<Record<string, PasscodePermissions>>({});
   const [verifiedPasscodes, setVerifiedPasscodes] = useState<Record<string, string>>({});
   const [isSessionExpired, setIsSessionExpired] = useState(false);
+
+  const [confirmModalState, setConfirmModalState] = useState<{
+      isOpen: boolean;
+      title: string;
+      message: string;
+      onConfirm: () => void;
+      confirmText?: string;
+      isDestructive?: boolean;
+  }>({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: () => {},
+  });
 
   const goBack = useCallback(() => {
       setViewHistory(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
@@ -88,6 +98,13 @@ const App: React.FC = () => {
       }
   }, []);
   
+  const requestConfirmation = useCallback((config: Omit<typeof confirmModalState, 'isOpen'>) => {
+    setConfirmModalState({
+        ...config,
+        isOpen: true,
+    });
+  }, []);
+
   const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
     id: rawNet.id,
     created_by: rawNet.created_by,
@@ -112,12 +129,13 @@ const App: React.FC = () => {
 
   const refreshAllData = useCallback(async () => {
     try {
-        const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes] = await Promise.all([
+        const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes, rosterMembersRes] = await Promise.all([
             supabase.from('nets').select('*').order('name'),
             supabase.from('sessions').select('*').order('start_time', { ascending: false }),
             supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
             supabase.from('awarded_badges').select('*'),
             supabase.from('badges').select('*'),
+            supabase.from('roster_members').select('*'), // Fetch all roster members
         ]);
 
         if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
@@ -125,6 +143,10 @@ const App: React.FC = () => {
         if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
         if (allBadgesRes.error) throw new Error(`Failed to load badge definitions: ${allBadgesRes.error.message}`);
+        if (rosterMembersRes.error && !rosterMembersRes.error.message.includes('does not exist')) {
+            throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
+        }
+
 
         const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
         
@@ -135,6 +157,8 @@ const App: React.FC = () => {
         setCheckIns((checkInsRes.data as CheckIn[]) || []);
         setAllBadges((allBadgesRes.data as Badge[]) || []);
         setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
+        setRosterMembers((rosterMembersRes.data as RosterMember[]) || []);
+
     } catch (error: any) {
         if (error.message && error.message.includes('Failed to fetch')) {
              alert(`A network error occurred while trying to connect to the database. Please verify your internet connection.`);
@@ -286,12 +310,18 @@ const App: React.FC = () => {
             refreshAllData();
         })
         .subscribe();
-
+    
+    const rosterMembersChannel = supabase.channel('public:roster_members')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'roster_members' }, () => {
+            refreshAllData();
+        })
+        .subscribe();
 
     return () => {
       supabase.removeChannel(netsChannel);
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(awardedBadgesChannel);
+      supabase.removeChannel(rosterMembersChannel);
     };
   }, [refreshAllData, transformNetPayload]);
 
@@ -318,28 +348,28 @@ const App: React.FC = () => {
   const handleSaveNet = useCallback(async (netData: Partial<Net>) => {
     try {
         const { id } = netData;
-        
-        const dbPayload: Omit<Database['public']['Tables']['nets']['Update'], 'id' | 'created_at' | 'created_by'> = {
-            name: netData.name,
+
+        const commonPayload = {
+            name: netData.name!,
             description: netData.description || null,
             website_url: netData.website_url || null,
-            primary_nco: netData.primary_nco,
-            primary_nco_callsign: netData.primary_nco_callsign,
-            net_type: netData.net_type,
-            schedule: netData.schedule,
-            time: netData.time,
-            time_zone: netData.time_zone,
-            net_config_type: netData.net_config_type,
-            repeaters: netData.net_config_type === NetConfigType.GROUP ? [] : (netData.repeaters ?? []),
+            primary_nco: netData.primary_nco!,
+            primary_nco_callsign: netData.primary_nco_callsign!,
+            net_type: netData.net_type!,
+            schedule: netData.schedule!,
+            time: netData.time!,
+            time_zone: netData.time_zone!,
+            net_config_type: netData.net_config_type!,
+            repeaters: (netData.net_config_type === NetConfigType.GROUP ? [] : (netData.repeaters ?? [])) as any,
             frequency: netData.net_config_type !== NetConfigType.GROUP ? null : netData.frequency || null,
             band: netData.net_config_type !== NetConfigType.GROUP ? null : netData.band || null,
             mode: netData.net_config_type !== NetConfigType.GROUP ? null : netData.mode || null,
             passcode: netData.passcode || null,
-            passcode_permissions: (netData.passcode ? (netData.passcode_permissions ?? {}) : null),
+            passcode_permissions: (netData.passcode ? (netData.passcode_permissions ?? {}) : null) as any,
         };
 
         if (id) {
-            const { error, data } = await supabase.from('nets').update(dbPayload).eq('id', id).select().single();
+            const { error, data } = await supabase.from('nets').update(commonPayload).eq('id', id).select().single();
             if (error) throw error;
             if (!data) throw new Error("No data returned after update operation.");
             
@@ -350,17 +380,8 @@ const App: React.FC = () => {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
             const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
-                ...dbPayload,
-                name: dbPayload.name!,
-                primary_nco: dbPayload.primary_nco!,
-                primary_nco_callsign: dbPayload.primary_nco_callsign!,
-                net_type: dbPayload.net_type!,
-                schedule: dbPayload.schedule!,
-                time: dbPayload.time!,
-                time_zone: dbPayload.time_zone!,
-                net_config_type: dbPayload.net_config_type!,
+                ...commonPayload,
                 created_by: profile.id,
-                repeaters: dbPayload.repeaters!,
             };
 
             const { data, error } = await supabase.from('nets').insert(insertPayload).select().single();
@@ -377,31 +398,39 @@ const App: React.FC = () => {
   }, [profile, setView, transformNetPayload, handleApiError]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
-    if (window.confirm('Are you sure you want to delete this NET and all its sessions? This cannot be undone.')) {
-        try {
-            const { error } = await supabase.from('nets').delete().eq('id', netId);
-            if (error) throw error;
-            setNets(prev => prev.filter(n => n.id !== netId));
-            setView({ type: 'manageNets' });
-        } catch(error: any) {
-             handleApiError(error, 'handleDeleteNet');
+    requestConfirmation({
+        title: 'Confirm Deletion',
+        message: 'Are you sure you want to delete this NET and all its sessions? This cannot be undone.',
+        confirmText: 'Delete',
+        isDestructive: true,
+        onConfirm: async () => {
+            try {
+                const { error } = await supabase.from('nets').delete().eq('id', netId);
+                if (error) throw error;
+                setNets(prev => prev.filter(n => n.id !== netId));
+                setView({ type: 'manageNets' });
+            } catch(error: any) {
+                 handleApiError(error, 'handleDeleteNet');
+            }
         }
-    }
-  }, [setView, handleApiError]);
-
-  const handleStartSessionRequest = useCallback((netId: string) => {
-    const netToStart = nets.find(n => n.id === netId);
-    if(netToStart) setStartingNet(netToStart);
-  }, [nets]);
+    });
+  }, [setView, handleApiError, requestConfirmation]);
   
-  const handleConfirmStartSession = useCallback(async (net: Net, overrides: SessionStartOverrides) => {
+  const handleStartSession = useCallback(async (netId: string) => {
+    const netToStart = nets.find(n => n.id === netId);
+    if (!netToStart) {
+        console.error(`Could not find net with ID ${netId} to start session.`);
+        alert("Error: Could not find the specified NET to start a session.");
+        return;
+    }
+
     try {
-        const passcode = verifiedPasscodes[net.id] || null;
+        const passcode = verifiedPasscodes[netToStart.id] || null;
 
         const { data, error } = await supabase.rpc('start_session', {
-            p_net_id: net.id,
-            p_primary_nco: overrides.primary_nco || net.primary_nco,
-            p_primary_nco_callsign: overrides.primary_nco_callsign || net.primary_nco_callsign,
+            p_net_id: netToStart.id,
+            p_primary_nco: netToStart.primary_nco, // Use default from net
+            p_primary_nco_callsign: netToStart.primary_nco_callsign, // Use default from net
             p_passcode: passcode
         });
         
@@ -411,49 +440,64 @@ const App: React.FC = () => {
         const newSession = data as unknown as NetSession;
         setSessions(prev => [newSession, ...prev]);
 
-        setStartingNet(null);
         setView({ type: 'session', sessionId: newSession.id });
     } catch (error: any) {
-        handleApiError(error, 'handleConfirmStartSession');
+        handleApiError(error, 'handleStartSession');
     }
-  }, [setView, handleApiError, verifiedPasscodes]);
+  }, [nets, setView, handleApiError, verifiedPasscodes]);
 
   const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
-    if (view.type === 'session' && view.sessionId === sessionId) {
-        setView({ type: 'netDetail', netId });
-    }
+      if (view.type === 'session' && view.sessionId === sessionId) {
+          setView({ type: 'netDetail', netId });
+      }
 
-    try {
-      const passcode = verifiedPasscodes[netId] || null;
+      try {
+        const passcode = verifiedPasscodes[netId] || null;
 
-      const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
-          p_session_id: sessionId,
-          p_passcode: passcode
-      });
-      
-      if (error) throw error;
-      if (!updatedSessionData) throw new Error("Failed to end session: No data returned from RPC.");
+        const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
+            p_session_id: sessionId,
+            p_passcode: passcode
+        });
+        
+        if (error) throw error;
+        if (!updatedSessionData) throw new Error("Failed to end session: No data returned from RPC.");
 
-      const updatedSession = updatedSessionData as unknown as NetSession;
-      
-      setSessions(prev => prev.map(s => s.id === sessionId ? updatedSession : s));
-    } catch (error: any) {
-      handleApiError(error, 'handleEndSession');
-    }
+        const updatedSession = updatedSessionData as unknown as NetSession;
+        
+        setSessions(prev => prev.map(s => s.id === sessionId ? updatedSession : s));
+      } catch (error: any) {
+        handleApiError(error, 'handleEndSession');
+      }
   }, [view, setView, handleApiError, verifiedPasscodes]);
 
+  const handleEndSessionRequest = useCallback((sessionId: string, netId: string) => {
+    requestConfirmation({
+        title: 'Confirm End Session',
+        message: 'Are you sure you want to end this net session?',
+        confirmText: 'End Session',
+        isDestructive: true,
+        onConfirm: () => handleEndSession(sessionId, netId)
+    });
+  }, [handleEndSession, requestConfirmation]);
+
   const handleDeleteSession = useCallback(async (sessionId: string) => {
-    if (window.confirm('Are you sure you want to permanently delete this session and its log?')) {
-        try {
-            const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
-            if (error) throw error;
-            setSessions(prev => prev.filter(s => s.id !== sessionId));
-            setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
-        } catch (error: any) {
-            handleApiError(error, 'handleDeleteSession');
+    requestConfirmation({
+        title: 'Confirm Deletion',
+        message: 'Are you sure you want to permanently delete this session and its log?',
+        confirmText: 'Delete',
+        isDestructive: true,
+        onConfirm: async () => {
+            try {
+                const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
+                if (error) throw error;
+                setSessions(prev => prev.filter(s => s.id !== sessionId));
+                setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
+            } catch (error: any) {
+                handleApiError(error, 'handleDeleteSession');
+            }
         }
-    }
-  }, [handleApiError]);
+    });
+  }, [handleApiError, requestConfirmation]);
   
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
@@ -467,9 +511,18 @@ const App: React.FC = () => {
 
   const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
     try {
+        const payload: Database['public']['Tables']['check_ins']['Insert'] = {
+            session_id: sessionId,
+            call_sign: checkInData.call_sign,
+            name: checkInData.name,
+            location: checkInData.location,
+            notes: checkInData.notes,
+            repeater_id: checkInData.repeater_id
+        };
+
         const { data: newCheckInData, error: checkInError } = await supabase
             .from('check_ins')
-            .insert({ ...checkInData, session_id: sessionId })
+            .insert(payload)
             .select()
             .single();
 
@@ -510,9 +563,6 @@ const App: React.FC = () => {
         if (badgesToAward.length > 0) {
             const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
             if (newBadgeError) throw newBadgeError;
-            
-            const badgeNames = badgesToAward.map(b => allBadges.find(def => def.id === b.badge_id)?.name || b.badge_id).join(', ');
-            alert(`Congratulations! ${callSign} unlocked new badge(s): ${badgeNames}`);
         }
     } catch (error: any) {
         handleApiError(error, 'handleAddCheckIn');
@@ -526,7 +576,16 @@ const App: React.FC = () => {
   const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn) => {
     try {
         const { id, ...updateData } = updatedCheckIn;
-        const { error } = await supabase.from('check_ins').update(updateData).eq('id', id);
+        const payload: Database['public']['Tables']['check_ins']['Update'] = {
+            call_sign: updateData.call_sign,
+            name: updateData.name,
+            location: updateData.location,
+            notes: updateData.notes,
+            repeater_id: updateData.repeater_id,
+            session_id: updateData.session_id,
+            timestamp: updateData.timestamp
+        };
+        const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
         if (error) throw error;
         // The SessionScreen will update its own check-ins via its real-time subscription.
         setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
@@ -536,18 +595,53 @@ const App: React.FC = () => {
     }
   }, [handleApiError]);
 
-  const handleDeleteCheckIn = useCallback(async (checkInId: string) => {
-    if (window.confirm('Are you sure you want to delete this check-in?')) {
-        try {
-            const { error } = await supabase.from('check_ins').delete().eq('id', checkInId);
-            if (error) throw error;
-            // The SessionScreen will update its own check-ins via its real-time subscription.
-            setCheckIns(prev => prev.filter(c => c.id !== checkInId));
-        } catch (error: any) {
-            handleApiError(error, 'handleDeleteCheckIn');
+  const handleDeleteCheckIn = useCallback(async (checkInId: string, netId: string) => {
+    const checkIn = checkIns.find(ci => ci.id === checkInId);
+    if (!checkIn) return;
+
+    requestConfirmation({
+        title: 'Confirm Deletion',
+        message: `Are you sure you want to delete the check-in for ${checkIn.call_sign}?`,
+        confirmText: 'Delete',
+        isDestructive: true,
+        onConfirm: async () => {
+            try {
+                const passcode = verifiedPasscodes[netId] || null;
+                const { error } = await supabase.rpc('delete_check_in', {
+                    p_check_in_id: checkInId,
+                    p_passcode: passcode,
+                });
+
+                if (error) throw error;
+                
+                setCheckIns(prev => prev.filter(c => c.id !== checkInId));
+            } catch (error: any) {
+                handleApiError(error, 'handleDeleteCheckIn');
+            }
         }
+    });
+  }, [handleApiError, verifiedPasscodes, checkIns, requestConfirmation]);
+
+  const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]) => {
+    try {
+        // Delete all existing members for the net
+        const { error: deleteError } = await supabase.from('roster_members').delete().eq('net_id', netId);
+        if (deleteError) throw deleteError;
+
+        // Insert new members if any
+        if (members.length > 0) {
+            const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
+            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert);
+            if (insertError) throw insertError;
+        }
+
+        await refreshAllData();
+        setView({ type: 'netDetail', netId: netId });
+    } catch(error: any) {
+        handleApiError(error, 'handleSaveRosterMembers');
     }
-  }, [handleApiError]);
+  }, [refreshAllData, handleApiError, setView]);
+  
 
   const hasPermission = useMemo(() => {
     return (net: Net | null, permission: PermissionKey): boolean => {
@@ -639,9 +733,9 @@ const App: React.FC = () => {
                 activeSessions={activeSessions}
                 nets={nets}
                 checkIns={checkIns}
+                profile={profile}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
                 onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
-                profile={profile}
             />
         );
       }
@@ -651,13 +745,15 @@ const App: React.FC = () => {
           <ManageNetsScreen
             nets={managedNets}
             sessions={sessions}
+            rosterMembers={rosterMembers}
             profile={profile}
             hasPermission={hasPermission}
-            onStartSession={handleStartSessionRequest}
+            onStartSession={handleStartSession}
             onEditNet={(netId) => setView({ type: 'netEditor', netId })}
             onDeleteNet={handleDeleteNet}
             onAddNet={() => setView({ type: 'netEditor' })}
             onViewDetails={(netId) => setView({ type: 'netDetail', netId })}
+            onEditRoster={(netId) => setView({ type: 'rosterEditor', netId })}
           />
         );
       }
@@ -703,25 +799,28 @@ const App: React.FC = () => {
                 checkIns={checkIns}
                 profile={profile}
                 hasPermission={hasPermission}
-                onStartSession={() => handleStartSessionRequest(view.netId)}
-                onEndSession={handleEndSession}
+                onStartSession={() => handleStartSession(view.netId)}
+                onEndSessionRequest={handleEndSessionRequest}
                 onEditNet={() => setView({ type: 'netEditor', netId: view.netId })}
                 onDeleteNet={() => handleDeleteNet(view.netId)}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
                 onBack={goBack}
                 onDeleteSession={handleDeleteSession}
                 onVerifyPasscodeRequest={() => setVerifyingPasscodeForNet(detailNet)}
+                onEditRoster={() => setView({ type: 'rosterEditor', netId: view.netId })}
             />
         );
       }
       case 'session': {
         const sessionForPerms = sessions.find(s => s.id === view.sessionId);
         const netForPerms = sessionForPerms ? nets.find(n => n.id === sessionForPerms.net_id) : null;
+        const netRosterMembers = netForPerms ? rosterMembers.filter(rm => rm.net_id === netForPerms.id) : [];
         return (
           <SessionScreen
             sessionId={view.sessionId}
             allBadges={allBadges}
             awardedBadges={awardedBadges}
+            rosterMembers={netRosterMembers}
             profile={profile}
             hasPermission={(permission) => hasPermission(netForPerms, permission)}
             onEndSession={handleEndSession}
@@ -733,6 +832,22 @@ const App: React.FC = () => {
             onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
           />
         );
+      }
+      case 'rosterEditor': {
+        const netForRoster = nets.find(n => n.id === view.netId);
+        if (!netForRoster) return <div className="text-center py-20">Net not found.</div>;
+        
+        const membersOfRosterToEdit = rosterMembers.filter(m => m.net_id === view.netId);
+
+        return (
+          <RosterEditorScreen
+            net={netForRoster}
+            initialMembers={membersOfRosterToEdit}
+            onSave={handleSaveRosterMembers}
+            onCancel={goBack}
+            onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
+          />
+        )
       }
       case 'userManagement': {
         if (profile?.role !== 'admin') {
@@ -790,13 +905,6 @@ const App: React.FC = () => {
             onClose={() => setEditingCheckIn(null)}
         />
       )}
-      {startingNet && (
-            <StartSessionModal 
-                net={startingNet}
-                onStart={handleConfirmStartSession}
-                onClose={() => setStartingNet(null)}
-            />
-      )}
       {verifyingPasscodeForNet && (
         <PasscodeModal
             netName={verifyingPasscodeForNet.name}
@@ -817,6 +925,10 @@ const App: React.FC = () => {
           }}
         />
       )}
+      <ConfirmModal
+        {...confirmModalState}
+        onClose={() => setConfirmModalState(prev => ({ ...prev, isOpen: false }))}
+      />
       <Footer onSetView={setView} />
     </div>
   );

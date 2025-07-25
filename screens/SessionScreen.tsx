@@ -1,7 +1,6 @@
 
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
@@ -13,12 +12,13 @@ interface SessionScreenProps {
   sessionId: string;
   allBadges: BadgeType[];
   awardedBadges: AwardedBadge[];
+  rosterMembers: RosterMember[];
   profile: Profile | null;
   hasPermission: (permission: PermissionKey) => boolean;
   onEndSession: (sessionId: string, netId: string) => void;
   onAddCheckIn: (sessionId: string, checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
-  onDeleteCheckIn: (checkInId: string) => void;
+  onDeleteCheckIn: (checkInId: string, netId: string) => void;
   onBack: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => Promise<void>;
   onViewCallsignProfile: (callsign: string) => void;
@@ -177,12 +177,13 @@ const handleSubmit = (e: React.FormEvent) => {
     );
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, profile, hasPermission, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
+const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, rosterMembers, profile, hasPermission, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
   const [session, setSession] = useState<NetSession | null>(null);
   const [net, setNet] = useState<Net | null>(null);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'log' | 'roster'>('log');
 
   const [sessionNotes, setSessionNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -219,9 +220,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             net_type: netData.net_type as NetType,
             schedule: netData.schedule as DayOfWeek,
             net_config_type: netData.net_config_type as NetConfigType,
-            repeaters: (netData.repeaters as unknown as Repeater[]) || [],
+            repeaters: (netData.repeaters as Repeater[]) || [],
             passcode: netData.passcode,
-            passcode_permissions: (netData.passcode_permissions as unknown as PasscodePermissions | null),
+            passcode_permissions: (netData.passcode_permissions as PasscodePermissions | null),
         };
 
         setSession(sessionData as NetSession);
@@ -312,6 +313,21 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
       }
   }
 
+    const checkedInCallsigns = useMemo(() => new Set(checkIns.map(ci => ci.call_sign)), [checkIns]);
+
+    const handleRosterCheckIn = (member: RosterMember) => {
+        const repeaterId = net?.net_config_type === NetConfigType.LINKED_REPEATER
+            ? localStorage.getItem(REPEATER_STORAGE_KEY(net))
+            : null;
+        
+        onAddCheckIn(sessionId, {
+            call_sign: member.call_sign,
+            name: member.name,
+            location: member.location,
+            repeater_id: repeaterId
+        });
+    };
+
   if (loading) return <div className="text-center py-20 text-dark-text-secondary">Loading Session...</div>;
   if (error) return <div className="text-center py-20 text-red-500">Error: {error}</div>;
   if (!session || !net) return <div className="text-center py-20">Session not found.</div>;
@@ -329,10 +345,21 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
       <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
             <div>
-                <h1 className="text-3xl font-bold text-dark-text">{isActive ? net.name : "Session Log"}</h1>
-                <p className="text-dark-text-secondary mt-1">
+                 <div className="flex items-center gap-4 mb-1">
+                    <h1 className="text-3xl font-bold text-dark-text">{isActive ? net.name : "Session Log"}</h1>
+                    {isActive && (
+                        <div className="flex items-center gap-1.5 px-3 py-1 text-sm font-semibold rounded-full bg-green-500/20 text-green-300">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                            <span>Live</span>
+                        </div>
+                    )}
+                </div>
+                <p className="text-dark-text-secondary">
                     {isActive 
-                        ? `Session started at ${new Date(session.start_time).toLocaleString()}. Net is active.`
+                        ? `Session started at ${new Date(session.start_time).toLocaleString()}`
                         : `For ${net.name} on ${new Date(session.start_time).toLocaleDateString()}`
                     }
                 </p>
@@ -349,7 +376,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         </div>
       </div>
 
-      { canLogContacts ? (
+      { canLogContacts || (session.notes && session.notes.trim() !== '') ? (
         <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6 space-y-4">
             <h3 className="text-xl font-bold text-dark-text">Session Notes</h3>
             <textarea
@@ -358,22 +385,19 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                 className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm"
                 rows={5}
                 placeholder="Capture general notes for the session..."
-                disabled={isSavingNotes || !isActive}
+                disabled={isSavingNotes || !canLogContacts}
             />
-            <div className="flex justify-end">
-                <button
-                    onClick={handleSaveNotes}
-                    disabled={isSavingNotes || !isActive}
-                    className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:bg-gray-500 disabled:cursor-wait"
-                >
-                    {isSavingNotes ? 'Saving...' : 'Save Notes'}
-                </button>
-            </div>
-        </div>
-      ) : session.notes ? (
-        <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6 space-y-3">
-            <h3 className="text-xl font-bold text-dark-text">Session Notes</h3>
-            <p className="text-dark-text-secondary whitespace-pre-wrap">{session.notes}</p>
+            {canLogContacts && (
+                <div className="flex justify-end">
+                    <button
+                        onClick={handleSaveNotes}
+                        disabled={isSavingNotes}
+                        className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:bg-gray-500 disabled:cursor-wait"
+                    >
+                        {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                    </button>
+                </div>
+            )}
         </div>
       ) : null }
       
@@ -381,88 +405,136 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
       
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-dark-700">
-            <h3 className="text-xl font-bold text-dark-text">Check-in Log</h3>
-            <p className="text-sm text-dark-text-secondary">Total Check-ins: {checkIns.length}</p>
+          <div className="flex justify-between items-center">
+              <div>
+                  <h3 className="text-xl font-bold text-dark-text">Check-in Log</h3>
+                  <p className="text-sm text-dark-text-secondary">Total Check-ins: {checkIns.length}</p>
+              </div>
+              {isActive && canLogContacts && rosterMembers.length > 0 && (
+                 <div className="flex items-center p-1 bg-dark-700 rounded-lg">
+                    <button onClick={() => setActiveTab('log')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'log' ? 'bg-dark-900 text-dark-text' : 'text-dark-text-secondary hover:text-dark-text'}`}>Live Log</button>
+                    <button onClick={() => setActiveTab('roster')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'roster' ? 'bg-dark-900 text-dark-text' : 'text-dark-text-secondary hover:text-dark-text'}`}>Roster</button>
+                </div>
+              )}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-dark-700">
-                <thead className="bg-dark-700/50">
-                    <tr>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Awards</th>
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
-                        {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
-                        <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
-                        {canLogContacts && <th scope="col" className="relative px-6 py-4">
-                            <span className="sr-only">Actions</span>
-                        </th>}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-dark-700">
-                    {sortedCheckIns.length === 0 ? (
-                        <tr>
-                            <td colSpan={tableColSpan} className="px-6 py-12 text-center text-dark-text-secondary">
-                                {isActive && canLogContacts ? 'Waiting for first check-in...' : 'No check-ins have been logged yet.'}
-                            </td>
-                        </tr>
-                    ) : (
-                        sortedCheckIns.map((checkIn, index) => {
-                            const repeater = showRepeaterColumn ? net.repeaters.find(r => r.id === checkIn.repeater_id) : null;
-                            const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
-                            const newlyAwarded = awardedBadges.filter(ab => ab.session_id === sessionId && ab.call_sign === checkIn.call_sign);
-                            const isNCO = checkIn.call_sign === session.primary_nco_callsign;
+        
+        {activeTab === 'log' && (
+          <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-dark-700">
+                  <thead className="bg-dark-700/50">
+                      <tr>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Awards</th>
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
+                          {showRepeaterColumn && <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Repeater</th>}
+                          <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notes</th>
+                          {canLogContacts && <th scope="col" className="relative px-6 py-4">
+                              <span className="sr-only">Actions</span>
+                          </th>}
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-700">
+                      {sortedCheckIns.length === 0 ? (
+                          <tr>
+                              <td colSpan={tableColSpan} className="px-6 py-12 text-center text-dark-text-secondary">
+                                  {isActive && canLogContacts ? 'Waiting for first check-in...' : 'No check-ins have been logged yet.'}
+                              </td>
+                          </tr>
+                      ) : (
+                          sortedCheckIns.map((checkIn, index) => {
+                              const repeater = showRepeaterColumn ? net.repeaters.find(r => r.id === checkIn.repeater_id) : null;
+                              const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
+                              const newlyAwarded = awardedBadges.filter(ab => ab.session_id === sessionId && ab.call_sign === checkIn.call_sign);
+                              const isNCO = checkIn.call_sign === session.primary_nco_callsign;
 
-                            return (
-                                <tr key={checkIn.id} className="hover:bg-dark-700/30">
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
-                                    <td className="px-4 py-2 text-sm font-bold text-brand-accent">
-                                        <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                                            <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
-                                                {checkIn.call_sign}
-                                            </button>
-                                            {isNCO && <NCOBadge />}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm">{checkIn.name}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap">
-                                        <div className="flex items-center gap-2">
-                                            {newlyAwarded.map(award => {
-                                                const badgeDef = allBadges.find(b => b.id === award.badge_id);
-                                                return badgeDef ? <Badge key={award.id} badge={badgeDef} variant="pill" size="sm" /> : null;
-                                            })}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
-                                    {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
-                                    {canLogContacts && (
+                              return (
+                                  <tr key={checkIn.id} className="hover:bg-dark-700/30">
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
+                                      <td className="px-4 py-2 text-sm font-bold text-brand-accent">
+                                          <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+                                              <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
+                                                  {checkIn.call_sign}
+                                              </button>
+                                              {isNCO && <NCOBadge />}
+                                          </div>
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm">{checkIn.name}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap">
+                                          <div className="flex items-center gap-2">
+                                              {newlyAwarded.map(award => {
+                                                  const badgeDef = allBadges.find(b => b.id === award.badge_id);
+                                                  return badgeDef ? <Badge key={award.id} badge={badgeDef} variant="pill" size="sm" /> : null;
+                                              })}
+                                          </div>
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
+                                      {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
+                                      {canLogContacts && (
+                                          <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                                              <div className="flex items-center justify-end gap-2">
+                                                  <button onClick={() => onEditCheckIn(sessionId, checkIn)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
+                                                      <Icon className="text-xl">edit</Icon>
+                                                  </button>
+                                                  <button onClick={() => onDeleteCheckIn(checkIn.id, net.id)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10" aria-label="Delete Check-in">
+                                                      <Icon className="text-xl">delete</Icon>
+                                                  </button>
+                                              </div>
+                                          </td>
+                                      )}
+                                  </tr>
+                              );
+                          })
+                      )}
+                  </tbody>
+              </table>
+          </div>
+        )}
+        {activeTab === 'roster' && (
+            <div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-dark-700">
+                        <thead className="bg-dark-700/50">
+                           <tr>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
+                                <th scope="col" className="relative px-6 py-2"><span className="sr-only">Action</span></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-dark-700">
+                            {rosterMembers.map(member => {
+                                const isCheckedIn = checkedInCallsigns.has(member.call_sign);
+                                return (
+                                    <tr key={member.id} className={`${isCheckedIn ? 'bg-green-900/20' : 'hover:bg-dark-700/30'}`}>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold text-dark-text">{member.call_sign}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{member.name}</td>
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{member.location}</td>
                                         <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => onEditCheckIn(sessionId, checkIn)} className="p-2 text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
-                                                    <Icon className="text-xl">edit</Icon>
-                                                </button>
-                                                <button onClick={() => onDeleteCheckIn(checkIn.id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10" aria-label="Delete Check-in">
-                                                    <Icon className="text-xl">delete</Icon>
-                                                </button>
-                                            </div>
+                                            <button 
+                                                onClick={() => handleRosterCheckIn(member)}
+                                                disabled={isCheckedIn}
+                                                className="px-4 py-2 text-sm font-semibold rounded-md transition-colors disabled:bg-green-800/50 disabled:text-green-300/80 disabled:cursor-not-allowed bg-brand-primary hover:bg-brand-secondary text-white"
+                                            >
+                                                {isCheckedIn ? 'Logged' : 'Check In'}
+                                            </button>
                                         </td>
-                                    )}
-                                </tr>
-                            );
-                        })
-                    )}
-                </tbody>
-            </table>
-        </div>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
     </div>
     </div>
   );
 };
 
 export default SessionScreen;
-// This code defines a React component for displaying and managing a net session in an amateur radio logging application.
-// It includes features for viewing session details, logging check-ins, and managing session notes.
