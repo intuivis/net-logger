@@ -1,7 +1,8 @@
 
+
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey } from '../types';
+import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey, Profile } from '../types';
 import { NET_TYPE_OPTIONS, DAY_OF_WEEK_OPTIONS, TIME_ZONE_OPTIONS, NET_CONFIG_TYPE_OPTIONS } from '../constants';
 import { Icon } from '../components/Icon';
 
@@ -9,6 +10,7 @@ interface NetEditorScreenProps {
   initialNet?: Net;
   onSave: (net: Partial<Net>) => void;
   onCancel: () => void;
+  profile: Profile | null;
 }
 
 const FormInput = ({ label, id, className, ...props }: {label: string, id: string} & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -76,7 +78,7 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
 ));
 
 
-const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, onCancel }) => {
+const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, onCancel, profile }) => {
   const [net, setNet] = useState<Partial<Net>>(() => {
     const baseNet: Partial<Net> = initialNet || {
       name: '',
@@ -266,6 +268,11 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
     onSave(net);
   };
 
+  const isOwner = initialNet && profile ? initialNet.created_by === profile.id : false;
+  const isAdmin = profile ? profile.role === 'admin' : false;
+  // User can manage permissions if they are creating a new net, or if they are the owner/admin of an existing net.
+  const canManagePermissions = !initialNet || isOwner || isAdmin;
+
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit NET' : 'Create New NET'}</h1>
@@ -355,51 +362,55 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                 </div>
             )}
         </fieldset>
+        
+        {canManagePermissions && (
+          <fieldset className="border-t border-dark-700 pt-6">
+              <legend className="text-lg font-medium text-dark-text">Delegate Permissions</legend>
+              <p className="text-sm text-dark-text-secondary mt-1 mb-4">Create a passcode to allow other authenticated users to help manage this NET. If you set a passcode, you must select at least one permission. Leave passcode blank to disable this feature.</p>
+              
+              <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
+                  <div className="max-w-sm">
+                      <FormInput 
+                          label="Passcode" 
+                          id="passcode" 
+                          name="passcode" 
+                          type="text"
+                          className="w-32"
+                          value={net.passcode || ''} 
+                          onChange={handleInputChange}
+                          placeholder=""
+                      />
+                  </div>
+                  <p className="text-xs text-dark-text-secondary mt-2">Passcode must be alphanumeric between 4 and 8 characters long.</p>
 
-         <fieldset className="border-t border-dark-700 pt-6">
-            <legend className="text-lg font-medium text-dark-text">Delegate Permissions via Passcode</legend>
-             <p className="text-sm text-dark-text-secondary mt-1 mb-4">Optionally, create a passcode to allow other authenticated users to help manage this NET. If you set a passcode, you must select at least one permission.</p>
-            
-            <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
-                <div className="max-w-sm">
-                    <FormInput 
-                        label="Passcode (4-8 alphanumeric characters)" 
-                        id="passcode" 
-                        name="passcode" 
-                        type="text" 
-                        value={net.passcode || ''} 
-                        onChange={handleInputChange}
-                        placeholder="Leave blank to disable"
-                    />
-                </div>
-
-                {net.passcode && (
-                    <div className="mt-6">
-                        <h4 className="text-md font-medium text-dark-text-secondary mb-2">Permissions</h4>
-                        <div className="space-y-4">
-                           {PERMISSION_DEFINITIONS.map(p => (
-                               <div key={p.key} className="relative flex items-start">
-                                    <div className="flex h-6 items-center">
-                                        <input
-                                            id={`perm-${p.key}`}
-                                            name={`perm-${p.key}`}
-                                            type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
-                                            checked={net.passcode_permissions?.[p.key] || false}
-                                            onChange={(e) => handlePermissionChange(p.key, e.target.checked)}
-                                        />
-                                    </div>
-                                    <div className="ml-3 text-sm leading-6">
-                                        <label htmlFor={`perm-${p.key}`} className="font-medium text-dark-text">{p.label}</label>
-                                        <p className="text-dark-text-secondary">{p.description}</p>
-                                    </div>
-                                </div>
-                           ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        </fieldset>
+                  {net.passcode && (
+                      <div className="mt-6">
+                          <h4 className="text-md font-medium text-dark-text-secondary mb-2">Permissions</h4>
+                          <div className="space-y-4">
+                            {PERMISSION_DEFINITIONS.map(p => (
+                                <div key={p.key} className="relative flex items-start">
+                                      <div className="flex h-6 items-center">
+                                          <input
+                                              id={`perm-${p.key}`}
+                                              name={`perm-${p.key}`}
+                                              type="checkbox"
+                                              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+                                              checked={net.passcode_permissions?.[p.key] || false}
+                                              onChange={(e) => handlePermissionChange(p.key, e.target.checked)}
+                                          />
+                                      </div>
+                                      <div className="ml-3 text-sm leading-6">
+                                          <label htmlFor={`perm-${p.key}`} className="font-medium text-dark-text">{p.label}</label>
+                                          <p className="text-dark-text-secondary">{p.description}</p>
+                                      </div>
+                                  </div>
+                            ))}
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </fieldset>
+        )}
 
         <div className="flex justify-end gap-4 pt-4 border-t border-dark-700">
             <button type="button" onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">Cancel</button>

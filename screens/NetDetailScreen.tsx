@@ -149,7 +149,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
         <div className="space-y-6">
             <button onClick={onBack} className="flex items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
                 <Icon className="text-xl">arrow_back</Icon>
-                <span>Back to {profile ? 'NETs List' : 'NET Directory'}</span>
+                <span>Back to {profile ? 'Manage NETs' : 'NET Directory'}</span>
             </button>
 
             <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">

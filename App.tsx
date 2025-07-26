@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, Json } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -84,18 +84,55 @@ const App: React.FC = () => {
   }, []);
 
   const handleApiError = useCallback((error: any, context?: string) => {
-      console.error(`API Error${context ? ` in ${context}`: ''}:`, error);
-      
-      const isAuthError = (error?.message?.includes('JWT expired') ||
-                           error?.status === 401 ||
-                           (error?.message?.includes('invalid') && error?.message?.includes('token'))
-                          );
+    console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
 
-      if (isAuthError) {
-          setIsSessionExpired(true);
-      } else {
-          alert(`An unexpected error occurred: ${error.message}. Please try again.`);
-      }
+    let finalMessage = 'An unexpected error occurred.';
+
+    if (error) {
+        // Most specific: PostgREST error object
+        if (typeof error === 'object' && error !== null && 'message' in error) {
+            finalMessage = String(error.message);
+            if ('details' in error && typeof error.details === 'string' && error.details) {
+                finalMessage += `\nDetails: ${error.details}`;
+            }
+            if ('hint' in error && typeof error.hint === 'string' && error.hint) {
+                finalMessage += `\nHINT: ${error.hint}`;
+            }
+        // Next specific: JavaScript Error object
+        } else if (error instanceof Error) {
+            finalMessage = error.toString();
+        // Generic string
+        } else if (typeof error === 'string' && error) {
+            finalMessage = error;
+        // Fallback: try to stringify whatever it is
+        } else {
+            try {
+                const jsonString = JSON.stringify(error);
+                if (jsonString !== '{}') {
+                    finalMessage = `A technical error occurred: ${jsonString}`;
+                } else {
+                    finalMessage = `An unknown, non-serializable error occurred. Check developer console.`;
+                }
+            } catch (e) {
+                finalMessage = 'An un-serializable error object was thrown. See console for details.';
+            }
+        }
+    }
+
+    const contextMessage = context ? `\nContext: ${context}` : '';
+    
+    // Check for auth errors specifically to trigger re-login
+    const isAuthError = (
+        (typeof error === 'object' && error !== null && 'status' in error && (error.status === 401 || error.status === 403)) ||
+        finalMessage.includes('JWT expired') ||
+        (finalMessage.includes('invalid') && finalMessage.includes('token'))
+    );
+
+    if (isAuthError) {
+        setIsSessionExpired(true);
+    } else {
+        alert(`API Error: ${finalMessage}${contextMessage}\nPlease try again.`);
+    }
   }, []);
   
   const requestConfirmation = useCallback((config: Omit<typeof confirmModalState, 'isOpen'>) => {
@@ -146,18 +183,16 @@ const App: React.FC = () => {
         if (rosterMembersRes.error && !rosterMembersRes.error.message.includes('does not exist')) {
             throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
         }
-
-
-        const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
         
+        const rawNets = netsRes.data || [];
         const typedNets: Net[] = rawNets.map(transformNetPayload);
         
         setNets(typedNets);
-        setSessions((sessionsRes.data as NetSession[]) || []);
-        setCheckIns((checkInsRes.data as CheckIn[]) || []);
-        setAllBadges((allBadgesRes.data as Badge[]) || []);
-        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
-        setRosterMembers((rosterMembersRes.data as RosterMember[]) || []);
+        setSessions(sessionsRes.data || []);
+        setCheckIns(checkInsRes.data || []);
+        setAwardedBadges(awardedBadgesRes.data || []);
+        setAllBadges(allBadgesRes.data || []);
+        setRosterMembers(rosterMembersRes.data || []);
 
     } catch (error: any) {
         if (error.message && error.message.includes('Failed to fetch')) {
@@ -180,8 +215,8 @@ const App: React.FC = () => {
         if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
 
-        const allCheckIns = (checkInsRes.data as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || [];
-        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as Pick<AwardedBadge, 'call_sign'>[]) || []).map(b => b.call_sign));
+        const allCheckIns = checkInsRes.data || [];
+        const operatorsWithFirstBadge = new Set((awardedBadgesRes.data || []).map(b => b.call_sign));
 
         const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
         for (const checkIn of allCheckIns) {
@@ -204,7 +239,7 @@ const App: React.FC = () => {
 
         if (newAwards.length > 0) {
             console.log(`Backfilling ${newAwards.length} '${firstCheckinBadgeId}' badges...`);
-            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards);
+            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards as any);
 
             if (insertError) {
                 throw new Error(`Error inserting backfilled badges: ${insertError.message}`);
@@ -255,7 +290,7 @@ const App: React.FC = () => {
                     await supabase.auth.signOut();
                     return;
                 } else {
-                    userProfile = profileData;
+                    userProfile = profileData as unknown as Profile;
                 }
             }
 
@@ -278,10 +313,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // This effect sets up real-time listeners for database changes.
     // SessionScreen now handles its own check-in and session updates for better performance.
-    const handleDelete = <T extends { id: string }>(payload: any, setter: React.Dispatch<React.SetStateAction<T[]>>) => {
-      setter(prev => prev.filter(item => item.id !== payload.old.id));
-    };
-
+    
     const netsChannel = supabase.channel('public:nets')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nets' }, payload => {
         const newNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
@@ -291,7 +323,9 @@ const App: React.FC = () => {
         const updatedNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
         setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
       })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nets' }, payload => handleDelete<Net>(payload, setNets))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'nets' }, payload => {
+        setNets(prev => prev.filter(item => item.id !== (payload.old as any).id));
+      })
       .subscribe();
 
     // Global session listener for HomeScreen and NetDetailScreen updates
@@ -360,42 +394,68 @@ const App: React.FC = () => {
             time: netData.time!,
             time_zone: netData.time_zone!,
             net_config_type: netData.net_config_type!,
-            repeaters: (netData.net_config_type === NetConfigType.GROUP ? [] : (netData.repeaters ?? [])) as any,
+            repeaters: (netData.net_config_type === NetConfigType.GROUP ? [] : (netData.repeaters ?? [])),
             frequency: netData.net_config_type !== NetConfigType.GROUP ? null : netData.frequency || null,
             band: netData.net_config_type !== NetConfigType.GROUP ? null : netData.band || null,
             mode: netData.net_config_type !== NetConfigType.GROUP ? null : netData.mode || null,
             passcode: netData.passcode || null,
-            passcode_permissions: (netData.passcode ? (netData.passcode_permissions ?? {}) : null) as any,
+            passcode_permissions: (netData.passcode ? (netData.passcode_permissions ?? {}) : null),
         };
 
         if (id) {
-            const { error, data } = await supabase.from('nets').update(commonPayload).eq('id', id).select().single();
+            const passcode = verifiedPasscodes[id] || null;
+            const rpcPayload = {
+                p_net_id: id,
+                p_name: commonPayload.name,
+                p_description: commonPayload.description,
+                p_website_url: commonPayload.website_url,
+                p_primary_nco: commonPayload.primary_nco,
+                p_primary_nco_callsign: commonPayload.primary_nco_callsign,
+                p_net_type: commonPayload.net_type,
+                p_schedule: commonPayload.schedule,
+                p_time: commonPayload.time,
+                p_time_zone: commonPayload.time_zone,
+                p_net_config_type: commonPayload.net_config_type,
+                p_repeaters: commonPayload.repeaters as unknown as Json,
+                p_frequency: commonPayload.frequency,
+                p_band: commonPayload.band,
+                p_mode: commonPayload.mode,
+                p_passcode_val: commonPayload.passcode,
+                p_passcode_permissions: commonPayload.passcode_permissions as unknown as Json,
+                p_passcode: passcode,
+            };
+
+            const { data, error } = await supabase.rpc('update_net_details', rpcPayload as any);
+
             if (error) throw error;
-            if (!data) throw new Error("No data returned after update operation.");
-            
-            const updatedNet = transformNetPayload(data);
+            if (!data) throw new Error("No data returned after update operation via RPC.");
+
+            const updatedNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
             setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
             setView({ type: 'netDetail', netId: updatedNet.id });
+
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
             const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
                 ...commonPayload,
                 created_by: profile.id,
+                repeaters: commonPayload.repeaters as unknown as Json,
+                passcode_permissions: commonPayload.passcode_permissions as unknown as Json,
             };
 
-            const { data, error } = await supabase.from('nets').insert(insertPayload).select().single();
+            const { data, error } = await supabase.from('nets').insert(insertPayload as any).select().single();
             if (error) throw error;
             if (!data) throw new Error("No data returned after create operation.");
 
-            const newNet = transformNetPayload(data);
+            const newNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
             setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
             setView({ type: 'netDetail', netId: newNet.id });
         }
     } catch (error: any) {
         handleApiError(error, 'handleSaveNet');
     }
-  }, [profile, setView, transformNetPayload, handleApiError]);
+  }, [profile, setView, transformNetPayload, handleApiError, verifiedPasscodes]);
 
   const handleDeleteNet = useCallback(async (netId: string) => {
     requestConfirmation({
@@ -432,7 +492,7 @@ const App: React.FC = () => {
             p_primary_nco: netToStart.primary_nco, // Use default from net
             p_primary_nco_callsign: netToStart.primary_nco_callsign, // Use default from net
             p_passcode: passcode
-        });
+        } as any);
         
         if (error) throw error;
         if (!data) throw new Error("Failed to create session: No data returned from RPC.");
@@ -457,7 +517,7 @@ const App: React.FC = () => {
         const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
             p_session_id: sessionId,
             p_passcode: passcode
-        });
+        } as any);
         
         if (error) throw error;
         if (!updatedSessionData) throw new Error("Failed to end session: No data returned from RPC.");
@@ -501,7 +561,8 @@ const App: React.FC = () => {
   
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
-        const { error } = await supabase.from('sessions').update({ notes }).eq('id', sessionId);
+        const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes || null };
+        const { error } = await supabase.from('sessions').update(payload as any).eq('id', sessionId);
         if (error) throw error;
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
     } catch (error: any) {
@@ -509,65 +570,31 @@ const App: React.FC = () => {
     }
   }, [handleApiError]);
 
-  const handleAddCheckIn = useCallback(async (sessionId: string, checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
+  const handleAddCheckIn = useCallback(async (sessionId: string, netId: string, checkInData: CheckInInsertPayload) => {
     try {
-        const payload: Database['public']['Tables']['check_ins']['Insert'] = {
-            session_id: sessionId,
-            call_sign: checkInData.call_sign,
-            name: checkInData.name,
-            location: checkInData.location,
-            notes: checkInData.notes,
-            repeater_id: checkInData.repeater_id
-        };
+        const passcode = verifiedPasscodes[netId] || null;
 
-        const { data: newCheckInData, error: checkInError } = await supabase
-            .from('check_ins')
-            .insert(payload)
-            .select()
-            .single();
+        // The badge awarding logic is now handled by the 'create_check_in' RPC.
+        // The client no longer needs to perform this logic, which was causing
+        // permission errors for delegated users. The real-time subscription
+        // on 'awarded_badges' will update the UI.
+        const { error: checkInError } = await supabase.rpc('create_check_in', {
+            p_session_id: sessionId,
+            p_call_sign: checkInData.call_sign,
+            p_name: checkInData.name,
+            p_location: checkInData.location,
+            p_notes: checkInData.notes,
+            p_repeater_id: checkInData.repeater_id,
+            p_passcode: passcode
+        } as any);
 
-        if (checkInError || !newCheckInData) throw checkInError || new Error('No data returned from insert.');
+        if (checkInError) throw checkInError;
 
-        const newCheckIn = newCheckInData as CheckIn;
-        setCheckIns(prev => [newCheckIn, ...prev]);
-
-        const callSign = newCheckIn.call_sign;
-        const { data: allUserCheckInsData, error: userCheckInsError } = await supabase.from('check_ins').select('*').eq('call_sign', callSign);
-        if (userCheckInsError) throw userCheckInsError;
-
-        const allUserCheckInsIncludingNew = allUserCheckInsData as CheckIn[];
-
-        const { data: existingAwardsData, error: awardsError } = await supabase.from('awarded_badges').select('badge_id').eq('call_sign', callSign);
-        if (awardsError) throw awardsError;
-
-        const existingAwards = (existingAwardsData as Pick<AwardedBadge, 'badge_id'>[]) || [];
-        const awardedBadgeIds = new Set(existingAwards.map(b => b.badge_id));
-
-        const badgesToAward: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-        const badgeLogicDefinitions = BADGE_DEFINITIONS;
-
-        for (const badgeLogic of badgeLogicDefinitions) {
-            try {
-                if (!awardedBadgeIds.has(badgeLogic.id) && badgeLogic.isEarned(allUserCheckInsIncludingNew, sessions, newCheckIn)) {
-                    badgesToAward.push({
-                        call_sign: callSign,
-                        badge_id: badgeLogic.id,
-                        session_id: sessionId,
-                    });
-                }
-            } catch (badgeError) {
-                console.error(`[handleAddCheckIn] Error in badge logic for ${badgeLogic.id}:`, badgeError);
-            }
-        }
-
-        if (badgesToAward.length > 0) {
-            const { error: newBadgeError } = await supabase.from('awarded_badges').insert(badgesToAward);
-            if (newBadgeError) throw newBadgeError;
-        }
     } catch (error: any) {
         handleApiError(error, 'handleAddCheckIn');
+        throw error; // Re-throw so the caller knows about the failure.
     }
-  }, [sessions, allBadges, handleApiError]);
+  }, [handleApiError, verifiedPasscodes]);
 
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
     setEditingCheckIn({ sessionId, checkIn });
@@ -575,25 +602,33 @@ const App: React.FC = () => {
 
   const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn) => {
     try {
-        const { id, ...updateData } = updatedCheckIn;
-        const payload: Database['public']['Tables']['check_ins']['Update'] = {
-            call_sign: updateData.call_sign,
-            name: updateData.name,
-            location: updateData.location,
-            notes: updateData.notes,
-            repeater_id: updateData.repeater_id,
-            session_id: updateData.session_id,
-            timestamp: updateData.timestamp
-        };
-        const { error } = await supabase.from('check_ins').update(payload).eq('id', id);
+        const session = sessions.find(s => s.id === updatedCheckIn.session_id);
+        if (!session) throw new Error('Session not found to determine permissions.');
+        const net = nets.find(n => n.id === session.net_id);
+        if (!net) throw new Error('Net not found to determine permissions.');
+        
+        const passcode = verifiedPasscodes[net.id] || null;
+
+        const { error } = await supabase.rpc('update_check_in', {
+            p_check_in_id: updatedCheckIn.id,
+            p_call_sign: updatedCheckIn.call_sign,
+            p_name: updatedCheckIn.name,
+            p_location: updatedCheckIn.location,
+            p_notes: updatedCheckIn.notes,
+            p_repeater_id: updatedCheckIn.repeater_id,
+            p_passcode: passcode,
+        } as any);
+
         if (error) throw error;
+        
         // The SessionScreen will update its own check-ins via its real-time subscription.
-        setCheckIns(prev => prev.map(c => c.id === id ? updatedCheckIn : c));
+        // We can optimistically update the global state.
+        setCheckIns(prev => prev.map(c => c.id === updatedCheckIn.id ? updatedCheckIn : c));
         setEditingCheckIn(null);
     } catch (error: any) {
         handleApiError(error, 'handleUpdateCheckIn');
     }
-  }, [handleApiError]);
+  }, [handleApiError, sessions, nets, verifiedPasscodes]);
 
   const handleDeleteCheckIn = useCallback(async (checkInId: string, netId: string) => {
     const checkIn = checkIns.find(ci => ci.id === checkInId);
@@ -610,7 +645,7 @@ const App: React.FC = () => {
                 const { error } = await supabase.rpc('delete_check_in', {
                     p_check_in_id: checkInId,
                     p_passcode: passcode,
-                });
+                } as any);
 
                 if (error) throw error;
                 
@@ -631,7 +666,7 @@ const App: React.FC = () => {
         // Insert new members if any
         if (members.length > 0) {
             const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
-            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert);
+            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
             if (insertError) throw insertError;
         }
 
@@ -685,7 +720,7 @@ const App: React.FC = () => {
     const { data, error } = await supabase.rpc('verify_passcode', {
         p_net_id: verifyingPasscodeForNet.id,
         p_passcode_attempt: passcode,
-    });
+    } as any);
 
     if (error) {
         setPasscodeError(error.message);
@@ -765,6 +800,7 @@ const App: React.FC = () => {
               initialNet={undefined}
               onSave={handleSaveNet}
               onCancel={goBack}
+              profile={profile}
             />
           );
         }
@@ -785,6 +821,7 @@ const App: React.FC = () => {
             initialNet={netToEdit}
             onSave={handleSaveNet}
             onCancel={goBack}
+            profile={profile}
           />
         );
       }

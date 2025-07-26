@@ -1,6 +1,8 @@
 
+
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
@@ -16,7 +18,7 @@ interface SessionScreenProps {
   profile: Profile | null;
   hasPermission: (permission: PermissionKey) => boolean;
   onEndSession: (sessionId: string, netId: string) => void;
-  onAddCheckIn: (sessionId: string, checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void;
+  onAddCheckIn: (sessionId: string, netId: string, checkIn: CheckInInsertPayload) => Promise<void>;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
   onDeleteCheckIn: (checkInId: string, netId: string) => void;
   onBack: () => void;
@@ -52,7 +54,7 @@ const FormSelect = ({ label, id, children, ...props }: {label: string, id: strin
 
 const REPEATER_STORAGE_KEY = (net: Net) => `selectedRepeater_${net.id}`;
 
-const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => void }> = ({ net, checkIns, onAdd }) => {
+const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: CheckInInsertPayload) => Promise<void> }> = ({ net, checkIns, onAdd }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
@@ -93,7 +95,7 @@ const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Om
                     return;
                 }
 
-                const typedData = data as ({ first_name: string | null; last_name: string | null; }[] | null);
+                const typedData = (data as any) as ({ first_name: string | null; last_name: string | null; }[] | null);
 
                 if (typedData && typedData.length > 0) {
                     setName(`${typedData[0].first_name ?? ''} ${typedData[0].last_name ?? ''}`.trim());
@@ -109,7 +111,7 @@ const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Om
     }, [callSign, setName]);
 
 
-const handleSubmit = (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmedCallsign = callSign.trim().toUpperCase();
 
@@ -123,7 +125,7 @@ const handleSubmit = (e: React.FormEvent) => {
             return;
         }
         
-        const checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'> = {
+        const checkInData = {
             call_sign: trimmedCallsign,
             name: name || null,
             location: location || null,
@@ -131,12 +133,17 @@ const handleSubmit = (e: React.FormEvent) => {
             repeater_id: (showRepeaterSelect && repeaterId) ? repeaterId : null
         };
 
-        onAdd(checkInData);
-        setCallSign('');
-        setName('');
-        setLocation('');
-        setNotes('');
-        document.getElementById('callSign')?.focus();
+        try {
+            await onAdd(checkInData);
+            setCallSign('');
+            setName('');
+            setLocation('');
+            setNotes('');
+            document.getElementById('callSign')?.focus();
+        } catch (error) {
+            // The error is handled by the `handleApiError` in App.tsx.
+            // We catch it here to prevent the form from being cleared on failure.
+        }
     };
 
     const gridCols = showRepeaterSelect ? 'lg:grid-cols-6' : 'lg:grid-cols-5';
@@ -199,13 +206,14 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 
         if (sessionError || !sessionData) throw new Error(sessionError?.message || 'Session not found.');
         
-        const { data: netData, error: netError } = await supabase
+        const { data: netDataRaw, error: netError } = await supabase
             .from('nets')
             .select('*')
-            .eq('id', sessionData.net_id)
+            .eq('id', (sessionData as NetSession).net_id)
             .single();
 
-        if (netError || !netData) throw new Error(netError?.message || 'Associated NET not found.');
+        if (netError || !netDataRaw) throw new Error(netError?.message || 'Associated NET not found.');
+        const netData = netDataRaw as Database['public']['Tables']['nets']['Row'];
         
         const { data: checkInData, error: checkInError } = await supabase
             .from('check_ins')
@@ -215,20 +223,32 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 
         if (checkInError) throw new Error(checkInError.message);
         
+        const dbNet = netData;
         const transformedNet: Net = {
-            ...netData,
-            net_type: netData.net_type as NetType,
-            schedule: netData.schedule as DayOfWeek,
-            net_config_type: netData.net_config_type as NetConfigType,
-            repeaters: (netData.repeaters as Repeater[]) || [],
-            passcode: netData.passcode,
-            passcode_permissions: (netData.passcode_permissions as PasscodePermissions | null),
+            id: dbNet.id,
+            created_by: dbNet.created_by,
+            name: dbNet.name,
+            description: dbNet.description,
+            website_url: dbNet.website_url,
+            primary_nco: dbNet.primary_nco,
+            primary_nco_callsign: dbNet.primary_nco_callsign,
+            net_type: dbNet.net_type as NetType,
+            schedule: dbNet.schedule as DayOfWeek,
+            time: dbNet.time,
+            time_zone: dbNet.time_zone,
+            net_config_type: (dbNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+            repeaters: (dbNet.repeaters as unknown as Repeater[]) || [],
+            frequency: dbNet.frequency,
+            band: dbNet.band,
+            mode: dbNet.mode,
+            passcode: dbNet.passcode || null,
+            passcode_permissions: (dbNet.passcode_permissions as unknown as PasscodePermissions | null),
         };
 
         setSession(sessionData as NetSession);
         setNet(transformedNet);
-        setCheckIns(checkInData as CheckIn[]);
-        setSessionNotes(sessionData.notes || '');
+        setCheckIns((checkInData as any) || []);
+        setSessionNotes((sessionData as NetSession).notes || '');
         setError(null);
     } catch (err: any) {
         console.error("Error fetching session data:", err);
@@ -266,7 +286,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => prev.filter(c => c.id !== payload.old.id));
+        setCheckIns(prev => prev.filter(c => c.id !== (payload.old as any).id));
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -275,7 +295,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         filter: `id=eq.${sessionId}`
       }, (payload) => {
         setSession(payload.new as NetSession);
-        setSessionNotes(payload.new.notes || '');
+        if (payload.new.notes !== undefined) {
+          setSessionNotes(payload.new.notes || '');
+        }
       })
       .subscribe();
 
@@ -303,9 +325,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
     return sorted;
   }, [checkIns, isActive]);
 
-  const handleAdd = useCallback((checkInData: Omit<Database['public']['Tables']['check_ins']['Insert'], 'session_id'>) => {
-    onAddCheckIn(sessionId, checkInData);
-  }, [sessionId, onAddCheckIn]);
+  const handleAdd = useCallback(async (checkInData: CheckInInsertPayload) => {
+    if (!net) return;
+    await onAddCheckIn(sessionId, net.id, checkInData);
+  }, [sessionId, net, onAddCheckIn]);
   
   const handleEnd = () => {
       if (net && window.confirm('Are you sure you want to end this net session?')) {
@@ -316,11 +339,12 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
     const checkedInCallsigns = useMemo(() => new Set(checkIns.map(ci => ci.call_sign)), [checkIns]);
 
     const handleRosterCheckIn = (member: RosterMember) => {
-        const repeaterId = net?.net_config_type === NetConfigType.LINKED_REPEATER
+        if (!net) return;
+        const repeaterId = net.net_config_type === NetConfigType.LINKED_REPEATER
             ? localStorage.getItem(REPEATER_STORAGE_KEY(net))
             : null;
         
-        onAddCheckIn(sessionId, {
+        onAddCheckIn(sessionId, net.id, {
             call_sign: member.call_sign,
             name: member.name,
             location: member.location,

@@ -45,7 +45,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
         title={canCreateNet ? "Create a new NET" : "Your account must be approved to create a NET."}
       >
         <Icon className="text-xl">add</Icon>
-        <span>New NET</span>
+        <span>NET</span>
       </button>
   );
   
@@ -54,15 +54,18 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            My Manageable NETs
+            Manage NETs
           </h1>
           <p className="text-dark-text-secondary mt-1">
             Create, edit, and start sessions for NETs you own or have been given permission to manage.
           </p>
         </div>
-        <AddNetButton />
-      </div>
 
+        <div className="flex items-center gap-4">
+          {canCreateNet && <AddNetButton />}
+        </div>
+      </div>
+      
       {nets.length === 0 ? (
         <div className="text-center py-16 px-4 border-2 border-dashed border-dark-700 rounded-lg">
             <h2 className="text-xl font-semibold text-dark-text-secondary">No NETs Found</h2>

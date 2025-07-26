@@ -1,6 +1,6 @@
 
 
-import { Database, Repeater as DbRepeater, PasscodePermissions as DbPasscodePermissions, PermissionKey as DbPermissionKey } from './database.types';
+export type { Json } from './database.types';
 
 export enum NetType {
   SOCIAL = "Social",
@@ -33,9 +33,26 @@ export enum DayOfWeek {
   SATURDAY = "Saturday",
 }
 
-export type Repeater = DbRepeater;
-export type PermissionKey = DbPermissionKey;
-export type PasscodePermissions = DbPasscodePermissions;
+export type PermissionKey =
+  | "editNet"
+  | "manageSessions"
+  | "deleteSessions"
+  | "logContacts";
+
+export type PasscodePermissions = Partial<Record<PermissionKey, boolean>>;
+
+export interface Repeater {
+  id: string;
+  name: string;
+  owner_callsign: string | null;
+  grid_square: string | null;
+  county: string | null;
+  downlink_freq: string;
+  offset: string | null;
+  uplink_tone: string | null;
+  downlink_tone: string | null;
+  website_url: string | null;
+}
 
 export const PERMISSION_DEFINITIONS: { key: PermissionKey; label: string; description: string }[] = [
     { key: 'editNet', label: 'Edit Net Details', description: 'Allows user to change the net name, description, schedule, and technical configuration.' },
@@ -66,19 +83,71 @@ export interface Net {
     passcode_permissions: PasscodePermissions | null;
 }
 
-export type CheckIn = Database['public']['Tables']['check_ins']['Row'];
+export interface CheckIn {
+  id: string;
+  session_id: string;
+  timestamp: string;
+  call_sign: string;
+  name: string | null;
+  location: string | null;
+  notes: string | null;
+  repeater_id: string | null;
+}
 
-export type NetSession = Database['public']['Tables']['sessions']['Row'];
+export interface NetSession {
+  id: string;
+  created_at: string;
+  net_id: string;
+  start_time: string;
+  end_time: string | null;
+  primary_nco: string;
+  primary_nco_callsign: string;
+  notes: string | null;
+}
 
-export type Profile = Database['public']['Tables']['profiles']['Row'];
+export interface Profile {
+  id: string;
+  updated_at: string | null;
+  email: string | null;
+  full_name: string | null;
+  call_sign: string | null;
+  role: "admin" | "nco";
+  is_approved: boolean;
+}
 
-export type Badge = Database['public']['Tables']['badges']['Row'];
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+}
 
-export type AwardedBadge = Database['public']['Tables']['awarded_badges']['Row'];
+export interface AwardedBadge {
+  id: string;
+  call_sign: string;
+  badge_id: string;
+  awarded_at: string;
+  session_id: string;
+}
 
-export type RosterMember = Database['public']['Tables']['roster_members']['Row'];
+export interface RosterMember {
+  id: string;
+  net_id: string;
+  call_sign: string;
+  name: string | null;
+  location: string | null;
+  created_at: string;
+}
 
 export type BadgeCategory = "Participation" | "Loyalty" | "Special";
+
+export interface CheckInInsertPayload {
+  call_sign: string;
+  name?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  repeater_id?: string | null;
+  timestamp?: string;
+}
 
 export interface BadgeDefinition extends Badge {
   category: BadgeCategory;

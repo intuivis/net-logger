@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Net, RosterMember } from '../types';
@@ -51,7 +52,7 @@ const RosterEditorScreen: React.FC<RosterEditorScreenProps> = ({ net, initialMem
                     return;
                 }
 
-                const typedData = data as ({ first_name: string | null; last_name: string | null; }[] | null);
+                const typedData = data as unknown as ({ first_name: string | null; last_name: string | null; }[] | null);
 
                 if (typedData && typedData.length > 0) {
                     setNewMember(prev => ({...prev, name: `${typedData[0].first_name ?? ''} ${typedData[0].last_name ?? ''}`.trim() }));
@@ -140,23 +141,28 @@ const RosterEditorScreen: React.FC<RosterEditorScreenProps> = ({ net, initialMem
                                     >
                                         {member.call_sign}
                                     </button>
-                                    <p className="text-sm text-dark-text-secondary">{member.name || '-'} - {member.location || '-'}</p>
+                                    <p className="text-md text-dark-text">
+                                    {member.name}
+                                    {member.location && (
+                                        <span className="text-dark-text-secondary"> - {member.location}</span>
+                                    )}
+                                    </p>
                                 </div>
                                 <button type="button" onClick={() => handleRemoveMember(member.client_id)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10" aria-label="Remove member">
                                     <Icon>delete</Icon>
                                 </button>
                             </div>
                         )) : (
-                            <p className="text-center text-dark-text-secondary py-4">This roster is empty. Add members below for easier NET session check-in.</p>
+                            <p className="text-center text-dark-text-secondary py-4">This roster is empty. Add members below.</p>
                         )}
                     </div>
                 </fieldset>
                 
                  <fieldset className="border-t border-dark-700 pt-6">
-                    <legend className="text-lg font-medium text-dark-text mb-4">Add Member</legend>
+                    <legend className="text-lg font-medium text-dark-text mb-4">Add New Member</legend>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div className="md:col-span-1">
-                             <FormInput label="Callsign" id="new-callsign" name="call_sign" value={newMember.call_sign} onChange={handleNewMemberChange} onKeyDown={handleNewMemberKeyDown} />
+                             <FormInput label="Call Sign" id="new-callsign" name="call_sign" value={newMember.call_sign} onChange={handleNewMemberChange} onKeyDown={handleNewMemberKeyDown} />
                         </div>
                          <div className="md:col-span-1">
                             <FormInput label="Name" id="new-name" name="name" value={newMember.name} onChange={handleNewMemberChange} onKeyDown={handleNewMemberKeyDown} />
