@@ -43,7 +43,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
         const payload: Database['public']['Tables']['profiles']['Update'] = { is_approved: !profile.is_approved };
         const { error } = await supabase
             .from('profiles')
-            .update(payload)
+            .update(payload as any)
             .eq('id', profile.id);
 
         if (error) {

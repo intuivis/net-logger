@@ -45,7 +45,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
         title={canCreateNet ? "Create a new NET" : "Your account must be approved to create a NET."}
       >
         <Icon className="text-xl">add</Icon>
-        <span>NET</span>
+        <span>Create NET</span>
       </button>
   );
   

@@ -87,6 +87,22 @@ const App: React.FC = () => {
     console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
 
     let finalMessage = 'An unexpected error occurred.';
+    const contextMessage = context ? `\nContext: ${context}` : '';
+    
+    // Specific handling for network errors like CORS issues
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        finalMessage = `A network error occurred while communicating with the database. This is often a CORS issue.
+
+Troubleshooting steps:
+1. CORS Settings: Go to your Supabase Dashboard -> Project Settings -> API. In the "CORS settings" section, add your app's URL to "Allowed Origins". For local development, this is likely 'http://localhost:3000' or similar. You can use 'http://localhost:*' to allow any port.
+2. Internet Connection: Check if you are connected to the internet.
+3. Ad Blockers: Browser extensions like ad blockers can sometimes interfere. Try disabling them for this site.
+4. Supabase Status: Check the official Supabase status page for any ongoing incidents.
+
+If the issue persists, please check the browser's developer console for more details.`;
+       alert(`Connection Error: ${finalMessage}`); // Use a custom alert without the generic "API Error" prefix
+       return;
+    }
 
     if (error) {
         // Most specific: PostgREST error object
@@ -119,8 +135,6 @@ const App: React.FC = () => {
         }
     }
 
-    const contextMessage = context ? `\nContext: ${context}` : '';
-    
     // Check for auth errors specifically to trigger re-login
     const isAuthError = (
         (typeof error === 'object' && error !== null && 'status' in error && (error.status === 401 || error.status === 403)) ||
@@ -184,22 +198,18 @@ const App: React.FC = () => {
             throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
         }
         
-        const rawNets = netsRes.data || [];
+        const rawNets = (netsRes.data as any) || [];
         const typedNets: Net[] = rawNets.map(transformNetPayload);
         
         setNets(typedNets);
-        setSessions(sessionsRes.data || []);
-        setCheckIns(checkInsRes.data || []);
-        setAwardedBadges(awardedBadgesRes.data || []);
-        setAllBadges(allBadgesRes.data || []);
-        setRosterMembers(rosterMembersRes.data || []);
+        setSessions((sessionsRes.data as any) || []);
+        setCheckIns((checkInsRes.data as any) || []);
+        setAwardedBadges((awardedBadgesRes.data as any) || []);
+        setAllBadges((allBadgesRes.data as any) || []);
+        setRosterMembers((rosterMembersRes.data as any) || []);
 
     } catch (error: any) {
-        if (error.message && error.message.includes('Failed to fetch')) {
-             alert(`A network error occurred while trying to connect to the database. Please verify your internet connection.`);
-        } else {
-            handleApiError(error, 'refreshAllData');
-        }
+        handleApiError(error, 'refreshAllData');
     }
   }, [transformNetPayload, handleApiError]);
 
@@ -215,8 +225,8 @@ const App: React.FC = () => {
         if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
 
-        const allCheckIns = checkInsRes.data || [];
-        const operatorsWithFirstBadge = new Set((awardedBadgesRes.data || []).map(b => b.call_sign));
+        const allCheckIns: { call_sign: string, timestamp: string, session_id: string }[] = (checkInsRes.data as any) || [];
+        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as any) || []).map((b: { call_sign: string }) => b.call_sign));
 
         const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
         for (const checkIn of allCheckIns) {
@@ -425,7 +435,7 @@ const App: React.FC = () => {
                 p_passcode: passcode,
             };
 
-            const { data, error } = await supabase.rpc('update_net_details', rpcPayload as any);
+            const { data, error } = await supabase.rpc('update_net_details', rpcPayload);
 
             if (error) throw error;
             if (!data) throw new Error("No data returned after update operation via RPC.");
@@ -492,7 +502,7 @@ const App: React.FC = () => {
             p_primary_nco: netToStart.primary_nco, // Use default from net
             p_primary_nco_callsign: netToStart.primary_nco_callsign, // Use default from net
             p_passcode: passcode
-        } as any);
+        });
         
         if (error) throw error;
         if (!data) throw new Error("Failed to create session: No data returned from RPC.");
@@ -517,7 +527,7 @@ const App: React.FC = () => {
         const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
             p_session_id: sessionId,
             p_passcode: passcode
-        } as any);
+        });
         
         if (error) throw error;
         if (!updatedSessionData) throw new Error("Failed to end session: No data returned from RPC.");
@@ -586,7 +596,7 @@ const App: React.FC = () => {
             p_notes: checkInData.notes,
             p_repeater_id: checkInData.repeater_id,
             p_passcode: passcode
-        } as any);
+        });
 
         if (checkInError) throw checkInError;
 
@@ -617,7 +627,7 @@ const App: React.FC = () => {
             p_notes: updatedCheckIn.notes,
             p_repeater_id: updatedCheckIn.repeater_id,
             p_passcode: passcode,
-        } as any);
+        });
 
         if (error) throw error;
         
@@ -645,7 +655,7 @@ const App: React.FC = () => {
                 const { error } = await supabase.rpc('delete_check_in', {
                     p_check_in_id: checkInId,
                     p_passcode: passcode,
-                } as any);
+                });
 
                 if (error) throw error;
                 
@@ -720,7 +730,7 @@ const App: React.FC = () => {
     const { data, error } = await supabase.rpc('verify_passcode', {
         p_net_id: verifyingPasscodeForNet.id,
         p_passcode_attempt: passcode,
-    } as any);
+    });
 
     if (error) {
         setPasscodeError(error.message);

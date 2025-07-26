@@ -23,7 +23,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.2.0 (Current)</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Saturday, July 26, 2024</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
-                            <li>More optomizations and improved user experience</li>
+                            <li>More optimizations and an improved user experience.</li>
                             <li>New Feature: <span className="font-bold text-dark-text">Rosters</span> 
                                 <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
                                     <li>You can now build a roster of regular attendees that you can access from your session log screen.</li>

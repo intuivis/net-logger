@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json } from '../types';
 import { Icon } from '../components/Icon';
@@ -209,11 +207,11 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         const { data: netDataRaw, error: netError } = await supabase
             .from('nets')
             .select('*')
-            .eq('id', (sessionData as NetSession).net_id)
+            .eq('id', (sessionData as any).net_id)
             .single();
 
         if (netError || !netDataRaw) throw new Error(netError?.message || 'Associated NET not found.');
-        const netData = netDataRaw as Database['public']['Tables']['nets']['Row'];
+        const netData = netDataRaw as unknown as Database['public']['Tables']['nets']['Row'];
         
         const { data: checkInData, error: checkInError } = await supabase
             .from('check_ins')
@@ -245,10 +243,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             passcode_permissions: (dbNet.passcode_permissions as unknown as PasscodePermissions | null),
         };
 
-        setSession(sessionData as NetSession);
+        setSession(sessionData as unknown as NetSession);
         setNet(transformedNet);
         setCheckIns((checkInData as any) || []);
-        setSessionNotes((sessionData as NetSession).notes || '');
+        setSessionNotes((sessionData as any).notes || '');
         setError(null);
     } catch (err: any) {
         console.error("Error fetching session data:", err);
@@ -270,7 +268,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => [payload.new as CheckIn, ...prev]);
+        setCheckIns(prev => [payload.new as unknown as CheckIn, ...prev]);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -278,7 +276,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as CheckIn : c));
+        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as unknown as CheckIn : c));
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -294,9 +292,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'sessions',
         filter: `id=eq.${sessionId}`
       }, (payload) => {
-        setSession(payload.new as NetSession);
-        if (payload.new.notes !== undefined) {
-          setSessionNotes(payload.new.notes || '');
+        setSession(payload.new as unknown as NetSession);
+        if ((payload.new as any).notes !== undefined) {
+          setSessionNotes((payload.new as any).notes || '');
         }
       })
       .subscribe();
@@ -348,6 +346,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             call_sign: member.call_sign,
             name: member.name,
             location: member.location,
+            notes: null,
             repeater_id: repeaterId
         });
     };
@@ -436,8 +435,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
               </div>
               {isActive && canLogContacts && rosterMembers.length > 0 && (
                  <div className="flex items-center p-1 bg-dark-700 rounded-lg">
-                    <button onClick={() => setActiveTab('log')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'log' ? 'bg-dark-900 text-dark-text' : 'text-dark-text-secondary hover:text-dark-text'}`}>Live Log</button>
                     <button onClick={() => setActiveTab('roster')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'roster' ? 'bg-dark-900 text-dark-text' : 'text-dark-text-secondary hover:text-dark-text'}`}>Roster</button>
+                    <button onClick={() => setActiveTab('log')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'log' ? 'bg-dark-900 text-dark-text' : 'text-dark-text-secondary hover:text-dark-text'}`}>Live Log</button>
                 </div>
               )}
           </div>

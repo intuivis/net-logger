@@ -210,7 +210,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                         className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
                                     >
                                         <Icon className="text-base">play_arrow</Icon>
-                                        Start New Session
+                                        Start Session
                                     </button>
                                 )
                             )}
