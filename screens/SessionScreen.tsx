@@ -527,10 +527,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                     <table className="min-w-full divide-y divide-dark-700">
                         <thead className="bg-dark-700/50">
                            <tr>
-                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
-                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
-                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
-                                <th scope="col" className="relative px-6 py-2"><span className="sr-only">Action</span></th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
+                                <th scope="col" className="px-4 py-2 relative"><span className="sr-only">Action</span></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-dark-700">
