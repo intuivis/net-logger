@@ -5,7 +5,7 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[];
+  | Json[]
 
 export type Database = {
   public: {
@@ -31,22 +31,7 @@ export type Database = {
           awarded_at?: string;
           session_id?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "awarded_badges_badge_id_fkey"
-            columns: ["badge_id"]
-            isOneToOne: false
-            referencedRelation: "badges"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "awarded_badges_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       };
       badges: {
         Row: {
@@ -117,15 +102,7 @@ export type Database = {
           notes?: string | null;
           repeater_id?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "check_ins_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       };
       nets: {
         Row: {
@@ -190,15 +167,7 @@ export type Database = {
           passcode?: string | null;
           passcode_permissions?: Json | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "nets_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       };
       profiles: {
         Row: {
@@ -255,15 +224,7 @@ export type Database = {
           location?: string | null;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "roster_members_net_id_fkey"
-            columns: ["net_id"]
-            isOneToOne: false
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       };
       sessions: {
         Row: {
@@ -296,15 +257,7 @@ export type Database = {
           primary_nco_callsign?: string;
           notes?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "sessions_net_id_fkey"
-            columns: ["net_id"]
-            isOneToOne: false
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       };
     };
     Views: {};

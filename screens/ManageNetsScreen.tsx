@@ -12,6 +12,7 @@ interface ManageNetsScreenProps {
   profile: Profile | null;
   hasPermission: (net: Net, permission: PermissionKey) => boolean;
   onStartSession: (netId: string) => void;
+  onEndSessionRequest: (sessionId: string, netId: string) => void;
   onEditNet: (netId: string) => void;
   onDeleteNet: (netId: string) => void;
   onAddNet: () => void;
@@ -26,6 +27,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
   profile,
   hasPermission,
   onStartSession,
+  onEndSessionRequest,
   onEditNet,
   onDeleteNet,
   onAddNet,
@@ -45,7 +47,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
         title={canCreateNet ? "Create a new NET" : "Your account must be approved to create a NET."}
       >
         <Icon className="text-xl">add</Icon>
-        <span>Create NET</span>
+        <span>New NET</span>
       </button>
   );
   
@@ -60,12 +62,9 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
             Create, edit, and start sessions for NETs you own or have been given permission to manage.
           </p>
         </div>
-
-        <div className="flex items-center gap-4">
-          {canCreateNet && <AddNetButton />}
-        </div>
+        <AddNetButton />
       </div>
-      
+
       {nets.length === 0 ? (
         <div className="text-center py-16 px-4 border-2 border-dashed border-dark-700 rounded-lg">
             <h2 className="text-xl font-semibold text-dark-text-secondary">No NETs Found</h2>
@@ -78,6 +77,7 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {nets.map((net) => {
             const hasRoster = rosterMembers.some(rm => rm.net_id === net.id);
+            const activeSession = sessions.find(s => s.net_id === net.id && s.end_time === null);
             return (
               <NetCard
                 key={net.id}
@@ -85,11 +85,12 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
                 sessionCount={sessions.filter(s => s.net_id === net.id).length}
                 isActive={activeSessionNetIds.has(net.id)}
                 profile={profile}
-                canStartSession={hasPermission(net, 'manageSessions')}
+                canManageSessions={hasPermission(net, 'manageSessions')}
                 canEditNet={hasPermission(net, 'editNet')}
                 isOwnerOrAdmin={profile?.role === 'admin' || net.created_by === profile?.id}
                 hasRoster={hasRoster}
                 onStartSession={() => onStartSession(net.id)}
+                onEndSession={activeSession ? () => onEndSessionRequest(activeSession.id, net.id) : undefined}
                 onEditNet={() => onEditNet(net.id)}
                 onDeleteNet={() => onDeleteNet(net.id)}
                 onViewDetails={() => onViewDetails(net.id)}

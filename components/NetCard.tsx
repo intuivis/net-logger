@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Net, Profile } from '../types';
 import { formatTime, formatTimeZone } from '../lib/time';
@@ -10,19 +11,20 @@ interface NetCardProps {
   sessionCount?: number;
   isActive?: boolean;
   profile: Profile | null;
-  canStartSession?: boolean;
+  canManageSessions?: boolean;
   canEditNet?: boolean;
   isOwnerOrAdmin?: boolean;
   hasRoster?: boolean;
   onViewDetails: () => void;
   onStartSession?: () => void;
+  onEndSession?: () => void;
   onEditNet?: () => void;
   onDeleteNet?: () => void;
   onEditRoster?: () => void;
 }
 
-export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, canStartSession = false, canEditNet = false, isOwnerOrAdmin = false, hasRoster = false, onStartSession, onEditNet, onDeleteNet, onViewDetails, onEditRoster }) => {
-  const showActionFooter = onStartSession && onEditNet && onDeleteNet && onEditRoster && (canStartSession || canEditNet || isOwnerOrAdmin);
+export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, canManageSessions = false, canEditNet = false, isOwnerOrAdmin = false, hasRoster = false, onStartSession, onEndSession, onEditNet, onDeleteNet, onViewDetails, onEditRoster }) => {
+  const showActionFooter = onStartSession && onEditNet && onDeleteNet && onEditRoster && (canManageSessions || canEditNet || isOwnerOrAdmin);
 
   return (
     <div className="bg-light-card dark:bg-dark-800 rounded-lg shadow-lg overflow-hidden flex flex-col transition-transform hover:scale-[1.02] focus-within:ring-2 focus-within:ring-brand-primary">
@@ -60,15 +62,25 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, c
 
       {showActionFooter && (
           <div className="bg-dark-800/50 dark:bg-dark-700/50 px-5 py-3 flex justify-between items-center">
-            {canStartSession ? (
-              <button 
-                onClick={onStartSession} 
-                disabled={isActive}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-              >
-                <Icon className="text-base">play_arrow</Icon>
-                Start Session
-              </button>
+            {canManageSessions ? (
+              isActive && onEndSession ? (
+                <button
+                  onClick={onEndSession}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                >
+                  <Icon className="text-base">stop</Icon>
+                  End Session
+                </button>
+              ) : (
+                <button 
+                  onClick={onStartSession} 
+                  disabled={isActive}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+                >
+                  <Icon className="text-base">play_arrow</Icon>
+                  Start Session
+                </button>
+              )
             ) : <div /> /* Spacer */}
             <div className="flex items-center gap-1">
                 {hasRoster && canEditNet && (

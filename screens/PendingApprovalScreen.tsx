@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
-// Removed unused import statement
+import { AuthSessionMissingError } from '@supabase/supabase-js';
 import { View } from '../types';
 
 interface AccessRevokedScreenProps {

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetType } from '../types';
 import { NetCard } from '../components/NetCard';
@@ -33,10 +34,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
       <div 
         className="relative rounded-xl p-8 md:p-12 lg:p-16 mb-6 overflow-hidden">
          <div className="text-center z-10 relative">
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Logging System</h1>
-            <p className="mt-4 max-w-2xl mx-auto text-lg text-dark-text-secondary">
-                Coordinate on-air NETs, track participation, and keep your community connected in real-time.
-            </p>
+              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Logging System</h1>
+              <p className="mt-4 max-w-2xl mx-auto text-lg text-dark-text-secondary">Coordinate on-air NETs, track participation, and keep your community connected in real-time.</p>
          </div>
       </div>
 

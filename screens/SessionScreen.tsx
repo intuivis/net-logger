@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json } from '../types';
 import { Icon } from '../components/Icon';
@@ -18,7 +20,7 @@ interface SessionScreenProps {
   onEndSession: (sessionId: string, netId: string) => void;
   onAddCheckIn: (sessionId: string, netId: string, checkIn: CheckInInsertPayload) => Promise<void>;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
-  onDeleteCheckIn: (checkInId: string, netId: string) => void;
+  onDeleteCheckIn: (checkIn: CheckIn, netId: string) => void;
   onBack: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => Promise<void>;
   onViewCallsignProfile: (callsign: string) => void;
@@ -93,7 +95,7 @@ const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Ch
                     return;
                 }
 
-                const typedData = (data as any) as ({ first_name: string | null; last_name: string | null; }[] | null);
+                const typedData = data as ({ first_name: string | null; last_name: string | null; }[] | null);
 
                 if (typedData && typedData.length > 0) {
                     setName(`${typedData[0].first_name ?? ''} ${typedData[0].last_name ?? ''}`.trim());
@@ -203,15 +205,16 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             .single();
 
         if (sessionError || !sessionData) throw new Error(sessionError?.message || 'Session not found.');
+        const currentSession = sessionData as NetSession;
         
-        const { data: netDataRaw, error: netError } = await supabase
+        const { data: netData, error: netError } = await supabase
             .from('nets')
             .select('*')
-            .eq('id', (sessionData as any).net_id)
+            .eq('id', currentSession.net_id)
             .single();
 
-        if (netError || !netDataRaw) throw new Error(netError?.message || 'Associated NET not found.');
-        const netData = netDataRaw as unknown as Database['public']['Tables']['nets']['Row'];
+        if (netError || !netData) throw new Error(netError?.message || 'Associated NET not found.');
+        const currentNetData = netData as Database['public']['Tables']['nets']['Row'];
         
         const { data: checkInData, error: checkInError } = await supabase
             .from('check_ins')
@@ -221,32 +224,31 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 
         if (checkInError) throw new Error(checkInError.message);
         
-        const dbNet = netData;
         const transformedNet: Net = {
-            id: dbNet.id,
-            created_by: dbNet.created_by,
-            name: dbNet.name,
-            description: dbNet.description,
-            website_url: dbNet.website_url,
-            primary_nco: dbNet.primary_nco,
-            primary_nco_callsign: dbNet.primary_nco_callsign,
-            net_type: dbNet.net_type as NetType,
-            schedule: dbNet.schedule as DayOfWeek,
-            time: dbNet.time,
-            time_zone: dbNet.time_zone,
-            net_config_type: (dbNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
-            repeaters: (dbNet.repeaters as unknown as Repeater[]) || [],
-            frequency: dbNet.frequency,
-            band: dbNet.band,
-            mode: dbNet.mode,
-            passcode: dbNet.passcode || null,
-            passcode_permissions: (dbNet.passcode_permissions as unknown as PasscodePermissions | null),
+            id: currentNetData.id,
+            created_by: currentNetData.created_by,
+            name: currentNetData.name,
+            description: currentNetData.description,
+            website_url: currentNetData.website_url,
+            primary_nco: currentNetData.primary_nco,
+            primary_nco_callsign: currentNetData.primary_nco_callsign,
+            net_type: currentNetData.net_type as NetType,
+            schedule: currentNetData.schedule as DayOfWeek,
+            time: currentNetData.time,
+            time_zone: currentNetData.time_zone,
+            net_config_type: (currentNetData.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+            repeaters: (currentNetData.repeaters as unknown as Repeater[]) || [],
+            frequency: currentNetData.frequency,
+            band: currentNetData.band,
+            mode: currentNetData.mode,
+            passcode: currentNetData.passcode || null,
+            passcode_permissions: (currentNetData.passcode_permissions as unknown as PasscodePermissions | null),
         };
 
-        setSession(sessionData as unknown as NetSession);
+        setSession(currentSession);
         setNet(transformedNet);
-        setCheckIns((checkInData as any) || []);
-        setSessionNotes((sessionData as any).notes || '');
+        setCheckIns((checkInData as CheckIn[]) || []);
+        setSessionNotes(currentSession.notes || '');
         setError(null);
     } catch (err: any) {
         console.error("Error fetching session data:", err);
@@ -268,7 +270,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => [payload.new as unknown as CheckIn, ...prev]);
+        setCheckIns(prev => [payload.new as CheckIn, ...prev]);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -276,7 +278,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as unknown as CheckIn : c));
+        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as CheckIn : c));
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -292,9 +294,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'sessions',
         filter: `id=eq.${sessionId}`
       }, (payload) => {
-        setSession(payload.new as unknown as NetSession);
-        if ((payload.new as any).notes !== undefined) {
-          setSessionNotes((payload.new as any).notes || '');
+        const newSession = payload.new as NetSession;
+        setSession(newSession);
+        if (newSession.notes !== undefined) {
+          setSessionNotes(newSession.notes || '');
         }
       })
       .subscribe();
@@ -504,7 +507,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                                                   <button onClick={() => onEditCheckIn(sessionId, checkIn)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
                                                       <Icon className="text-xl">edit</Icon>
                                                   </button>
-                                                  <button onClick={() => onDeleteCheckIn(checkIn.id, net.id)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10" aria-label="Delete Check-in">
+                                                  <button onClick={() => onDeleteCheckIn(checkIn, net.id)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-full hover:bg-red-500/10" aria-label="Delete Check-in">
                                                       <Icon className="text-xl">delete</Icon>
                                                   </button>
                                               </div>

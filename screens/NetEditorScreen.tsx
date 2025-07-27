@@ -366,7 +366,7 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         {canManagePermissions && (
           <fieldset className="border-t border-dark-700 pt-6">
               <legend className="text-lg font-medium text-dark-text">Delegate Permissions</legend>
-              <p className="text-sm text-dark-text-secondary mt-1 mb-4">Create a passcode to allow other authenticated users to help manage this NET. If you set a passcode, you must select at least one permission. Leave passcode blank to disable this feature.</p>
+              <p className="text-sm text-dark-text-secondary mt-1 mb-4">Create a passcode to allow other authenticated users permission to help manage this NET. If you set a passcode, you must select at least one permission. Leave blank to disable.</p>
               
               <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
                   <div className="max-w-sm">
@@ -380,8 +380,8 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                           onChange={handleInputChange}
                           placeholder=""
                       />
+                  <p className="text-xs text-dark-text-secondary mt-1">4-8 alphanumeric characters</p>
                   </div>
-                  <p className="text-xs text-dark-text-secondary mt-2">Passcode must be alphanumeric between 4 and 8 characters long.</p>
 
                   {net.passcode && (
                       <div className="mt-6">

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, Json } from './types';
 import HomeScreen from './screens/HomeScreen';
@@ -90,19 +91,7 @@ const App: React.FC = () => {
     const contextMessage = context ? `\nContext: ${context}` : '';
     
     // Specific handling for network errors like CORS issues
-    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        finalMessage = `A network error occurred while communicating with the database. This is often a CORS issue.
-
-Troubleshooting steps:
-1. CORS Settings: Go to your Supabase Dashboard -> Project Settings -> API. In the "CORS settings" section, add your app's URL to "Allowed Origins". For local development, this is likely 'http://localhost:3000' or similar. You can use 'http://localhost:*' to allow any port.
-2. Internet Connection: Check if you are connected to the internet.
-3. Ad Blockers: Browser extensions like ad blockers can sometimes interfere. Try disabling them for this site.
-4. Supabase Status: Check the official Supabase status page for any ongoing incidents.
-
-If the issue persists, please check the browser's developer console for more details.`;
-       alert(`Connection Error: ${finalMessage}`); // Use a custom alert without the generic "API Error" prefix
-       return;
-    }
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {}
 
     if (error) {
         // Most specific: PostgREST error object
@@ -198,15 +187,15 @@ If the issue persists, please check the browser's developer console for more det
             throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
         }
         
-        const rawNets = (netsRes.data as any) || [];
+        const rawNets = (netsRes.data as Database['public']['Tables']['nets']['Row'][]) || [];
         const typedNets: Net[] = rawNets.map(transformNetPayload);
         
         setNets(typedNets);
-        setSessions((sessionsRes.data as any) || []);
-        setCheckIns((checkInsRes.data as any) || []);
-        setAwardedBadges((awardedBadgesRes.data as any) || []);
-        setAllBadges((allBadgesRes.data as any) || []);
-        setRosterMembers((rosterMembersRes.data as any) || []);
+        setSessions((sessionsRes.data as NetSession[]) || []);
+        setCheckIns((checkInsRes.data as CheckIn[]) || []);
+        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
+        setAllBadges((allBadgesRes.data as Badge[]) || []);
+        setRosterMembers((rosterMembersRes.data as RosterMember[]) || []);
 
     } catch (error: any) {
         handleApiError(error, 'refreshAllData');
@@ -219,14 +208,14 @@ If the issue persists, please check the browser's developer console for more det
     try {
         const [checkInsRes, awardedBadgesRes] = await Promise.all([
             supabase.from('check_ins').select('call_sign, timestamp, session_id'),
-            supabase.from('awarded_badges').select('call_sign').eq('badge_id', firstCheckinBadgeId)
+            supabase.from('awarded_badges').select('call_sign, badge_id').eq('badge_id', firstCheckinBadgeId)
         ]);
 
         if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
         if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
 
-        const allCheckIns: { call_sign: string, timestamp: string, session_id: string }[] = (checkInsRes.data as any) || [];
-        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as any) || []).map((b: { call_sign: string }) => b.call_sign));
+        const allCheckIns = (checkInsRes.data as { call_sign: string; timestamp: string; session_id: string }[]) || [];
+        const operatorsWithFirstBadge = new Set(((awardedBadgesRes.data as { call_sign: string }[]) || []).map(b => b.call_sign));
 
         const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
         for (const checkIn of allCheckIns) {
@@ -454,11 +443,11 @@ If the issue persists, please check the browser's developer console for more det
                 passcode_permissions: commonPayload.passcode_permissions as unknown as Json,
             };
 
-            const { data, error } = await supabase.from('nets').insert(insertPayload as any).select().single();
+            const { data, error } = await supabase.from('nets').insert([insertPayload] as any).select().single();
             if (error) throw error;
             if (!data) throw new Error("No data returned after create operation.");
 
-            const newNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
+            const newNet = transformNetPayload(data as Database['public']['Tables']['nets']['Row']);
             setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
             setView({ type: 'netDetail', netId: newNet.id });
         }
@@ -571,7 +560,9 @@ If the issue persists, please check the browser's developer console for more det
   
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
-        const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes || null };
+        const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes !== undefined ? notes : null };  
+        //Entered the line below to handle the case where notes is an empty string
+        //const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes || null };
         const { error } = await supabase.from('sessions').update(payload as any).eq('id', sessionId);
         if (error) throw error;
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
@@ -584,17 +575,17 @@ If the issue persists, please check the browser's developer console for more det
     try {
         const passcode = verifiedPasscodes[netId] || null;
 
-        // The badge awarding logic is now handled by the 'create_check_in' RPC.
+        // The badge awarding logic is now handled by the 'crea te_check_in' RPC.
         // The client no longer needs to perform this logic, which was causing
         // permission errors for delegated users. The real-time subscription
         // on 'awarded_badges' will update the UI.
         const { error: checkInError } = await supabase.rpc('create_check_in', {
             p_session_id: sessionId,
             p_call_sign: checkInData.call_sign,
-            p_name: checkInData.name,
-            p_location: checkInData.location,
-            p_notes: checkInData.notes,
-            p_repeater_id: checkInData.repeater_id,
+            p_name: checkInData.name ?? null,
+            p_location: checkInData.location ?? null,
+            p_notes: checkInData.notes ?? null,
+            p_repeater_id: checkInData.repeater_id ?? null,
             p_passcode: passcode
         });
 
@@ -640,10 +631,7 @@ If the issue persists, please check the browser's developer console for more det
     }
   }, [handleApiError, sessions, nets, verifiedPasscodes]);
 
-  const handleDeleteCheckIn = useCallback(async (checkInId: string, netId: string) => {
-    const checkIn = checkIns.find(ci => ci.id === checkInId);
-    if (!checkIn) return;
-
+  const handleDeleteCheckIn = useCallback(async (checkIn: CheckIn, netId: string) => {
     requestConfirmation({
         title: 'Confirm Deletion',
         message: `Are you sure you want to delete the check-in for ${checkIn.call_sign}?`,
@@ -652,20 +640,20 @@ If the issue persists, please check the browser's developer console for more det
         onConfirm: async () => {
             try {
                 const passcode = verifiedPasscodes[netId] || null;
-                const { error } = await supabase.rpc('delete_check_in', {
-                    p_check_in_id: checkInId,
-                    p_passcode: passcode,
-                });
+                const { error } = await supabase.rpc('delete_check_in', { p_check_in_id: checkIn.id, p_passcode: passcode });
 
                 if (error) throw error;
                 
-                setCheckIns(prev => prev.filter(c => c.id !== checkInId));
+                // The global state might not have this check-in yet, but the real-time
+                // subscription in SessionScreen will handle the UI update there.
+                // We can still try to update the global state optimistically.
+                setCheckIns(prev => prev.filter(c => c.id !== checkIn.id));
             } catch (error: any) {
                 handleApiError(error, 'handleDeleteCheckIn');
             }
         }
     });
-  }, [handleApiError, verifiedPasscodes, checkIns, requestConfirmation]);
+  }, [handleApiError, verifiedPasscodes, requestConfirmation]);
 
   const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]) => {
     try {
@@ -675,7 +663,7 @@ If the issue persists, please check the browser's developer console for more det
 
         // Insert new members if any
         if (members.length > 0) {
-            const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
+            const membersToInsert: Database['public']['Tables']['roster_members']['Insert'][] = members.map(m => ({ ...m, net_id: netId }));
             const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
             if (insertError) throw insertError;
         }
@@ -794,6 +782,7 @@ If the issue persists, please check the browser's developer console for more det
             profile={profile}
             hasPermission={hasPermission}
             onStartSession={handleStartSession}
+            onEndSessionRequest={handleEndSessionRequest}
             onEditNet={(netId) => setView({ type: 'netEditor', netId })}
             onDeleteNet={handleDeleteNet}
             onAddNet={() => setView({ type: 'netEditor' })}

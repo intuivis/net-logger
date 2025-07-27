@@ -62,7 +62,7 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
                 <div className="md:col-span-2">
                     <dt className="text-sm font-medium text-dark-text-secondary">Website</dt>
                     <dd className="mt-1">
-                        <a href={repeater.website_url} target="_blank" rel="noopener noreferrer" className="text-brand-secondary hover:underline break-all">
+                        <a href={repeater.website_url} target="_blank" rel="noopener noreferrer" className="text-dark-text break-all">
                             {repeater.website_url}
                         </a>
                     </dd>
@@ -149,7 +149,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
         <div className="space-y-6">
             <button onClick={onBack} className="flex items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
                 <Icon className="text-xl">arrow_back</Icon>
-                <span>Back to {profile ? 'Manage NETs' : 'NET Directory'}</span>
+                <span>Back to {profile ? 'NETs List' : 'NET Directory'}</span>
             </button>
 
             <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">
@@ -210,7 +210,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                         className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
                                     >
                                         <Icon className="text-base">play_arrow</Icon>
-                                        Start Session
+                                        Start New Session
                                     </button>
                                 )
                             )}

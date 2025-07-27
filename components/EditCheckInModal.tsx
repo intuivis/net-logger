@@ -69,16 +69,15 @@ const EditCheckInModal: React.FC<EditCheckInModalProps> = ({ session, net, check
               <p className="text-sm text-dark-text-secondary">Editing log entry for session on {new Date(session.start_time).toLocaleDateString()}</p>
           </div>
           <div className="p-6 border-t border-b border-dark-700 space-y-4">
-            {net.net_config_type === NetConfigType.LINKED_REPEATER && (
-              <FormSelect label="Repeater" id="edit-repeaterId" name="repeater_id" value={formData.repeater_id || ''} onChange={handleChange}>
-              <option value="">Select Repeater...</option>
-              {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
-              </FormSelect>
-            )}
             <FormInput label="Call Sign" id="edit-callSign" name="call_sign" value={formData.call_sign} onChange={handleChange} required />
             <FormInput label="Name" id="edit-name" name="name" value={formData.name || ''} onChange={handleChange} />
             <FormInput label="Location" id="edit-location" name="location" value={formData.location || ''} onChange={handleChange} />
-
+            {net.net_config_type === NetConfigType.LINKED_REPEATER && (
+                 <FormSelect label="Repeater" id="edit-repeaterId" name="repeater_id" value={formData.repeater_id || ''} onChange={handleChange}>
+                    <option value="">Select Repeater...</option>
+                    {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
+                </FormSelect>
+            )}
             <FormInput label="Notes" id="edit-notes" name="notes" value={formData.notes || ''} onChange={handleChange} />
           </div>
           <div className="flex justify-end gap-4 p-4 bg-dark-800/50 rounded-b-lg">

@@ -22,8 +22,8 @@ const PasscodeModal: React.FC<PasscodeModalProps> = ({ netName, onVerify, onClos
             <div className="bg-dark-800 rounded-lg shadow-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <div className="p-6">
-                        <h2 className="text-xl font-bold text-dark-text mb-3">Enter Passcode</h2>
-                        <p className="text-md text-dark-text-secondary">Enter the passcode for <span className="font-medium text-dark-text">{netName}</span> to gain delegated permissions.</p>
+                        <h2 className="text-xl font-bold text-dark-text">Enter Passcode</h2>
+                        <p className="text-sm text-dark-text-secondary">Enter the passcode for "{netName}" to gain delegated permissions.</p>
                     </div>
                     <div className="p-6 border-t border-b border-dark-700 space-y-4">
                         <div>
@@ -35,8 +35,8 @@ const PasscodeModal: React.FC<PasscodeModalProps> = ({ netName, onVerify, onClos
                                 type="text"
                                 value={passcode}
                                 onChange={(e) => setPasscode(e.target.value)}
-                                className="block px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11"
-                                placeholder=""
+                                className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11"
+                                placeholder="Alphanumeric passcode"
                                 required
                                 autoFocus
                             />
