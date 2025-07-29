@@ -55,7 +55,7 @@ const AwardsScreen: React.FC<AwardsScreenProps> = ({ allBadgeDefinitions }) => {
                 <div className="text-center">
                     <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Awards & Achievements</h1>
                     <p className="mt-4 max-w-3xl mx-auto text-lg text-dark-text-secondary">
-                        Earn badges for your on-air activity. Once an award is earned, it's yours to keep!
+                        Earn badges for checking into different NETs and for regularly checking into your favorites.
                     </p>
                 </div>
             </div>

@@ -220,22 +220,35 @@ const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
                                 <div className="flex justify-between items-center gap-4">
                                     {/* Left Side */}
                                     <div className="flex-grow min-w-0">
-                                        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+                                        <div className="flex items-center gap-x-2">
+                                            <NetTypeBadge type={net.net_type} size="sm" />
                                             <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline truncate" title={net.name}>
                                                 {net.name}
                                             </button>
-                                            <NetTypeBadge type={net.net_type} />
                                         </div>
-                                        <p className="text-md text-dark-text-secondary mt-1">
-                                          <Icon className="text-sm">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                        <p className="text-sm text-dark-text-secondary mt-1">
+                                            <Icon className="text-sm align-text-bottom">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                                         </p>
                                     </div>
 
                                     {/* Right Side */}
                                     <div className="flex-shrink-0 flex items-center gap-2 sm:gap-4">
-                                        <div className="flex flex-col items-end gap-1">
-                                            {displayBadge && <Badge badge={displayBadge} variant="pill" size="sm" />}
-                                            <span className="text-sm text-dark-text-secondary"><span className="font-semibold text-dark-text">{checkInCount}</span> Check-in{checkInCount !== 1 ? 's' : ''}</span>
+                                        <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
+                                            {displayBadge && (
+                                                <>
+                                                    {/* Mobile view: Icon only */}
+                                                    <div className="block sm:hidden">
+                                                        <Badge badge={displayBadge} variant="icon" />
+                                                    </div>
+                                                    {/* Desktop view: Pill */}
+                                                    <div className="hidden sm:block">
+                                                        <Badge badge={displayBadge} variant="pill" size="sm" />
+                                                    </div>
+                                                </>
+                                            )}
+                                            <span className="text-sm text-dark-text-secondary whitespace-nowrap">
+                                                <span className="font-semibold text-dark-text">{checkInCount}</span> Check-in{checkInCount !== 1 ? 's' : ''}
+                                            </span>
                                         </div>
                                         <button
                                             className="p-2 rounded-full hover:bg-dark-600"

@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
 import { formatTime, formatRepeaterCondensed, formatTimeZone } from '../lib/time';
@@ -62,7 +63,7 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
                 <div className="md:col-span-2">
                     <dt className="text-sm font-medium text-dark-text-secondary">Website</dt>
                     <dd className="mt-1">
-                        <a href={repeater.website_url} target="_blank" rel="noopener noreferrer" className="text-dark-text break-all">
+                        <a href={repeater.website_url} target="_blank" rel="noopener noreferrer" className="text-brand-secondary hover:underline break-all">
                             {repeater.website_url}
                         </a>
                     </dd>
@@ -88,10 +89,6 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
         }
     };
 
-    const renderTypeBadge = () => {
-        return <NetTypeBadge type={net.net_type} size="base" />;
-    }
-
     const renderTechnicalDetails = () => {
         switch (net.net_config_type) {
             case NetConfigType.SINGLE_REPEATER:
@@ -110,7 +107,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             onClick={() => setIsRepeaterListVisible(!isRepeaterListVisible)}
                             aria-expanded={isRepeaterListVisible}
                         >
-                            <h3 className="text-md font-semibold text-dark-text-secondary uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
+                            <h3 className="text-md font-semibold text-dark-text uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
                             {isRepeaterListVisible ? <Icon className="text-xl">expand_less</Icon> : <Icon className="text-xl">expand_more</Icon>}
                         </button>
                         {isRepeaterListVisible && (
@@ -155,9 +152,15 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
             <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">
                 <div className="flex flex-col md:flex-row justify-between md:items-start gap-4">
                     <div>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                             <h1 className="text-3xl font-bold text-dark-text">{net.name}</h1>
-                        {renderTypeBadge()}    
+                             {/* Responsive Badge */}
+                            <div className="block sm:hidden">
+                                <NetTypeBadge type={net.net_type} size="sm" />
+                            </div>
+                            <div className="hidden sm:block">
+                                <NetTypeBadge type={net.net_type} size="base" />
+                            </div>
                         </div>
                          <div className="flex items-center gap-4 mt-2">
                             <p className="font-bold text-dark-text">
