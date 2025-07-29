@@ -127,7 +127,7 @@ const RosterEditorScreen: React.FC<RosterEditorScreenProps> = ({ net, initialMem
             <p className="font-semibold text-dark-text mb-6">{net.name}</p>
 
             <form onSubmit={handleSubmit} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-8">
-                
+                <p className="text-md text-dark-text-secondary mb-4">Create a roster of stations that regularly attend this net for faster check-ins on your session log.</p>
                 <fieldset>
                     <legend className="text-lg font-medium text-dark-text mb-4">Members ({members.length})</legend>
                     <div className="space-y-3 max-h-96 overflow-y-auto pr-2">

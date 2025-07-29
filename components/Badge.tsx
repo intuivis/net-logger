@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Badge as BadgeType } from '../types';
 import { Icon } from './Icon';
@@ -54,7 +53,7 @@ export const Badge: React.FC<BadgeProps> = ({ badge, variant = 'pill', size = 'b
                 title={badge.description}
             >
                 {IconComponent ? (
-                    <IconComponent className={size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />
+                    <IconComponent className={size === 'sm' ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
                 ) : (
                     <Icon className={iconSize}>{style.icon}</Icon>
                 )}

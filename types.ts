@@ -83,6 +83,16 @@ export interface Net {
     passcode_permissions: PasscodePermissions | null;
 }
 
+export const CheckInStatus = {
+    NEW: 0,
+    ACKNOWLEDGED: 1,
+    ATTENTION: 2,
+    QUESTION: 3,
+} as const;
+
+export type CheckInStatusValue = typeof CheckInStatus[keyof typeof CheckInStatus];
+
+
 export interface CheckIn {
   id: string;
   session_id: string;
@@ -92,6 +102,7 @@ export interface CheckIn {
   location: string | null;
   notes: string | null;
   repeater_id: string | null;
+  status_flag: CheckInStatusValue;
 }
 
 export interface NetSession {
@@ -116,7 +127,7 @@ export interface Profile {
 }
 
 export interface Badge {
-  id: string;
+  id:string;
   name: string;
   description: string;
 }
@@ -174,4 +185,6 @@ export type View =
   | { type: 'about' }
   | { type: 'awards' }
   | { type: 'userAgreement' }
-  | { type: 'releaseNotes' };
+  | { type: 'releaseNotes' }
+  | { type: 'profile' }
+  | { type: 'settings' };

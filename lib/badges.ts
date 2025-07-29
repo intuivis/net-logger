@@ -52,6 +52,31 @@ const hasNUniqueNets = (n: number) => (
 };
 
 // --- Loyalty Awards ---
+const isFirstCheckInForNet = (
+  allUserCheckIns: CheckIn[],
+  allSessions: NetSession[],
+  newCheckIn: CheckIn
+): boolean => {
+  const sessionMap = new Map(allSessions.map((s) => [s.id, s.net_id]));
+  const targetNetId = sessionMap.get(newCheckIn.session_id);
+
+  if (!targetNetId) {
+    return false; // Cannot determine net, so can't award
+  }
+
+  // Count how many times this user has checked into this specific net,
+  // based on the check-ins provided.
+  let countForNet = 0;
+  for (const checkIn of allUserCheckIns) {
+    if (sessionMap.get(checkIn.session_id) === targetNetId) {
+      countForNet++;
+    }
+  }
+
+  // The badge is earned if this is the first check-in for this net.
+  return countForNet === 1;
+};
+
 const hasNCheckInsOnSingleNet = (n: number) => (
   allUserCheckIns: CheckIn[],
   allSessions: NetSession[],
@@ -87,12 +112,12 @@ const isDaybreaker = (
 
 export const BADGE_DEFINITIONS: Omit<BadgeDefinition, 'name' | 'description'>[] = [
   // Participation Awards
-  { id: 'first_checkin', category: 'Participation', isEarned: hasNTotalCheckIns(1), sortOrder: 10 },
   { id: 'explorer', category: 'Participation', isEarned: hasNUniqueNets(5), sortOrder: 20 },
   { id: 'pathfinder', category: 'Participation', isEarned: hasNUniqueNets(10), sortOrder: 30 },
   { id: 'trailblazer', category: 'Participation', isEarned: hasNTotalCheckIns(25), sortOrder: 40 },
   { id: 'pioneer', category: 'Participation', isEarned: hasNTotalCheckIns(50), sortOrder: 50 },
   // Loyalty Awards
+  { id: 'first_checkin', category: 'Loyalty', isEarned: isFirstCheckInForNet, sortOrder: 5 },
   { id: 'bronze_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(5), sortOrder: 10 },
   { id: 'silver_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(10), sortOrder: 20 },
   { id: 'gold_member', category: 'Loyalty', isEarned: hasNCheckInsOnSingleNet(25), sortOrder: 30 },

@@ -61,15 +61,15 @@ const AwardsScreen: React.FC<AwardsScreenProps> = ({ allBadgeDefinitions }) => {
             </div>
 
             <AwardSection
-                title="Participation Awards"
-                description="This group of awards are for attending a variety of different NETs."
-                awards={badgeCategories['Participation']}
-            />
-
-            <AwardSection
                 title="Loyalty Awards"
                 description="Awarded for staying with and getting checked into the same NET over time."
                 awards={badgeCategories['Loyalty']}
+            />
+
+            <AwardSection
+                title="Participation Awards"
+                description="This group of awards are for attending a variety of different NETs."
+                awards={badgeCategories['Participation']}
             />
 
             <AwardSection

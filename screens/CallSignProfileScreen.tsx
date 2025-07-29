@@ -1,13 +1,13 @@
 
 
 import React, { useMemo, useState } from 'react';
-import { Net, NetSession, CheckIn, AwardedBadge, BadgeDefinition } from '../types';
+import { Net, NetSession, CheckIn, AwardedBadge, BadgeDefinition, Profile } from '../types';
 import { Icon } from '../components/Icon';
 import { Badge } from '../components/Badge';
 import { NetTypeBadge } from '../components/NetTypeBadge';
 import { formatTime, formatTimeZone } from '../lib/time';
 
-interface CallsignProfileScreenProps {
+interface CallSignProfileScreenProps {
   callsign: string;
   allNets: Net[];
   allSessions: NetSession[];
@@ -17,6 +17,9 @@ interface CallsignProfileScreenProps {
   onViewSession: (sessionId: string) => void;
   onViewNetDetails: (netId: string) => void;
   onBack: () => void;
+  isOwnProfile?: boolean;
+  onNavigateToSettings?: () => void;
+  profile?: Profile;
 }
 
 const StatCard: React.FC<{ label: string; value: string | number; icon: string }> = ({ label, value, icon }) => (
@@ -31,7 +34,7 @@ const StatCard: React.FC<{ label: string; value: string | number; icon: string }
   </div>
 );
 
-const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
+const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
   callsign,
   allNets,
   allSessions,
@@ -41,6 +44,9 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   onViewSession,
   onViewNetDetails,
   onBack,
+  isOwnProfile = false,
+  onNavigateToSettings,
+  profile,
 }) => {
   const [expandedNets, setExpandedNets] = useState<Record<string, boolean>>({});
 
@@ -61,9 +67,8 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
     const otherBadges = earnedBadges.filter(b => b.category !== 'Loyalty');
 
     if (loyaltyBadges.length > 0) {
-        const highestLoyaltyBadge = loyaltyBadges.reduce((highest, current) => {
-            return current.sortOrder > highest.sortOrder ? current : highest;
-        });
+        // Find the loyalty badge with the highest sortOrder
+        const highestLoyaltyBadge = loyaltyBadges.sort((a, b) => b.sortOrder - a.sortOrder)[0];
         return [...otherBadges, highestLoyaltyBadge].sort((a, b) => a.name.localeCompare(b.name));
     }
     
@@ -126,8 +131,12 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
 
   const firstCheckIn = operatorCheckIns[operatorCheckIns.length - 1];
   const lastCheckIn = operatorCheckIns[0];
+  
+  const displayName = (isOwnProfile && profile?.full_name) 
+    ? profile.full_name 
+    : (operatorCheckIns[0]?.name || 'Name not yet recorded');
 
-  if (operatorCheckIns.length === 0) {
+  if (operatorCheckIns.length === 0 && !isOwnProfile) {
     return (
       <div className="text-center py-20">
         <h1 className="text-3xl font-bold tracking-tight mb-2">{callsign}</h1>
@@ -143,19 +152,32 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   return (
     <div className="space-y-8">
       <div>
-        <button onClick={onBack} className="flex items-center gap-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text transition-colors mb-4">
-          <Icon className="text-xl">arrow_back</Icon>
-          <span>Back</span>
-        </button>
+        {!isOwnProfile && (
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text transition-colors mb-4">
+              <Icon className="text-xl">arrow_back</Icon>
+              <span>Back</span>
+            </button>
+        )}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
                 <h1 className="text-4xl font-bold tracking-tight">{callsign}</h1>
-                <p className="text-dark-text-secondary mt-1">{operatorCheckIns[0]?.name}</p>
+                <p className="text-dark-text-secondary mt-1">{displayName}</p>
             </div>
-            <a href={`https://www.qrz.com/db/${callsign}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary transition-colors">
-                View on QRZ.com
-                <Icon className="text-base">open_in_new</Icon>
-            </a>
+            <div className="flex-shrink-0 flex items-center gap-2">
+                 {isOwnProfile && onNavigateToSettings && (
+                    <button 
+                        onClick={onNavigateToSettings} 
+                        className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                        aria-label="Account Settings"
+                    >
+                      <Icon className="text-2xl">settings</Icon>
+                    </button>
+                )}
+                <a href={`https://www.qrz.com/db/${callsign}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary transition-colors">
+                    View on QRZ.com
+                    <Icon className="text-base">open_in_new</Icon>
+                </a>
+            </div>
         </div>
       </div>
 
@@ -186,80 +208,68 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
             <ul className="divide-y divide-dark-700">
                 {detailedNetParticipation.map(({ net, checkInCount, sessions }) => {
                     const loyaltyBadge = getLoyaltyBadgeForCount(checkInCount);
+                    let displayBadge: BadgeDefinition | null = loyaltyBadge;
+
+                    if (!loyaltyBadge && checkInCount > 0) {
+                      displayBadge = allBadgeDefinitions.find(b => b.id === 'first_checkin') || null;
+                    }
+                    
                     return (
                         <li key={net.id}>
                             <div className="p-6 hover:bg-dark-700/30 transition-colors">
-                                <div className="flex justify-between items-start gap-4">
-                                    <div className="flex-grow space-y-2">
-                                        <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
-                                            <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline">
+                                <div className="flex justify-between items-center gap-4">
+                                    {/* Left Side */}
+                                    <div className="flex-grow min-w-0">
+                                        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
+                                            <button onClick={() => onViewNetDetails(net.id)} className="text-lg font-bold text-dark-text hover:text-brand-accent hover:underline truncate" title={net.name}>
                                                 {net.name}
                                             </button>
                                             <NetTypeBadge type={net.net_type} />
                                         </div>
-                                        <div className="flex items-center gap-6 text-md text-dark-text-secondary">
-                                            <span>
-                                                <Icon className="text-base mr-1.5 align-middle text-dark-text">calendar_month</Icon>
-                                                {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <Icon className="text-base align-middle text-dark-text">tag</Icon>
-                                                <span>{checkInCount} Check-In{checkInCount > 1 ? 's' : ''}</span>
-                                            </div>
-                                        </div>
+                                        <p className="text-md text-dark-text-secondary mt-1">
+                                          <Icon className="text-sm">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                        </p>
                                     </div>
-                                    <button
-                                        className="flex-shrink-0 p-2 rounded-full hover:bg-dark-600"
-                                        onClick={() => toggleNetExpansion(net.id)}
-                                        aria-expanded={expandedNets[net.id]}
-                                        aria-label={`Show sessions for ${net.name}`}
-                                    >
-                                        <Icon className="text-2xl text-dark-text-secondary transition-transform" style={{ transform: expandedNets[net.id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
-                                    </button>
+
+                                    {/* Right Side */}
+                                    <div className="flex-shrink-0 flex items-center gap-2 sm:gap-4">
+                                        <div className="flex flex-col items-end gap-1">
+                                            {displayBadge && <Badge badge={displayBadge} variant="pill" size="sm" />}
+                                            <span className="text-sm text-dark-text-secondary"><span className="font-semibold text-dark-text">{checkInCount}</span> Check-in{checkInCount !== 1 ? 's' : ''}</span>
+                                        </div>
+                                        <button
+                                            className="p-2 rounded-full hover:bg-dark-600"
+                                            onClick={() => toggleNetExpansion(net.id)}
+                                            aria-expanded={expandedNets[net.id]}
+                                            aria-label={`Show sessions for ${net.name}`}
+                                        >
+                                            <Icon className="text-2xl text-dark-text-secondary transition-transform" style={{ transform: expandedNets[net.id] ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             {expandedNets[net.id] && (
-                                <div className="px-6 pb-4 pt-2 border-t border-dark-700 bg-dark-700/30">
-                                    <div className="text-sm text-dark-text-secondary mb-2 p-2">
-                                    <h3 className="font-semibold text-dark-text mb-4">NET Awarded Badges:</h3>
-                                    {loyaltyBadge ? (
-                                        <Badge badge={loyaltyBadge} variant="pill" size="sm" />
-                                    ) : (
-                                        <p className="text-dark-text-secondary">Keep participating in this NET to earn badges. For questions regarding your check-ins contact your Net Control Operator.</p>
-                                    )}
-                                    </div>
-                                    <div className="mt-4 flow-root">
-                                        <div className="-mx-6 -my-2">
-                                            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
-                                                <div className="divide-y divide-dark-600">
-                                                    {sessions.map(({ session, checkIn }) => (
-                                                        <div key={session.id} className="py-4 grid grid-cols-1 sm:grid-cols-5 gap-4">
-                                                            <div className="sm:col-span-2">
-                                                                <button 
-                                                                    onClick={() => onViewSession(session.id)} 
-                                                                    className="text-sm font-semibold text-dark-text hover:text-brand-accent hover:underline focus:outline-none"
-                                                                    title={`View session from ${new Date(session.start_time).toLocaleDateString()}`}
-                                                                >
-                                                                    {new Date(checkIn.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                                                                </button>
-                                                            </div>
-                                                            <div className="sm:col-span-1">
-                                                                <p className="text-sm text-dark-text-secondary">
-                                                                    {new Date(checkIn.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                                                                </p>
-                                                            </div>
-                                                            <div className="sm:col-span-2">
-                                                                {checkIn.notes ? (
-                                                                    <p className="text-sm text-dark-text-secondary italic">"{checkIn.notes}"</p>
-                                                                ) : (
-                                                                    <p className="text-sm text-dark-text-secondary/50">-</p>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                <div className="border-t border-dark-700 bg-dark-700/30">
+                                    <div className="divide-y divide-dark-600">
+                                        {sessions.map(({ session, checkIn }) => (
+                                            <div key={session.id} className="px-6 py-4">
+                                                <div className="flex justify-between items-baseline gap-4 flex-wrap">
+                                                    <button 
+                                                        onClick={() => onViewSession(session.id)} 
+                                                        className="text-sm font-semibold text-dark-text hover:text-brand-accent hover:underline focus:outline-none"
+                                                        title={`View session from ${new Date(session.start_time).toLocaleDateString()}`}
+                                                    >
+                                                        {new Date(checkIn.timestamp).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </button>
+                                                    <p className="text-sm text-dark-text-secondary flex-shrink-0">
+                                                        {new Date(checkIn.timestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+                                                    </p>
                                                 </div>
+                                                {checkIn.notes && (
+                                                    <p className="text-sm text-dark-text-secondary italic mt-2">"{checkIn.notes}"</p>
+                                                )}
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -275,4 +285,4 @@ const CallsignProfileScreen: React.FC<CallsignProfileScreenProps> = ({
   );
 };
 
-export default CallsignProfileScreen;
+export default CallSignProfileScreen;

@@ -4,8 +4,8 @@ export type Json =
   | number
   | boolean
   | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+  | { [key: string]: any }
+  | any[];
 
 export type Database = {
   public: {
@@ -31,7 +31,20 @@ export type Database = {
           awarded_at?: string;
           session_id?: string;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "awarded_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "awarded_badges_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          }
+        ]
       };
       badges: {
         Row: {
@@ -82,6 +95,7 @@ export type Database = {
           location: string | null;
           notes: string | null;
           repeater_id: string | null;
+          status_flag: number;
         };
         Insert: {
           session_id: string;
@@ -91,6 +105,7 @@ export type Database = {
           location?: string | null;
           notes?: string | null;
           repeater_id?: string | null;
+          status_flag?: number;
         };
         Update: {
           id?: string;
@@ -101,8 +116,16 @@ export type Database = {
           location?: string | null;
           notes?: string | null;
           repeater_id?: string | null;
+          status_flag?: number;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "check_ins_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          }
+        ]
       };
       nets: {
         Row: {
@@ -167,7 +190,14 @@ export type Database = {
           passcode?: string | null;
           passcode_permissions?: Json | null;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nets_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       };
       profiles: {
         Row: {
@@ -197,7 +227,14 @@ export type Database = {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       };
       roster_members: {
         Row: {
@@ -224,7 +261,14 @@ export type Database = {
           location?: string | null;
           created_at?: string;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roster_members_net_id_fkey"
+            columns: ["net_id"]
+            referencedRelation: "nets"
+            referencedColumns: ["id"]
+          }
+        ]
       };
       sessions: {
         Row: {
@@ -257,7 +301,14 @@ export type Database = {
           primary_nco_callsign?: string;
           notes?: string | null;
         };
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sessions_net_id_fkey"
+            columns: ["net_id"]
+            referencedRelation: "nets"
+            referencedColumns: ["id"]
+          }
+        ]
       };
     };
     Views: {};
@@ -309,6 +360,14 @@ export type Database = {
         };
         Returns: undefined;
       };
+      update_check_in_status_flag: {
+        Args: {
+          p_check_in_id: string;
+          p_status_flag: number;
+          p_passcode: string | null;
+        };
+        Returns: undefined;
+      };
       update_net_details: {
         Args: {
           p_net_id: string;
@@ -331,6 +390,14 @@ export type Database = {
           p_passcode: string | null;
         };
         Returns: Database["public"]["Tables"]["nets"]["Row"];
+      };
+      update_profile_with_callsign_check: {
+        Args: {
+          p_user_id: string
+          p_full_name: string
+          p_call_sign: string
+        }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"]
       };
       verify_passcode: {
         Args: {

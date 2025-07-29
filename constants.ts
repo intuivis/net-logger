@@ -46,7 +46,7 @@ export const NET_TYPE_INFO: Record<NetType, { icon: string, classes: string, des
 
 export const BADGE_STYLES: Record<string, { icon: string; color_classes: string; }> = {
     // Participation
-    first_checkin: { icon: 'star', color_classes: 'bg-yellow-500/20 text-yellow-300' },
+    first_checkin: { icon: 'looks_one', color_classes: 'bg-yellow-500/20 text-yellow-300' },
     explorer: { icon: 'travel_explore', color_classes: 'bg-lime-500/20 text-lime-300' },
     pathfinder: { icon: 'explore', color_classes: 'bg-green-500/20 text-green-300' },
     trailblazer: { icon: 'flag', color_classes: 'bg-teal-500/20 text-teal-300' },

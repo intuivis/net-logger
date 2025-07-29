@@ -20,7 +20,27 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.2.1 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.0 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Tuesday, July 29, 2024</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>The "first check-in" badge is now awarded for first time check-ins on a Net.</li>
+                            <li>Slight adjustment to the badge design for added size consistency.</li>
+                            <li><span className="font-bold text-dark-text">New Feature: Profile Management</span></li>
+                            <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
+                                <li>Authenticated users can now edit name, callsign, email, and password.</li>
+                                <li>This change also comes with a minor update to the header navigation.</li>
+                            </ul>
+                            <li><span className="font-bold text-dark-text">New Feature: Status Action Button</span></li>
+                            <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
+                                <li>You can now toggle the status of a check-in to help you mark log for activities.</li>
+                            </ul>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.2.1</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Sunday, July 27, 2024</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Addressing bugs with the rollout of the roster.</li>

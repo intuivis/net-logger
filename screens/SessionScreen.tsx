@@ -1,8 +1,13 @@
 
 
 
+
+
+
+
+
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json, CheckInStatus, CheckInStatusValue } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient'; // import to access supabase functions
@@ -17,10 +22,11 @@ interface SessionScreenProps {
   rosterMembers: RosterMember[];
   profile: Profile | null;
   hasPermission: (permission: PermissionKey) => boolean;
-  onEndSession: (sessionId: string, netId: string) => void;
+  onEndSessionRequest: (sessionId: string, netId: string) => void;
   onAddCheckIn: (sessionId: string, netId: string, checkIn: CheckInInsertPayload) => Promise<void>;
   onEditCheckIn: (sessionId: string, checkIn: CheckIn) => void;
   onDeleteCheckIn: (checkIn: CheckIn, netId: string) => void;
+  onUpdateCheckInStatus: (checkInId: string, netId: string, status: CheckInStatusValue) => void;
   onBack: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => Promise<void>;
   onViewCallsignProfile: (callsign: string) => void;
@@ -95,7 +101,7 @@ const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: Ch
                     return;
                 }
 
-                const typedData = data as ({ first_name: string | null; last_name: string | null; }[] | null);
+                const typedData = data as unknown as ({ first_name: string | null; last_name: string | null; }[] | null);
 
                 if (typedData && typedData.length > 0) {
                     setName(`${typedData[0].first_name ?? ''} ${typedData[0].last_name ?? ''}`.trim());
@@ -184,7 +190,45 @@ const handleSubmit = async (e: React.FormEvent) => {
     );
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, rosterMembers, profile, hasPermission, onEndSession, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
+const getStatusStyles = (status: CheckInStatusValue | null | undefined, isActive: boolean) => {
+    switch (status) {
+        case CheckInStatus.NEW:
+            return { rowClass: 'text-dark-text-secondary', callsignClass: '', iconClass: 'text-dark-text-secondary' };
+        case CheckInStatus.ACKNOWLEDGED:
+            return { rowClass: '', callsignClass: 'text-brand-accent', iconClass: 'text-brand-accent' };
+        case CheckInStatus.ATTENTION:
+            return { 
+                rowClass: isActive ? 'bg-yellow-500/10' : '',
+                callsignClass: '',
+                iconClass: 'text-yellow-400'
+            };
+        case CheckInStatus.QUESTION:
+            return { 
+                rowClass: isActive ? 'bg-blue-500/10' : '',
+                callsignClass: '',
+                iconClass: 'text-blue-400'
+            };
+        default:
+            return { rowClass: '', callsignClass: '', iconClass: 'text-dark-text-secondary' };
+    }
+};
+
+const getStatusIcon = (status: CheckInStatusValue | null | undefined): string => {
+    switch (status) {
+        case CheckInStatus.NEW:
+            return 'check_box_outline_blank'; // Square
+        case CheckInStatus.ACKNOWLEDGED:
+            return 'check_box'; // Check Mark
+        case CheckInStatus.ATTENTION:
+            return 'asterisk'; // Asterisk
+        case CheckInStatus.QUESTION:
+            return 'help_outline'; // Question Mark
+        default:
+            return 'check_box_outline_blank'; // Fallback
+    }
+};
+
+const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, rosterMembers, profile, hasPermission, onEndSessionRequest, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onUpdateCheckInStatus, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
   const [session, setSession] = useState<NetSession | null>(null);
   const [net, setNet] = useState<Net | null>(null);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -205,7 +249,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             .single();
 
         if (sessionError || !sessionData) throw new Error(sessionError?.message || 'Session not found.');
-        const currentSession = sessionData as NetSession;
+        const currentSession = sessionData as unknown as NetSession;
         
         const { data: netData, error: netError } = await supabase
             .from('nets')
@@ -214,7 +258,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
             .single();
 
         if (netError || !netData) throw new Error(netError?.message || 'Associated NET not found.');
-        const currentNetData = netData as Database['public']['Tables']['nets']['Row'];
+        const currentNetData = netData as unknown as Database['public']['Tables']['nets']['Row'];
         
         const { data: checkInData, error: checkInError } = await supabase
             .from('check_ins')
@@ -247,7 +291,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 
         setSession(currentSession);
         setNet(transformedNet);
-        setCheckIns((checkInData as CheckIn[]) || []);
+        setCheckIns((checkInData as unknown as CheckIn[]) || []);
         setSessionNotes(currentSession.notes || '');
         setError(null);
     } catch (err: any) {
@@ -270,7 +314,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => [payload.new as CheckIn, ...prev]);
+        setCheckIns(prev => [payload.new as unknown as CheckIn, ...prev]);
       })
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -278,7 +322,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'check_ins',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as CheckIn : c));
+        setCheckIns(prev => prev.map(c => c.id === payload.new.id ? payload.new as unknown as CheckIn : c));
       })
       .on('postgres_changes', {
         event: 'DELETE',
@@ -294,7 +338,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         table: 'sessions',
         filter: `id=eq.${sessionId}`
       }, (payload) => {
-        const newSession = payload.new as NetSession;
+        const newSession = payload.new as unknown as NetSession;
         setSession(newSession);
         if (newSession.notes !== undefined) {
           setSessionNotes(newSession.notes || '');
@@ -317,6 +361,16 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
     await onUpdateSessionNotes(sessionId, sessionNotes);
     setIsSavingNotes(false);
   };
+  
+  const handleStatusClick = (checkIn: CheckIn) => {
+    if (!net) return;
+    const currentStatus = checkIn.status_flag ?? 0;
+    // Cycle from 0 -> 1 -> 2 -> 3 -> 1
+    const nextStatus = currentStatus === CheckInStatus.QUESTION 
+        ? CheckInStatus.ACKNOWLEDGED 
+        : (currentStatus + 1) as CheckInStatusValue;
+    onUpdateCheckInStatus(checkIn.id, net.id, nextStatus);
+  };
 
   const sortedCheckIns = useMemo(() => {
     const sorted = [...checkIns].sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
@@ -332,9 +386,9 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
   }, [sessionId, net, onAddCheckIn]);
   
   const handleEnd = () => {
-      if (net && window.confirm('Are you sure you want to end this net session?')) {
-          onEndSession(sessionId, net.id);
-      }
+    if (net) {
+        onEndSessionRequest(sessionId, net.id);
+    }
   }
 
     const checkedInCallsigns = useMemo(() => new Set(checkIns.map(ci => ci.call_sign)), [checkIns]);
@@ -359,7 +413,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
   if (!session || !net) return <div className="text-center py-20">Session not found.</div>;
   
   const showRepeaterColumn = net.net_config_type === NetConfigType.LINKED_REPEATER;
-  const tableColSpan = 7 + (showRepeaterColumn ? 1 : 0) + (canLogContacts ? 1 : 0);
+  const tableColSpan = 8 + (showRepeaterColumn ? 1 : 0) + (canLogContacts ? 1 : 0);
 
   return (
     <div className="space-y-6">
@@ -450,6 +504,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
               <table className="min-w-full divide-y divide-dark-700">
                   <thead className="bg-dark-700/50">
                       <tr>
+                          <th scope="col" className="px-2 py-4 text-center text-xs font-medium text-dark-text-secondary uppercase tracking-wider"> </th>
                           <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">#</th>
                           <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Time</th>
                           <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
@@ -476,12 +531,24 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                               const itemNumber = isActive ? (checkIns.length - index) : (index + 1);
                               const newlyAwarded = awardedBadges.filter(ab => ab.session_id === sessionId && ab.call_sign === checkIn.call_sign);
                               const isNCO = checkIn.call_sign === session.primary_nco_callsign;
+                              const { rowClass, callsignClass, iconClass } = getStatusStyles(checkIn.status_flag, isActive);
 
                               return (
-                                  <tr key={checkIn.id} className="hover:bg-dark-700/30">
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-dark-text-secondary">{itemNumber}</td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
-                                      <td className="px-4 py-2 text-sm font-bold text-brand-accent">
+                                  <tr key={checkIn.id} className={`transition-colors ${rowClass} ${checkIn.status_flag > 0 ? '' : 'hover:bg-dark-700/30'}`}>
+                                      <td className="px-2 py-2 whitespace-nowrap text-center">
+                                          {canLogContacts && isActive ? (
+                                              <button onClick={() => handleStatusClick(checkIn)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10" aria-label="Cycle Status">
+                                                  <Icon className={`text-xl ${iconClass}`}>{getStatusIcon(checkIn.status_flag)}</Icon>
+                                              </button>
+                                          ) : (
+                                              <div className="w-10 h-10 flex items-center justify-center">
+                                                  <Icon className={`text-xl ${iconClass}`}>{getStatusIcon(checkIn.status_flag)}</Icon>
+                                              </div>
+                                          )}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">{itemNumber}</td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(checkIn.timestamp).toLocaleTimeString()}</td>
+                                      <td className={`px-4 py-2 text-sm font-bold ${callsignClass}`}>
                                           <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                                               <button onClick={() => onViewCallsignProfile(checkIn.call_sign)} className="hover:underline">
                                                   {checkIn.call_sign}
@@ -498,12 +565,12 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                                               })}
                                           </div>
                                       </td>
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.location}</td>
-                                      {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-text-secondary">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
-                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-dark-text-secondary">{checkIn.notes}</td>
-                                      {canLogContacts && (
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm">{checkIn.location}</td>
+                                      {showRepeaterColumn && <td className="px-6 py-4 whitespace-nowrap text-sm">{repeater ? `${repeater.name ?? '-'} - ${repeater.downlink_freq ?? '-'}` : '-'}</td>}
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm">{checkIn.notes}</td>
+                                      {canLogContacts && isActive && (
                                           <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                                              <div className="flex items-center justify-end gap-2">
+                                              <div className="flex items-center justify-end gap-1">
                                                   <button onClick={() => onEditCheckIn(sessionId, checkIn)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label="Edit Check-in">
                                                       <Icon className="text-xl">edit</Icon>
                                                   </button>
@@ -527,10 +594,10 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
                     <table className="min-w-full divide-y divide-dark-700">
                         <thead className="bg-dark-700/50">
                            <tr>
-                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
-                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
-                                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
-                                <th scope="col" className="px-4 py-2 relative"><span className="sr-only">Action</span></th>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
+                                <th scope="col" className="px-6 py-2 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Location</th>
+                                <th scope="col" className="relative px-6 py-2"><span className="sr-only">Action</span></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-dark-700">

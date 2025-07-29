@@ -1,7 +1,4 @@
 
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
@@ -43,7 +40,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
         const payload = { is_approved: !profile.is_approved };
         const { error } = await supabase
             .from('profiles')
-            .update(payload as any)
+            .update(payload)
             .eq('id', profile.id);
 
         if (error) {

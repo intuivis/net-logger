@@ -1,44 +1,69 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { AuthSessionMissingError } from '@supabase/supabase-js';
-import {LogoSignal} from './icons/LogoSignal';
+import { LogoSignal } from './icons/LogoSignal';
 
 interface HeaderProps {
     profile: Profile | null;
     onSetView: (view: View) => void;
 }
 
+const DropdownMenuItem: React.FC<{
+    icon: string;
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+}> = ({ icon, label, onClick, disabled = false }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-dark-text-secondary hover:bg-dark-700 hover:text-dark-text transition-colors rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+        <Icon className="text-xl w-5 text-center">{icon}</Icon>
+        <span>{label}</span>
+    </button>
+);
+
+
 const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsProfileMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const handleNavClick = (view: View) => {
         onSetView(view);
         setIsMenuOpen(false);
+        setIsProfileMenuOpen(false);
     };
 
     const handleLogout = async () => {
         if (isLoggingOut) return;
         setIsLoggingOut(true);
-        setIsMenuOpen(false);
+        setIsProfileMenuOpen(false);
 
         const { error } = await supabase.auth.signOut();
 
         if (error) {
-            // This can happen if the session is already expired.
-            // The most robust way to ensure the user is in a logged-out state
-            // is to reload the page. This will clear all React state and force
-            // the app to re-check the session from scratch, breaking any loops.
             console.error('Error during sign out, forcing reload:', error.message);
             window.location.reload();
         }
         
-        // If sign-out is successful, the onAuthStateChange listener handles the redirect.
-        // We only reach here if there was no error. In case the component doesn't
-        // unmount right away, we reset the loading state.
         setIsLoggingOut(false);
     };
 
@@ -48,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo and Title */}
                     <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-2 group">
-                    <LogoSignal className="w-8 h-8 text-white" />
+                        <LogoSignal className="w-8 h-8 text-white" />
                         <h1 className="text-xl font-bold tracking-tight text-light-text dark:text-dark-text transition-colors">
                             NetControl <span className="text-xs font-light text-light uppercase">Beta</span>
                         </h1>
@@ -69,34 +94,30 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             Awards
                         </button>
                         {profile ? (
-                            <>
-                                {profile.role === 'admin' && (
-                                     <button
-                                        onClick={() => handleNavClick({type: 'userManagement'})}
-                                        className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
-                                    >
-                                        User Management
-                                    </button>
-                                )}
-                                {(profile.is_approved || profile.role === 'admin') && (
-                                    <button
-                                        onClick={() => handleNavClick({type: 'manageNets'})}
-                                        className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
-                                    >
-                                        Manage NETs
-                                    </button>
-                                )}
-                                <span className="text-sm text-dark-text-secondary hidden sm:block">
-                                    {profile.email}
-                                </span>
+                            <div className="relative" ref={menuRef}>
                                 <button
-                                    onClick={handleLogout}
-                                    disabled={isLoggingOut}
-                                    className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-wait"
+                                    onClick={() => setIsProfileMenuOpen(prev => !prev)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-300/50 hover:bg-dark-700 rounded-full transition-colors"
                                 >
-                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                    <span>{profile.call_sign || profile.full_name?.split(' ')[0] || 'Profile'}</span>
+                                    <Icon className="text-xl transition-transform" style={{ transform: isProfileMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</Icon>
                                 </button>
-                            </>
+                                {isProfileMenuOpen && (
+                                    <div className="absolute right-0 mt-2 w-56 origin-top-right bg-dark-800 border border-dark-700 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none p-2">
+                                        <div className="space-y-1">
+                                            <DropdownMenuItem icon="person" label="My Profile" onClick={() => handleNavClick({ type: 'profile' })} />
+                                            {(profile.is_approved || profile.role === 'admin') && (
+                                                 <DropdownMenuItem icon="podcasts" label="Manage NETs" onClick={() => handleNavClick({ type: 'manageNets' })} />
+                                            )}
+                                            {profile.role === 'admin' && (
+                                                 <DropdownMenuItem icon="manage_accounts" label="User Management" onClick={() => handleNavClick({ type: 'userManagement' })} />
+                                            )}
+                                            <div className="h-px bg-dark-700 my-1" />
+                                            <DropdownMenuItem icon="logout" label={isLoggingOut ? "Signing out..." : "Sign Out"} onClick={handleLogout} disabled={isLoggingOut} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <>
                                 <button
@@ -148,31 +169,25 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                         </button>
                        {profile ? (
                             <>
-                                {profile.role === 'admin' && (
-                                     <button
-                                        onClick={() => handleNavClick({type: 'userManagement'})}
-                                        className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
-                                    >
-                                        User Management
-                                    </button>
-                                )}
-                                {(profile.is_approved || profile.role === 'admin') && (
-                                    <button
-                                        onClick={() => handleNavClick({type: 'manageNets'})}
-                                        className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
-                                    >
-                                        Manage NETs
-                                    </button>
-                                )}
                                 <div className="px-3 py-3 my-1 border-y border-dark-700 text-sm text-dark-text-secondary text-center">
-                                    Signed in as <span className="font-semibold text-dark-text">{profile.email}</span>
+                                    Signed in as <span className="font-semibold text-dark-text">{profile.call_sign || profile.email}</span>
                                 </div>
-                                <button
-                                    onClick={handleLogout}
-                                    disabled={isLoggingOut}
-                                    className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700 disabled:opacity-50"
-                                >
-                                    {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                <button onClick={() => handleNavClick({ type: 'profile' })} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700">
+                                    <Icon className="text-xl w-5 text-center">person</Icon>My Profile
+                                </button>
+                                {(profile.is_approved || profile.role === 'admin') && (
+                                    <button onClick={() => handleNavClick({ type: 'manageNets' })} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700">
+                                        <Icon className="text-xl w-5 text-center">podcasts</Icon>Manage NETs
+                                    </button>
+                                )}
+                                {profile.role === 'admin' && (
+                                     <button onClick={() => handleNavClick({ type: 'userManagement' })} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700">
+                                        <Icon className="text-xl w-5 text-center">manage_accounts</Icon>User Management
+                                    </button>
+                                )}
+                                <div className="h-px bg-dark-700 my-1" />
+                                <button onClick={handleLogout} disabled={isLoggingOut} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700 disabled:opacity-50">
+                                    <Icon className="text-xl w-5 text-center">logout</Icon>{isLoggingOut ? 'Logging out...' : 'Sign Out'}
                                 </button>
                             </>
                         ) : (
