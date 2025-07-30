@@ -31,20 +31,6 @@ export type Database = {
           awarded_at?: string;
           session_id?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "awarded_badges_badge_id_fkey"
-            columns: ["badge_id"]
-            referencedRelation: "badges"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "awarded_badges_session_id_fkey"
-            columns: ["session_id"]
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          }
-        ]
       };
       badges: {
         Row: {
@@ -62,7 +48,6 @@ export type Database = {
           name?: string;
           description?: string;
         };
-        Relationships: []
       };
       callsigns: {
         Row: {
@@ -83,7 +68,6 @@ export type Database = {
           last_name?: string | null;
           license_id?: number;
         };
-        Relationships: []
       };
       check_ins: {
         Row: {
@@ -118,14 +102,6 @@ export type Database = {
           repeater_id?: string | null;
           status_flag?: number;
         };
-        Relationships: [
-          {
-            foreignKeyName: "check_ins_session_id_fkey"
-            columns: ["session_id"]
-            referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          }
-        ]
       };
       nets: {
         Row: {
@@ -150,7 +126,6 @@ export type Database = {
           passcode_permissions: Json | null;
         };
         Insert: {
-          created_at?: string;
           created_by: string;
           name: string;
           description?: string | null;
@@ -171,7 +146,6 @@ export type Database = {
         };
         Update: {
           id?: string;
-          created_at?: string;
           created_by?: string;
           name?: string;
           description?: string | null;
@@ -190,14 +164,6 @@ export type Database = {
           passcode?: string | null;
           passcode_permissions?: Json | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "nets_created_by_fkey"
-            columns: ["created_by"]
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
       };
       profiles: {
         Row: {
@@ -227,14 +193,6 @@ export type Database = {
           role?: "admin" | "nco";
           is_approved?: boolean;
         };
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
       };
       roster_members: {
         Row: {
@@ -246,12 +204,10 @@ export type Database = {
           created_at: string;
         };
         Insert: {
-          id?: string;
           net_id: string;
           call_sign: string;
           name?: string | null;
           location?: string | null;
-          created_at?: string;
         };
         Update: {
           id?: string;
@@ -261,14 +217,6 @@ export type Database = {
           location?: string | null;
           created_at?: string;
         };
-        Relationships: [
-          {
-            foreignKeyName: "roster_members_net_id_fkey"
-            columns: ["net_id"]
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
-          }
-        ]
       };
       sessions: {
         Row: {
@@ -282,8 +230,6 @@ export type Database = {
           notes: string | null;
         };
         Insert: {
-          id?: string;
-          created_at?: string;
           net_id: string;
           start_time?: string;
           end_time?: string | null;
@@ -301,14 +247,6 @@ export type Database = {
           primary_nco_callsign?: string;
           notes?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: "sessions_net_id_fkey"
-            columns: ["net_id"]
-            referencedRelation: "nets"
-            referencedColumns: ["id"]
-          }
-        ]
       };
     };
     Views: {};

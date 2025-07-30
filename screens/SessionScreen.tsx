@@ -1,11 +1,4 @@
 
-
-
-
-
-
-
-
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, DayOfWeek, Repeater, NetType, PermissionKey, PasscodePermissions, RosterMember, CheckInInsertPayload, Json, CheckInStatus, CheckInStatusValue } from '../types';
 import { Icon } from '../components/Icon';
@@ -30,6 +23,7 @@ interface SessionScreenProps {
   onBack: () => void;
   onUpdateSessionNotes: (sessionId: string, notes: string) => Promise<void>;
   onViewCallsignProfile: (callsign: string) => void;
+  showAlert: (title: string, message: string) => void;
 }
 
 const FormInput = ({ label, id, ...props }: {label: string, id: string} & React.InputHTMLAttributes<HTMLInputElement>) => (
@@ -60,7 +54,7 @@ const FormSelect = ({ label, id, children, ...props }: {label: string, id: strin
 
 const REPEATER_STORAGE_KEY = (net: Net) => `selectedRepeater_${net.id}`;
 
-const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: CheckInInsertPayload) => Promise<void> }> = ({ net, checkIns, onAdd }) => {
+const CheckInForm: React.FC<{ net: Net, checkIns: CheckIn[], onAdd: (checkIn: CheckInInsertPayload) => Promise<void>, showAlert: (title: string, message: string) => void }> = ({ net, checkIns, onAdd, showAlert }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
@@ -122,12 +116,12 @@ const handleSubmit = async (e: React.FormEvent) => {
         const trimmedCallsign = callSign.trim().toUpperCase();
 
         if (!trimmedCallsign) {
-            alert("Call Sign cannot be empty.");
+            showAlert("Missing Information", "Call Sign cannot be empty.");
             return;
         }
 
         if (checkIns.some(ci => ci.call_sign.trim().toUpperCase() === trimmedCallsign)) {
-            alert(`${trimmedCallsign} has already checked into this session.`);
+            showAlert("Duplicate Entry", `${trimmedCallsign} has already checked into this session.`);
             return;
         }
         
@@ -181,7 +175,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                              <FormInput label="Notes" id="notes" value={notes} onChange={e => setNotes(e.target.value)} />
                          </div>
                          <button type="submit" className="flex-shrink-0 px-4 py-2 h-11 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800">
-                            Log It
+                            Check In
                          </button>
                     </div>
                 </div>
@@ -228,7 +222,7 @@ const getStatusIcon = (status: CheckInStatusValue | null | undefined): string =>
     }
 };
 
-const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, rosterMembers, profile, hasPermission, onEndSessionRequest, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onUpdateCheckInStatus, onBack, onUpdateSessionNotes, onViewCallsignProfile }) => {
+const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awardedBadges, rosterMembers, profile, hasPermission, onEndSessionRequest, onAddCheckIn, onEditCheckIn, onDeleteCheckIn, onUpdateCheckInStatus, onBack, onUpdateSessionNotes, onViewCallsignProfile, showAlert }) => {
   const [session, setSession] = useState<NetSession | null>(null);
   const [net, setNet] = useState<Net | null>(null);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
@@ -353,6 +347,18 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
 
   const isActive = useMemo(() => session?.end_time === null, [session]);
   
+  useEffect(() => {
+    // This keep-alive ping prevents the session from timing out during long periods of inactivity.
+    if (isActive) {
+        const keepAliveInterval = setInterval(() => {
+            console.log('Performing keep-alive fetch for session...');
+            fetchSessionData(); 
+        }, 10 * 60 * 1000); // Every 10 minutes
+
+        return () => clearInterval(keepAliveInterval);
+    }
+  }, [isActive, fetchSessionData]);
+
   const canLogContacts = hasPermission('logContacts');
   const canManageSession = hasPermission('manageSessions');
 
@@ -481,7 +487,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, awa
         </div>
       ) : null }
       
-      {canLogContacts && isActive && <CheckInForm net={net} checkIns={checkIns} onAdd={handleAdd} />}
+      {canLogContacts && isActive && <CheckInForm net={net} checkIns={checkIns} onAdd={handleAdd} showAlert={showAlert} />}
       
       <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
         <div className="p-5 sm:p-6 border-b border-dark-700">
