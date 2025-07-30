@@ -97,8 +97,11 @@ const isNightOwl = (
   __: NetSession[],
   newCheckIn: CheckIn
 ): boolean => {
-  const hour = new Date(newCheckIn.timestamp).getHours();
-  return hour >= 22 || hour < 5; // 10 PM - 5 AM
+  // NOTE: This check currently uses UTC hours to match the server-side badge
+  // awarding logic, which has a bug. The intended behavior is to use the
+  // NET's local time zone.
+  const hour = new Date(newCheckIn.timestamp).getUTCHours();
+  return hour >= 22 || hour < 5; // 10 PM - 5 AM UTC
 };
 
 const isDaybreaker = (
@@ -106,8 +109,11 @@ const isDaybreaker = (
   __: NetSession[],
   newCheckIn: CheckIn
 ): boolean => {
-  const hour = new Date(newCheckIn.timestamp).getHours();
-  return hour >= 5 && hour < 9; // 5 AM - 9 AM
+  // NOTE: This check currently uses UTC hours to match the server-side badge
+  // awarding logic, which has a bug. The intended behavior is to use the
+  // NET's local time zone.
+  const hour = new Date(newCheckIn.timestamp).getUTCHours();
+  return hour >= 5 && hour < 9; // 5 AM - 9 AM UTC
 };
 
 export const BADGE_DEFINITIONS: Omit<BadgeDefinition, 'name' | 'description'>[] = [
