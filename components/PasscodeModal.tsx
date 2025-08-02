@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 
 interface PasscodeModalProps {
     netName: string;
@@ -12,13 +13,23 @@ interface PasscodeModalProps {
 const PasscodeModal: React.FC<PasscodeModalProps> = ({ netName, onVerify, onClose, error, isVerifying }) => {
     const [passcode, setPasscode] = useState('');
 
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onVerify(passcode);
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
             <div className="bg-dark-800 rounded-lg shadow-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <div className="p-6">

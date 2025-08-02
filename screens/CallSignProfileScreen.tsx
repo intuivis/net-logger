@@ -161,7 +161,7 @@ const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
             <div>
                 <h1 className="text-4xl font-bold tracking-tight">{callsign}</h1>
-                <p className="text-dark-text-secondary mt-1">{displayName}</p>
+                <p className="text-dark-text mt-1">{displayName}</p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-2">
                  {isOwnProfile && onNavigateToSettings && (
@@ -226,8 +226,8 @@ const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
                                                 {net.name}
                                             </button>
                                         </div>
-                                        <p className="text-sm text-dark-text-secondary mt-1">
-                                            <Icon className="text-sm align-text-bottom">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                        <p className="text-sm text-dark-text mt-1">
+                                            <Icon className="text-sm">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                                         </p>
                                     </div>
 

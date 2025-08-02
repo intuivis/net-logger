@@ -20,8 +20,25 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.0 (Current)</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Tuesday, July 29, 2024</p>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.1 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Saturday, August 2, 2025</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Major optimizations and bug fixes to help resolve real-time check-in monitoring.</li>
+                            <li>Removed name and callsign from "New NET" screen since that is captured during registration.</li>
+                            <li>Improved speed in logging and preparing system for next major feature.</li>
+                            <li>Improved user experience for viewing and managing NCO profiles.</li>
+                            <li>Improved user experience for all alerts and confirmation dialogs.</li>
+                            <li>Setting up system to improve Rosters.</li>
+                            <li>Improved net control badging in check-in log.</li>
+                            <li>Improved the presentation of a few mobile screens.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.0</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Tuesday, July 29, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>The "first check-in" badge is now awarded for first time check-ins on a Net.</li>
                             <li>Slight adjustment to the badge design for added size consistency.</li>
@@ -41,7 +58,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-dark-800 pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.2.1</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Sunday, July 27, 2024</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Sunday, July 27, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Addressing bugs with the rollout of the roster.</li>
                         </ul>
@@ -51,7 +68,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-dark-800 pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.2.0</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, July 25, 2024</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, July 25, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>More optimizations and an improved user experience</li>
                             <li>
@@ -68,7 +85,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-dark-800 pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.1.0</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Thursday, July 24, 2024</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Thursday, July 24, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Removed the Javascript alert for new badge awards to speed up adding stations to contact log.</li>
                             <li>Addressed a session timeout bug and offered a modal to direct login.</li>
@@ -86,7 +103,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-dark-800 pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.0.1</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, July 23, 2024</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, July 23, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Added application footer with user agreement, release notes, and feedback links.</li>
                             <li>Added user agreement on registration screen.</li>
@@ -98,7 +115,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-dark-800 pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.0.0</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> July 2024</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> July 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Initial release of the NetControl application.</li>
                             <li>Features include NET creation, session management, and real-time check-in logging.</li>

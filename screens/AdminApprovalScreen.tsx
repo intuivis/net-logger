@@ -1,4 +1,9 @@
 
+
+
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
@@ -26,7 +31,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
             console.error(error);
             setError('Failed to load user profiles.');
         } else {
-            setProfiles((data as unknown as Profile[]) || []);
+            setProfiles((data as Profile[]) || []);
         }
         setLoading(false);
     }, []);
@@ -37,10 +42,10 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
 
     const handleApprovalToggle = async (profile: Profile) => {
         setUpdatingProfileId(profile.id);
-        const payload = { is_approved: !profile.is_approved };
+        const payload: Database['public']['Tables']['profiles']['Update'] = { is_approved: !profile.is_approved };
         const { error } = await supabase
             .from('profiles')
-            .update(payload)
+            .update(payload as any)
             .eq('id', profile.id);
 
         if (error) {

@@ -229,8 +229,8 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!net.name || !net.primary_nco || !net.primary_nco_callsign) {
-        alert("Net Name and Primary NCO fields are required.");
+    if (!net.name) {
+        alert("Net Name is required.");
         return;
     }
 
@@ -299,8 +299,6 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                 <FormSelect label="Type of NET" id="net_type" name="net_type" value={net.net_type} onChange={handleInputChange}>
                     {NET_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </FormSelect>
-                <FormInput label="Primary NCO Name" id="primary_nco" name="primary_nco" type="text" value={net.primary_nco || ''} onChange={handleInputChange} required />
-                <FormInput label="Primary NCO Callsign" id="primary_nco_callsign" name="primary_nco_callsign" type="text" value={net.primary_nco_callsign || ''} onChange={handleInputChange} required />
             </div>
         </div>
 
@@ -364,52 +362,52 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         </fieldset>
         
         {canManagePermissions && (
-          <fieldset className="border-t border-dark-700 pt-6">
-              <legend className="text-lg font-medium text-dark-text">Delegate Permissions</legend>
-              <p className="text-sm text-dark-text-secondary mt-1 mb-4">Create a passcode to allow other authenticated users permission to help manage this NET. If you set a passcode, you must select at least one permission. Leave blank to disable.</p>
-              
-              <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
-                  <div className="max-w-sm">
-                      <FormInput 
-                          label="Passcode" 
-                          id="passcode" 
-                          name="passcode" 
-                          type="text"
-                          className="w-32"
-                          value={net.passcode || ''} 
-                          onChange={handleInputChange}
-                          placeholder=""
-                      />
-                  <p className="text-xs text-dark-text-secondary mt-1">4-8 alphanumeric characters</p>
-                  </div>
+        <fieldset className="border-t border-dark-700 pt-6">
+            <legend className="text-lg font-medium text-dark-text">Delegate Permissions</legend>
+            <p className="text-sm text-dark-text-secondary mt-1 mb-4">Create a passcode to allow other authenticated users permission to help manage this NET. If you set a passcode, you must select at least one permission. Leave blank to disable.</p>
+            
+            <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
+                <div className="max-w-sm">
+                    <FormInput 
+                        label="Passcode" 
+                        id="passcode" 
+                        name="passcode" 
+                        type="text"
+                        className="w-32"
+                        value={net.passcode || ''} 
+                        onChange={handleInputChange}
+                        placeholder=""
+                    />
+                <p className="text-xs text-dark-text-secondary mt-1">4-8 alphanumeric characters</p>
+                </div>
 
-                  {net.passcode && (
-                      <div className="mt-6">
-                          <h4 className="text-md font-medium text-dark-text-secondary mb-2">Permissions</h4>
-                          <div className="space-y-4">
-                            {PERMISSION_DEFINITIONS.map(p => (
-                                <div key={p.key} className="relative flex items-start">
-                                      <div className="flex h-6 items-center">
-                                          <input
-                                              id={`perm-${p.key}`}
-                                              name={`perm-${p.key}`}
-                                              type="checkbox"
-                                              className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
-                                              checked={net.passcode_permissions?.[p.key] || false}
-                                              onChange={(e) => handlePermissionChange(p.key, e.target.checked)}
-                                          />
-                                      </div>
-                                      <div className="ml-3 text-sm leading-6">
-                                          <label htmlFor={`perm-${p.key}`} className="font-medium text-dark-text">{p.label}</label>
-                                          <p className="text-dark-text-secondary">{p.description}</p>
-                                      </div>
-                                  </div>
-                            ))}
-                          </div>
-                      </div>
-                  )}
-              </div>
-          </fieldset>
+                {net.passcode && (
+                    <div className="mt-6">
+                        <h4 className="text-md font-medium text-dark-text-secondary mb-2">Permissions</h4>
+                        <div className="space-y-4">
+                          {PERMISSION_DEFINITIONS.map(p => (
+                              <div key={p.key} className="relative flex items-start">
+                                    <div className="flex h-6 items-center">
+                                        <input
+                                            id={`perm-${p.key}`}
+                                            name={`perm-${p.key}`}
+                                            type="checkbox"
+                                            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-accent"
+                                            checked={net.passcode_permissions?.[p.key] || false}
+                                            onChange={(e) => handlePermissionChange(p.key, e.target.checked)}
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm leading-6">
+                                        <label htmlFor={`perm-${p.key}`} className="font-medium text-dark-text">{p.label}</label>
+                                        <p className="text-dark-text-secondary">{p.description}</p>
+                                    </div>
+                                </div>
+                          ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </fieldset>
         )}
 
         <div className="flex justify-end gap-4 pt-4 border-t border-dark-700">

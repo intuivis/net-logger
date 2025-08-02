@@ -1,5 +1,6 @@
 
-import React from 'react';
+
+import React, { useEffect } from 'react';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -20,6 +21,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     confirmText = 'Confirm',
     isDestructive = false
 }) => {
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+    
     if (!isOpen) return null;
 
     const handleConfirmClick = () => {
@@ -28,7 +40,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4" aria-modal="true" role="dialog" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4" aria-modal="true" role="dialog">
             <div className="bg-dark-800 rounded-lg shadow-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
                 <div className="p-6">
                     <h2 className="text-xl font-bold text-dark-text">{title}</h2>

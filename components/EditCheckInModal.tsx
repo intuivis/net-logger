@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { CheckIn, NetSession, Net, NetConfigType } from '../types';
 import { formatRepeaterCondensed } from '../lib/time';
@@ -44,6 +45,16 @@ const EditCheckInModal: React.FC<EditCheckInModalProps> = ({ session, net, check
   useEffect(() => {
       setFormData(checkIn);
   }, [checkIn]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+            onClose();
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
@@ -61,7 +72,7 @@ const EditCheckInModal: React.FC<EditCheckInModalProps> = ({ session, net, check
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" onClick={onClose}>
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
       <div className="bg-dark-800 rounded-lg shadow-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit}>
           <div className="p-6">

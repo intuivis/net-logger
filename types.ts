@@ -1,6 +1,7 @@
 
 
-export type { Json } from './database.types';
+
+
 
 export enum NetType {
   SOCIAL = "Social",
@@ -103,6 +104,7 @@ export interface CheckIn {
   notes: string | null;
   repeater_id: string | null;
   status_flag: CheckInStatusValue;
+  isOptimistic?: boolean;
 }
 
 export interface NetSession {
@@ -118,10 +120,10 @@ export interface NetSession {
 
 export interface Profile {
   id: string;
-  updated_at: string | null;
   email: string | null;
   full_name: string | null;
   call_sign: string | null;
+  location: string | null;
   role: "admin" | "nco";
   is_approved: boolean;
 }
@@ -138,6 +140,7 @@ export interface AwardedBadge {
   badge_id: string;
   awarded_at: string;
   session_id: string;
+  net_id: string;
 }
 
 export interface RosterMember {
@@ -153,12 +156,31 @@ export type BadgeCategory = "Participation" | "Loyalty" | "Special";
 
 export interface CheckInInsertPayload {
   call_sign: string;
-  name?: string | null;
-  location?: string | null;
-  notes?: string | null;
-  repeater_id?: string | null;
+  name: string | null;
+  location: string | null;
+  notes: string | null;
+  repeater_id: string | null;
   timestamp?: string;
 }
+
+export interface ListeningStation {
+  id: string;
+  created_at: string;
+  session_id: string;
+  call_sign: string;
+  name: string | null;
+  location: string | null;
+  notes: string | null;
+  profile_id: string | null;
+}
+
+export interface JoinNetFormState {
+  call_sign: string;
+  name: string;
+  location: string;
+  notes: string;
+}
+
 
 export interface BadgeDefinition extends Badge {
   category: BadgeCategory;

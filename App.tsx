@@ -1,5 +1,14 @@
+
+
+/**
+ * App.tsx
+ * 
+ * This is the root component of the application, acting as the main controller.
+ * It manages all global state, user authentication, data fetching, real-time
+ * subscriptions, and view routing.
+ */
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, Json, CheckInStatusValue } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, CheckInStatusValue } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -13,7 +22,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import AccessRevokedScreen from './screens/PendingApprovalScreen';
 import UserManagementScreen from './screens/AdminApprovalScreen';
 import { Session } from '@supabase/supabase-js';
-import { Database } from './database.types';
+import { Database, Json } from './database.types';
 import { BADGE_DEFINITIONS } from './lib/badges';
 import CallSignProfileScreen from './screens/CallSignProfileScreen';
 import AboutScreen from './screens/AboutScreen';
@@ -30,29 +39,43 @@ import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
 
 const App: React.FC = () => {
+  // --- STATE MANAGEMENT ---
+
+  // `viewHistory` manages the navigation stack. The last item is the current view.
   const [viewHistory, setViewHistory] = useState<View[]>([{ type: 'home' }]);
+  // `view` is a convenience variable for the current screen.
   const view = viewHistory[viewHistory.length - 1];
   
+  // `session` stores the current Supabase authentication session. Null if logged out.
   const [session, setSession] = useState<Session | null>(null);
+  // `profile` stores the logged-in user's profile data from the 'profiles' table.
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [nets, setNets] = useState<Net[]>([]);
-  const [sessions, setSessions] = useState<NetSession[]>([]);
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
-  const [allBadges, setAllBadges] = useState<Badge[]>([]);
-  const [awardedBadges, setAwardedBadges] = useState<AwardedBadge[]>([]);
-  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]);
   
+  // Global data stores. These hold all the data fetched from the database.
+  const [nets, setNets] = useState<Net[]>([]); // All configured NETs.
+  const [sessions, setSessions] = useState<NetSession[]>([]); // All historical and active sessions for all NETs.
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]); // All check-ins for all sessions.
+  const [allBadges, setAllBadges] = useState<Badge[]>([]); // Definitions of all possible badges.
+  const [awardedBadges, setAwardedBadges] = useState<AwardedBadge[]>([]); // Records of which users have earned which badges.
+  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>([]); // All roster members for all NETs.
+  
+  // `loading` tracks the initial data loading state when the app or user session changes.
   const [loading, setLoading] = useState(true);
 
+  // State for modals and UI interactions.
   const [editingCheckIn, setEditingCheckIn] = useState<{ sessionId: string; checkIn: CheckIn } | null>(null);
   const [verifyingPasscodeForNet, setVerifyingPasscodeForNet] = useState<Net | null>(null);
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   
+  // `grantedPermissions`: Stores permissions granted via passcode for specific NETs.
   const [grantedPermissions, setGrantedPermissions] = useState<Record<string, PasscodePermissions>>({});
+  // `verifiedPasscodes`: Stores the actual passcodes that have been successfully verified.
   const [verifiedPasscodes, setVerifiedPasscodes] = useState<Record<string, string>>({});
+  // `isSessionExpired`: Controls the visibility of the session expiration modal.
   const [isSessionExpired, setIsSessionExpired] = useState(false);
 
+  // State for the confirmation modal.
   const [confirmModalState, setConfirmModalState] = useState<{
       isOpen: boolean;
       title: string;
@@ -67,6 +90,7 @@ const App: React.FC = () => {
       onConfirm: () => {},
   });
   
+  // State for the generic alert modal.
   const [alertModalState, setAlertModalState] = useState<{
       isOpen: boolean;
       title: string;
@@ -77,10 +101,15 @@ const App: React.FC = () => {
       message: '',
   });
 
+  // --- NAVIGATION ---
+
+  // `goBack`: Pops the last view from the history stack to navigate back.
   const goBack = useCallback(() => {
       setViewHistory(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
 
+  // `setView`: Pushes a new view onto the history stack to navigate forward.
+  // Includes logic to reset the stack for top-level navigation.
   const setView = useCallback((newView: View) => {
       setViewHistory(prev => {
           const currentView = prev[prev.length - 1];
@@ -94,75 +123,10 @@ const App: React.FC = () => {
           return [...prev, newView];
       });
   }, []);
-
-  const handleApiError = useCallback((error: any, context?: string) => {
-    console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
-
-    let finalMessage = 'An unexpected error occurred.';
-    
-    if (error) {
-        // Most specific: PostgREST error object
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-            finalMessage = String(error.message);
-            if ('details' in error && typeof error.details === 'string' && error.details) {
-                finalMessage += `\nDetails: ${error.details}`;
-            }
-            if ('hint' in error && typeof error.hint === 'string' && error.hint) {
-                finalMessage += `\nHINT: ${error.hint}`;
-            }
-        // Next specific: JavaScript Error object
-        } else if (error instanceof Error) {
-            finalMessage = error.toString();
-        // Generic string
-        } else if (typeof error === 'string' && error) {
-            finalMessage = error;
-        // Fallback: try to stringify whatever it is
-        } else {
-            try {
-                const jsonString = JSON.stringify(error);
-                if (jsonString !== '{}') {
-                    finalMessage = `A technical error occurred: ${jsonString}`;
-                } else {
-                    finalMessage = `An unknown, non-serializable error occurred. Check developer console.`;
-                }
-            } catch (e) {
-                finalMessage = 'An un-serializable error object was thrown. See console for details.';
-            }
-        }
-    }
-
-    // Specific handling for the duplicate badge error.
-    if (context === 'handleAddCheckIn' && finalMessage.includes('awarded_badges_call_sign_badge_id_key')) {
-        console.warn('Suppressed non-critical duplicate badge error:', finalMessage);
-        // This error is a race condition on the backend where it tries to award a badge that
-        // already exists. The main check-in operation likely succeeded, so we can ignore this
-        // specific error to avoid confusing the user.
-        return; // Don't show an alert for this specific case.
-    }
-
-    // Check for auth errors specifically to trigger re-login
-    const isAuthError = (
-        (typeof error === 'object' && error !== null && 'status' in error && (error.status === 401 || error.status === 403)) ||
-        finalMessage.includes('JWT expired') ||
-        (finalMessage.includes('invalid') && finalMessage.includes('token'))
-    );
-    
-    const contextMessage = context ? `\nContext: ${context}` : '';
-
-    if (isAuthError) {
-        setIsSessionExpired(true);
-    } else {
-        alert(`API Error: ${finalMessage}${contextMessage}\nPlease try again.`);
-    }
-  }, []);
   
-  const requestConfirmation = useCallback((config: Omit<typeof confirmModalState, 'isOpen'>) => {
-    setConfirmModalState({
-        ...config,
-        isOpen: true,
-    });
-  }, []);
+  // --- MODALS & ALERTS ---
   
+  // `showAlert`: Displays a generic alert modal with a title and message.
   const showAlert = useCallback((title: string, message: string) => {
     setAlertModalState({
         isOpen: true,
@@ -171,6 +135,75 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // `handleApiError`: Centralized error handler for all Supabase/API calls.
+  // It parses the error object and displays a user-friendly message in the alert modal.
+  // It also specifically handles auth errors to show the session expired modal.
+  const handleApiError = useCallback((error: any, context?: string) => {
+    console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
+
+    let title = `API Error${context ? ` in ${context}` : ''}`;
+    let message = 'An unexpected error occurred.';
+
+    if (error) {
+        if (typeof error === 'object' && error !== null && 'message' in error) {
+            const errorParts = [];
+            if (typeof error.message === 'string') {
+                errorParts.push(error.message);
+            }
+            if ('details' in error && typeof error.details === 'string' && error.details) {
+                errorParts.push(`Details: ${error.details}`);
+            }
+            if ('hint' in error && typeof error.hint === 'string' && error.hint) {
+                errorParts.push(`Hint: ${error.hint}`);
+            }
+            if (errorParts.length > 0) {
+                message = errorParts.join(' ');
+            } else {
+                 try {
+                    message = `An unknown error occurred: ${JSON.stringify(error)}`;
+                 } catch(e) { message = 'An un-serializable error object was thrown.' }
+            }
+        } else if (error instanceof Error) {
+            message = error.message;
+        } else if (typeof error === 'string') {
+            message = error;
+        } else {
+             try {
+                message = `An unknown error occurred: ${JSON.stringify(error)}`;
+            } catch (e) { message = 'An un-serializable error object was thrown.' }
+        }
+    }
+
+    const isAuthError = (
+        (typeof error === 'object' && error !== null && 'status' in error && (error.status === 401 || error.status === 403)) ||
+        (message && (message.includes('JWT expired') || (message.includes('invalid') && message.includes('token'))))
+    );
+
+    if (isAuthError) {
+        setIsSessionExpired(true);
+        return;
+    }
+
+    if (message && message.includes('Failed to fetch')) {
+        title = 'Network Connection Error';
+        message = 'The application could not connect to the server. This may be due to a network connectivity issue, a browser extension (like an ad-blocker), or a firewall. Please check your connection and browser settings, then try again.';
+    }
+
+    showAlert(title, message);
+  }, [showAlert]);
+  
+  // `requestConfirmation`: Displays a confirmation dialog before performing a destructive action.
+  const requestConfirmation = useCallback((config: Omit<typeof confirmModalState, 'isOpen'>) => {
+    setConfirmModalState({
+        ...config,
+        isOpen: true,
+    });
+  }, []);
+  
+  // --- DATA TRANSFORMATION & FETCHING ---
+
+  // `transformNetPayload`: A helper function to convert raw net data from Supabase 
+  // into the strongly-typed `Net` interface used by the frontend.
   const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
     id: rawNet.id,
     created_by: rawNet.created_by,
@@ -192,7 +225,8 @@ const App: React.FC = () => {
     passcode_permissions: (rawNet.passcode_permissions as unknown as PasscodePermissions | null),
   }), []);
 
-
+  // `refreshAllData`: Fetches all primary data sets from Supabase in parallel.
+  // This is called on initial load and after major state changes (like ending a session).
   const refreshAllData = useCallback(async () => {
     try {
         const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes, rosterMembersRes] = await Promise.all([
@@ -201,7 +235,7 @@ const App: React.FC = () => {
             supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
             supabase.from('awarded_badges').select('*'),
             supabase.from('badges').select('*'),
-            supabase.from('roster_members').select('*'), // Fetch all roster members
+            supabase.from('roster_members').select('*'),
         ]);
 
         if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
@@ -213,70 +247,94 @@ const App: React.FC = () => {
             throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
         }
         
-        const rawNets = (netsRes.data as unknown as Database['public']['Tables']['nets']['Row'][]) || [];
-        const typedNets: Net[] = rawNets.map(transformNetPayload);
+        const typedNets: Net[] = ((netsRes.data as Database['public']['Tables']['nets']['Row'][]) || []).map(transformNetPayload);
         
+        // FIX: Transform raw check-in data to match the frontend CheckIn type.
+        // The database returns `status_flag` as a generic `number`, but our frontend `CheckIn` type
+        // expects the more specific `CheckInStatusValue` union type. We cast it here.
+        const typedCheckIns = ((checkInsRes.data as Database['public']['Tables']['check_ins']['Row'][]) || []).map(ci => ({
+            ...ci,
+            status_flag: ci.status_flag as CheckInStatusValue,
+        }));
+
         setNets(typedNets);
-        setSessions((sessionsRes.data as unknown as NetSession[]) || []);
-        setCheckIns((checkInsRes.data as unknown as CheckIn[]) || []);
-        setAwardedBadges((awardedBadgesRes.data as unknown as AwardedBadge[]) || []);
-        setAllBadges((allBadgesRes.data as unknown as Badge[]) || []);
-        setRosterMembers((rosterMembersRes.data as unknown as RosterMember[]) || []);
+        setSessions((sessionsRes.data as NetSession[]) || []);
+        setCheckIns(typedCheckIns);
+        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
+        setAllBadges((allBadgesRes.data as Badge[]) || []);
+        setRosterMembers((rosterMembersRes.data as RosterMember[]) || []);
 
     } catch (error: any) {
         handleApiError(error, 'refreshAllData');
     }
   }, [transformNetPayload, handleApiError]);
 
+  // `backfillBadges`: A utility function to retroactively award "First Check-in" badges.
+  // This runs on startup to ensure data consistency if the logic was previously missing.
   const backfillBadges = useCallback(async () => {
     const firstCheckinBadgeId = 'first_checkin';
 
     try {
-        const [checkInsRes, awardedBadgesRes] = await Promise.all([
-            supabase.from('check_ins').select('call_sign, timestamp, session_id'),
-            supabase.from('awarded_badges').select('call_sign, badge_id').eq('badge_id', firstCheckinBadgeId)
-        ]);
+        const { data: allSessions, error: sessionsError } = await supabase.from('sessions').select('id, net_id');
+        if (sessionsError) throw new Error(`Failed to fetch sessions for backfill: ${sessionsError.message}`);
+        const sessionToNetMap = new Map(((allSessions as Pick<NetSession, 'id' | 'net_id'>[]) || []).map(s => [s.id, s.net_id]));
 
-        if (checkInsRes.error) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsRes.error.message}`);
-        if (awardedBadgesRes.error) throw new Error(`Failed to fetch awarded badges for backfill: ${awardedBadgesRes.error.message}`);
+        const { data: allCheckIns, error: checkInsError } = await supabase.from('check_ins').select('call_sign, timestamp, session_id');
+        if (checkInsError) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsError.message}`);
 
-        const allCheckIns = (checkInsRes.data as unknown as { call_sign: string; timestamp: string; session_id: string }[]) || [];
-        const operatorsWithFirstBadge = new Set((awardedBadgesRes.data as unknown as { call_sign: string }[] || []).map(b => b.call_sign));
+        const { data: existingAwards, error: awardedBadgesError } = await supabase.from('awarded_badges').select('call_sign, net_id').eq('badge_id', firstCheckinBadgeId);
+        if (awardedBadgesError) throw new Error(`Failed to fetch existing badges: ${awardedBadgesError.message}`);
 
-        const firstCheckIns = new Map<string, { timestamp: string; session_id: string }>();
-        for (const checkIn of allCheckIns) {
-            const existingFirst = firstCheckIns.get(checkIn.call_sign);
+        const allCheckInsWithNetId = ((allCheckIns as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || []).map(ci => ({
+            ...ci,
+            net_id: sessionToNetMap.get(ci.session_id)
+        })).filter(ci => ci.net_id);
+
+        const firstCheckInsPerNet = new Map<string, { call_sign: string, timestamp: string, session_id: string, net_id: string }>();
+
+        for (const checkIn of allCheckInsWithNetId) {
+            if (!checkIn.net_id) continue;
+            const key = `${checkIn.call_sign}-${checkIn.net_id}`;
+            const existingFirst = firstCheckInsPerNet.get(key);
             if (!existingFirst || new Date(checkIn.timestamp) < new Date(existingFirst.timestamp)) {
-                firstCheckIns.set(checkIn.call_sign, { timestamp: checkIn.timestamp, session_id: checkIn.session_id });
+                firstCheckInsPerNet.set(key, { ...checkIn, net_id: checkIn.net_id });
             }
         }
+        
+        const existingAwardsSet = new Set(((existingAwards as Pick<AwardedBadge, 'call_sign' | 'net_id'>[]) || []).map(b => `${b.call_sign}-${b.net_id}`));
+        const newAwardsToInsert: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
 
-        const newAwards: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-        for (const [callsign, firstCheckIn] of firstCheckIns.entries()) {
-            if (!operatorsWithFirstBadge.has(callsign)) {
-                newAwards.push({
-                    call_sign: callsign,
+        for (const [key, firstCheckIn] of firstCheckInsPerNet.entries()) {
+            if (!existingAwardsSet.has(key) && firstCheckIn.net_id) {
+                newAwardsToInsert.push({
+                    call_sign: firstCheckIn.call_sign,
                     badge_id: firstCheckinBadgeId,
                     session_id: firstCheckIn.session_id,
+                    net_id: firstCheckIn.net_id,
                 });
             }
         }
 
-        if (newAwards.length > 0) {
-            console.log(`Backfilling ${newAwards.length} '${firstCheckinBadgeId}' badges...`);
-            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwards);
+        if (newAwardsToInsert.length > 0) {
+            console.log(`Backfilling ${newAwardsToInsert.length} '${firstCheckinBadgeId}' badges...`);
+            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwardsToInsert as any);
 
             if (insertError) {
-                throw new Error(`Error inserting backfilled badges: ${insertError.message}`);
+                console.error(`Error inserting backfilled badges: ${insertError.message}`);
+            } else {
+                await refreshAllData(); // Refresh data after successful backfill
             }
-            
-            await refreshAllData();
         }
     } catch (error) {
         console.error("Error during badge backfill process:", error);
     }
-  }, [refreshAllData]);
+}, [refreshAllData]);
   
+  // --- SIDE EFFECTS (useEffect) ---
+  
+  // This effect manages the user's authentication state.
+  // It runs once on mount to get the initial session and sets up a listener
+  // for any subsequent auth changes (login, logout).
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -294,6 +352,9 @@ const App: React.FC = () => {
     return () => subscription?.unsubscribe();
   }, []);
 
+  // This effect triggers whenever the user's session changes.
+  // It fetches the user's profile and then refreshes all application data.
+  // It also handles the case where a user is logged in but their profile hasn't been created yet.
   useEffect(() => {
     const onSessionChange = async () => {
         try {
@@ -301,21 +362,21 @@ const App: React.FC = () => {
             let userProfile: Profile | null = null;
 
             if (session?.user?.id) {
-                const { data: profileData, error: profileError } = await supabase
+                const { data: profiles, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
-                    .single();
+                    .limit(1);
 
                 if (profileError) {
-                    console.error("Error fetching user profile:", profileError);
+                    console.error("Error fetching user profile:", profileError.message);
                     handleApiError(profileError, 'fetch-profile');
-                } else if (!profileData) {
+                } else if (!profiles || profiles.length === 0) {
                     console.warn(`Profile not found for user ${session.user.id}. Signing out.`);
                     await supabase.auth.signOut();
                     return;
                 } else {
-                    userProfile = profileData as unknown as Profile;
+                    userProfile = profiles[0] as Profile;
                 }
             }
 
@@ -335,11 +396,13 @@ const App: React.FC = () => {
     onSessionChange();
   }, [session, refreshAllData, backfillBadges, handleApiError]);
 
+  // This effect sets up all the real-time listeners (subscriptions) for database changes.
+  // It listens for inserts, updates, and deletes on key tables and updates the global state.
+  // A unique channel ID is used for each client to prevent cross-talk issues.
   useEffect(() => {
-    // This effect sets up real-time listeners for database changes.
-    // SessionScreen now handles its own check-in and session updates for better performance.
+    const channelId = `app-global-${Math.random().toString(36).substring(2, 9)}`;
     
-    const netsChannel = supabase.channel('public:nets')
+    const netsChannel = supabase.channel(`${channelId}-nets`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nets' }, payload => {
         const newNet = transformNetPayload(payload.new as Database['public']['Tables']['nets']['Row']);
         setNets(prev => (prev.some(n => n.id === newNet.id) ? prev : [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name))));
@@ -353,26 +416,40 @@ const App: React.FC = () => {
       })
       .subscribe();
 
-    // Global session listener for HomeScreen and NetDetailScreen updates
-    const sessionsChannel = supabase.channel('public:sessions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-          // A full refresh is safer here to keep all screens in sync,
-          // except for the active SessionScreen which manages its own state.
-          refreshAllData();
+    const sessionsChannel = supabase.channel(`${channelId}-sessions`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sessions' }, (payload) => {
+          const newSession = payload.new as NetSession;
+          setSessions(prev => [newSession, ...prev.filter(s => s.id !== newSession.id)].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime()));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' }, (payload) => {
+          const updatedSession = payload.new as NetSession;
+          setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'sessions' }, (payload) => {
+          const oldSessionId = (payload.old as any).id;
+          setSessions(prev => prev.filter(s => s.id !== oldSessionId));
       })
       .subscribe();
       
-    // Global listener for awarded badges.
-    const awardedBadgesChannel = supabase.channel('public:awarded_badges')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'awarded_badges' }, () => {
-            // Because badge logic can be complex, a full refresh is safest for now.
-            refreshAllData();
+    const awardedBadgesChannel = supabase.channel(`${channelId}-awarded_badges`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'awarded_badges' }, payload => {
+            const newBadge = payload.new as AwardedBadge;
+            setAwardedBadges(prev => [...prev, newBadge]);
+        })
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'awarded_badges' }, payload => {
+            const oldBadgeId = (payload.old as any).id;
+            setAwardedBadges(prev => prev.filter(b => b.id !== oldBadgeId));
         })
         .subscribe();
     
-    const rosterMembersChannel = supabase.channel('public:roster_members')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'roster_members' }, () => {
-            refreshAllData();
+    const rosterMembersChannel = supabase.channel(`${channelId}-roster_members`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'roster_members' }, async () => {
+            const { data, error } = await supabase.from('roster_members').select('*');
+            if (error) {
+                console.error("Error re-fetching roster members:", error);
+            } else {
+                setRosterMembers((data as RosterMember[]) || []);
+            }
         })
         .subscribe();
 
@@ -382,9 +459,11 @@ const App: React.FC = () => {
       supabase.removeChannel(awardedBadgesChannel);
       supabase.removeChannel(rosterMembersChannel);
     };
-  }, [refreshAllData, transformNetPayload]);
+  }, [transformNetPayload]);
 
-
+  // This effect acts as the primary router for the application.
+  // It runs whenever the current view, session, or profile changes.
+  // It enforces access control, redirecting users based on their auth status and profile approval.
   useEffect(() => {
     if (loading) return;
 
@@ -404,7 +483,17 @@ const App: React.FC = () => {
     }
   }, [view, session, profile, loading, setView]);
 
+  // --- API HANDLERS (Callbacks) ---
+  // These functions are passed down as props to child components to perform actions.
+  // They encapsulate the logic for interacting with the Supabase API.
+
+  // `handleSaveNet`: Handles creating or updating a NET. It calls a Supabase RPC for updates
+  // and a direct table insert for new NETs.
   const handleSaveNet = useCallback(async (netData: Partial<Net>) => {
+    if (!profile || !profile.full_name || !profile.call_sign) {
+        handleApiError({ message: "You must have a full name and call sign in your profile to create or manage a NET." });
+        return;
+    }
     try {
         const { id } = netData;
 
@@ -412,8 +501,8 @@ const App: React.FC = () => {
             name: netData.name!,
             description: netData.description || null,
             website_url: netData.website_url || null,
-            primary_nco: netData.primary_nco!,
-            primary_nco_callsign: netData.primary_nco_callsign!,
+            primary_nco: profile.full_name,
+            primary_nco_callsign: profile.call_sign,
             net_type: netData.net_type!,
             schedule: netData.schedule!,
             time: netData.time!,
@@ -464,16 +553,16 @@ const App: React.FC = () => {
             
             const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
                 ...commonPayload,
-                created_by: profile.id,
                 repeaters: commonPayload.repeaters as unknown as Json,
-                passcode_permissions: commonPayload.passcode_permissions as unknown as Json,
+                passcode_permissions: commonPayload.passcode_permissions as unknown as Json | null,
+                created_by: profile.id,
             };
 
-            const { data, error } = await supabase.from('nets').insert([insertPayload]).select().single();
+            const { data, error } = await supabase.from('nets').insert(insertPayload as any).select().single();
             if (error) throw error;
             if (!data) throw new Error("No data returned after create operation.");
 
-            const newNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
+            const newNet = transformNetPayload(data as Database['public']['Tables']['nets']['Row']);
             setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
             setView({ type: 'netDetail', netId: newNet.id });
         }
@@ -482,6 +571,7 @@ const App: React.FC = () => {
     }
   }, [profile, setView, transformNetPayload, handleApiError, verifiedPasscodes]);
 
+  // `handleDeleteNet`: Deletes a NET after user confirmation.
   const handleDeleteNet = useCallback(async (netId: string) => {
     requestConfirmation({
         title: 'Confirm Deletion',
@@ -501,6 +591,7 @@ const App: React.FC = () => {
     });
   }, [setView, handleApiError, requestConfirmation]);
   
+  // `handleStartSession`: Starts a new session for a given NET.
   const handleStartSession = useCallback(async (netId: string) => {
     const netToStart = nets.find(n => n.id === netId);
     if (!netToStart) {
@@ -509,13 +600,18 @@ const App: React.FC = () => {
         return;
     }
 
+    if (!profile || !profile.full_name || !profile.call_sign) {
+        handleApiError({ message: "You must have a name and callsign in your profile to start a session." });
+        return;
+    }
+
     try {
         const passcode = verifiedPasscodes[netToStart.id] || null;
 
         const { data, error } = await supabase.rpc('start_session', {
             p_net_id: netToStart.id,
-            p_primary_nco: netToStart.primary_nco, // Use default from net
-            p_primary_nco_callsign: netToStart.primary_nco_callsign, // Use default from net
+            p_primary_nco: profile.full_name,
+            p_primary_nco_callsign: profile.call_sign,
             p_passcode: passcode
         });
         
@@ -529,32 +625,31 @@ const App: React.FC = () => {
     } catch (error: any) {
         handleApiError(error, 'handleStartSession');
     }
-  }, [nets, setView, handleApiError, verifiedPasscodes]);
+  }, [nets, profile, setView, handleApiError, verifiedPasscodes]);
 
+  // `handleEndSession`: Ends an active session. Refreshes all data afterwards to ensure consistency.
   const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
 
-        const { data: updatedSessionData, error } = await supabase.rpc('end_session', {
+        const { error } = await supabase.rpc('end_session', {
             p_session_id: sessionId,
             p_passcode: passcode,
         });
 
         if (error) throw error;
-        if (!updatedSessionData) throw new Error('Failed to end session: No data returned from RPC.');
 
-        const updatedSession = updatedSessionData as unknown as NetSession;
-        setSessions(prev => prev.map(s => (s.id === sessionId ? updatedSession : s)));
+        await refreshAllData();
 
-        // Navigate AFTER the session has been successfully ended
         if (view.type === 'session' && view.sessionId === sessionId) {
             setView({ type: 'netDetail', netId });
         }
     } catch (error: any) {
         handleApiError(error, 'handleEndSession');
     }
-  }, [view, setView, handleApiError, verifiedPasscodes]);
+  }, [view, setView, handleApiError, verifiedPasscodes, refreshAllData]);
 
+  // `handleEndSessionRequest`: Wraps the end session action in a confirmation dialog.
   const handleEndSessionRequest = useCallback((sessionId: string, netId: string) => {
     requestConfirmation({
         title: 'Confirm End Session',
@@ -565,6 +660,7 @@ const App: React.FC = () => {
     });
   }, [handleEndSession, requestConfirmation]);
 
+  // `handleDeleteSession`: Deletes a historical session and its check-ins after confirmation.
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     requestConfirmation({
         title: 'Confirm Deletion',
@@ -584,10 +680,11 @@ const App: React.FC = () => {
     });
   }, [handleApiError, requestConfirmation]);
   
+  // `handleUpdateSessionNotes`: Updates the notes for a session.
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
     try {
-        const payload: { notes: string } = { notes: notes };
-        const { error } = await supabase.from('sessions').update(payload).eq('id', sessionId);
+        const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes };
+        const { error } = await supabase.from('sessions').update(payload as any).eq('id', sessionId);
         if (error) throw error;
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
     } catch (error: any) {
@@ -595,14 +692,12 @@ const App: React.FC = () => {
     }
   }, [handleApiError]);
 
+  // `handleAddCheckIn`: Adds a new check-in to a session via a Supabase RPC.
+  // The RPC handles badge awarding logic server-side.
   const handleAddCheckIn = useCallback(async (sessionId: string, netId: string, checkInData: CheckInInsertPayload) => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
 
-        // The badge awarding logic is now handled by the 'crea te_check_in' RPC.
-        // The client no longer needs to perform this logic, which was causing
-        // permission errors for delegated users. The real-time subscription
-        // on 'awarded_badges' will update the UI.
         const { error: checkInError } = await supabase.rpc('create_check_in', {
             p_session_id: sessionId,
             p_call_sign: checkInData.call_sign,
@@ -621,10 +716,12 @@ const App: React.FC = () => {
     }
   }, [handleApiError, verifiedPasscodes]);
 
+  // `handleEditCheckIn`: Opens the modal for editing a check-in.
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
     setEditingCheckIn({ sessionId, checkIn });
   }, []);
 
+  // `handleUpdateCheckIn`: Saves the changes to an edited check-in.
   const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn) => {
     try {
         const session = sessions.find(s => s.id === updatedCheckIn.session_id);
@@ -646,8 +743,6 @@ const App: React.FC = () => {
 
         if (error) throw error;
         
-        // The SessionScreen will update its own check-ins via its real-time subscription.
-        // We can optimistically update the global state.
         setCheckIns(prev => prev.map(c => c.id === updatedCheckIn.id ? updatedCheckIn : c));
         setEditingCheckIn(null);
     } catch (error: any) {
@@ -655,6 +750,7 @@ const App: React.FC = () => {
     }
   }, [handleApiError, sessions, nets, verifiedPasscodes]);
 
+  // `handleUpdateCheckInStatus`: Updates the status flag of a check-in (e.g., Acknowledged, Question).
   const handleUpdateCheckInStatus = useCallback(async (checkInId: string, netId: string, status: CheckInStatusValue) => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
@@ -664,47 +760,21 @@ const App: React.FC = () => {
             p_passcode: passcode
         });
         if (error) throw error;
-        // The real-time subscription in SessionScreen will handle the UI update.
     } catch(error: any) {
         handleApiError(error, 'handleUpdateCheckInStatus');
+        throw error;
     }
   }, [verifiedPasscodes, handleApiError]);
 
-
-  const handleDeleteCheckIn = useCallback(async (checkIn: CheckIn, netId: string) => {
-    requestConfirmation({
-        title: 'Confirm Deletion',
-        message: `Are you sure you want to delete the check-in for ${checkIn.call_sign}?`,
-        confirmText: 'Delete',
-        isDestructive: true,
-        onConfirm: async () => {
-            try {
-                const passcode = verifiedPasscodes[netId] || null;
-                const { error } = await supabase.rpc('delete_check_in', { p_check_in_id: checkIn.id, p_passcode: passcode });
-
-                if (error) throw error;
-                
-                // The global state might not have this check-in yet, but the real-time
-                // subscription in SessionScreen will handle the UI update there.
-                // We can still try to update the global state optimistically.
-                setCheckIns(prev => prev.filter(c => c.id !== checkIn.id));
-            } catch (error: any) {
-                handleApiError(error, 'handleDeleteCheckIn');
-            }
-        }
-    });
-  }, [handleApiError, verifiedPasscodes, requestConfirmation]);
-
+  // `handleSaveRosterMembers`: Replaces the entire roster for a NET with a new list of members.
   const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]) => {
     try {
-        // Delete all existing members for the net
         const { error: deleteError } = await supabase.from('roster_members').delete().eq('net_id', netId);
         if (deleteError) throw deleteError;
 
-        // Insert new members if any
         if (members.length > 0) {
             const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
-            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert);
+            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
             if (insertError) throw insertError;
         }
 
@@ -715,40 +785,7 @@ const App: React.FC = () => {
     }
   }, [refreshAllData, handleApiError, setView]);
   
-
-  const hasPermission = useMemo(() => {
-    return (net: Net | null, permission: PermissionKey): boolean => {
-        if (!profile || !net) return false;
-        if (profile.role === 'admin') return true;
-        if (net.created_by === profile.id) return true;
-        return grantedPermissions[net.id]?.[permission] || false;
-    };
-  }, [profile, grantedPermissions]);
-
-  const isNetManagedByUser = useCallback((net: Net): boolean => {
-    if (!profile) return false;
-    // An admin can manage everything.
-    if (profile.role === 'admin') return true;
-    // The owner can manage their own net.
-    if (net.created_by === profile.id) return true;
-    // Check for any delegated permissions via a verified passcode.
-    const netPermissions = grantedPermissions[net.id];
-    if (netPermissions && Object.keys(netPermissions).length > 0) {
-        return true;
-    }
-    return false;
-  }, [profile, grantedPermissions]);
-  
-  const allBadgeDefinitions = React.useMemo(() => {
-    const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
-    return allBadges.map(badge => ({
-        ...badge,
-        category: logicMap.get(badge.id)?.category || 'Special',
-        isEarned: logicMap.get(badge.id)?.isEarned || (() => false),
-        sortOrder: logicMap.get(badge.id)?.sortOrder || 999
-    }));
-  }, [allBadges]);
-
+  // `handleVerifyPasscode`: Verifies a user-submitted passcode for a NET to grant delegated permissions.
   const handleVerifyPasscode = useCallback(async (passcode: string) => {
     if (!verifyingPasscodeForNet) return;
 
@@ -763,7 +800,6 @@ const App: React.FC = () => {
     if (error) {
         setPasscodeError(error.message);
     } else if (data) {
-        // On success, the RPC returns the permissions object.
         const permissions = data as PasscodePermissions;
         setGrantedPermissions(prev => ({
             ...prev,
@@ -775,53 +811,120 @@ const App: React.FC = () => {
         }));
         setVerifyingPasscodeForNet(null);
     } else {
-        // If data is null, the passcode was incorrect.
         setPasscodeError("Invalid passcode. Please try again.");
     }
 
     setIsVerifying(false);
   }, [verifyingPasscodeForNet]);
 
-  const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string }) => {
+  // `handleUpdateProfileData`: Updates the user's own profile information (name, callsign, location).
+  const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string, location: string }) => {
     if (!profile) return;
     try {
-        // This RPC performs a server-side check to ensure the callsign is not already in use by another registered user.
-        const { data, error } = await supabase.rpc('update_profile_with_callsign_check', {
-            p_user_id: profile.id,
-            p_full_name: profileData.full_name,
-            p_call_sign: profileData.call_sign.toUpperCase()
-        });
+        const upperCaseCallSign = profileData.call_sign.toUpperCase();
 
-        if (error) throw error;
+        if (upperCaseCallSign && upperCaseCallSign !== profile.call_sign) {
+            const { data: conflictingProfile, error: fetchError } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('call_sign', upperCaseCallSign)
+                .not('id', 'eq', profile.id)
+                .maybeSingle();
 
-        setProfile(data as unknown as Profile);
-        alert('Profile updated successfully!');
+            if (fetchError) {
+                if (fetchError.code !== 'PGRST116') {
+                    throw fetchError;
+                }
+            }
+
+            if (conflictingProfile) {
+                throw new Error('This call sign is already in use by another account.');
+            }
+        }
+        
+        const { data, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+                full_name: profileData.full_name,
+                call_sign: upperCaseCallSign,
+                location: profileData.location
+            } as any)
+            .eq('id', profile.id)
+            .select()
+            .single();
+
+        if (updateError) throw updateError;
+        
+        setProfile(data as Profile);
+        showAlert('Success', 'Profile updated successfully!');
     } catch (error: any) {
         handleApiError(error, 'handleUpdateProfileData');
     }
-  }, [profile, handleApiError]);
+  }, [profile, handleApiError, showAlert]);
 
+  // `handleUpdatePassword`: Updates the user's password.
   const handleUpdatePassword = useCallback(async (password: string) => {
     try {
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
-        alert('Password updated successfully!');
+        showAlert('Success', 'Password updated successfully!');
     } catch (error: any) {
         handleApiError(error, 'handleUpdatePassword');
     }
-  }, [handleApiError]);
+  }, [handleApiError, showAlert]);
 
+  // `handleUpdateEmail`: Updates the user's email address (requires email confirmation).
   const handleUpdateEmail = useCallback(async (email: string) => {
     try {
         const { error } = await supabase.auth.updateUser({ email });
         if (error) throw error;
-        alert('A confirmation link has been sent to your new email address. Please check your inbox to complete the change.');
+        showAlert('Confirmation Required', 'A confirmation link has been sent to your new email address. Please check your inbox to complete the change.');
     } catch (error: any) {
         handleApiError(error, 'handleUpdateEmail');
     }
-  }, [handleApiError]);
+  }, [handleApiError, showAlert]);
 
 
+  // --- DERIVED STATE & HELPERS ---
+
+  // `hasPermission`: A memoized function to check if the current user has a specific permission for a NET.
+  // It checks for admin status, ownership, and delegated permissions from a passcode.
+  const hasPermission = useMemo(() => {
+    return (net: Net | null, permission: PermissionKey): boolean => {
+        if (!profile || !net) return false;
+        if (profile.role === 'admin') return true;
+        if (net.created_by === profile.id) return true;
+        return grantedPermissions[net.id]?.[permission] || false;
+    };
+  }, [profile, grantedPermissions]);
+
+  // `isNetManagedByUser`: A memoized helper to determine if the user has *any* management rights over a NET.
+  const isNetManagedByUser = useCallback((net: Net): boolean => {
+    if (!profile) return false;
+    if (profile.role === 'admin') return true;
+    if (net.created_by === profile.id) return true;
+    const netPermissions = grantedPermissions[net.id];
+    if (netPermissions && Object.keys(netPermissions).length > 0) {
+        return true;
+    }
+    return false;
+  }, [profile, grantedPermissions]);
+  
+  // `allBadgeDefinitions`: A memoized list that combines badge data from the DB with the client-side logic (e.g., isEarned function).
+  const allBadgeDefinitions = React.useMemo(() => {
+    const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
+    return allBadges.map(badge => ({
+        ...badge,
+        category: logicMap.get(badge.id)?.category || 'Special',
+        isEarned: logicMap.get(badge.id)?.isEarned || (() => false),
+        sortOrder: logicMap.get(badge.id)?.sortOrder || 999
+    }));
+  }, [allBadges]);
+
+  // --- RENDER LOGIC ---
+
+  // `renderContent`: This function acts as a simple router, rendering the correct screen component
+  // based on the current `view` state.
   const renderContent = () => {
     switch (view.type) {
       case 'login':
@@ -871,7 +974,6 @@ const App: React.FC = () => {
         );
       }
       case 'netEditor': {
-        // "Create new" flow
         if (!view.netId) {
           return (
             <NetEditorScreen
@@ -883,7 +985,6 @@ const App: React.FC = () => {
           );
         }
 
-        // "Edit existing" flow
         const netToEdit = nets.find(n => n.id === view.netId);
 
         if (!netToEdit) {
@@ -941,12 +1042,14 @@ const App: React.FC = () => {
             onEndSessionRequest={handleEndSessionRequest}
             onAddCheckIn={handleAddCheckIn}
             onEditCheckIn={handleEditCheckIn}
-            onDeleteCheckIn={handleDeleteCheckIn}
             onUpdateCheckInStatus={handleUpdateCheckInStatus}
             onBack={goBack}
             onUpdateSessionNotes={handleUpdateSessionNotes}
             onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
             showAlert={showAlert}
+            handleApiError={handleApiError}
+            requestConfirmation={requestConfirmation}
+            verifiedPasscodes={verifiedPasscodes}
           />
         );
       }
@@ -1027,6 +1130,7 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper functions to find associated data for modals.
   const getNetForSession = (sessionId: string) => {
     const session = sessions.find(s => s.id === sessionId);
     return session ? nets.find(n => n.id === session.net_id) : undefined;
@@ -1037,6 +1141,8 @@ const App: React.FC = () => {
       return getNetForSession(editingCheckIn.sessionId);
   }
 
+  // The main JSX for the component. It renders the Header, the content from `renderContent`,
+  // any active modals, and the Footer.
   return (
     <div className="min-h-screen flex flex-col bg-light-bg dark:bg-dark-900 text-light-text dark:text-dark-text">
       <Header profile={profile} onSetView={setView} />

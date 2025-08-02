@@ -18,7 +18,7 @@ const FormInput = ({ label, id, ...props }: {label: string, id: string} & React.
 
 interface SettingsScreenProps {
     profile: Profile;
-    onUpdateProfile: (data: { full_name: string, call_sign: string }) => Promise<void>;
+    onUpdateProfile: (data: { full_name: string; call_sign: string; location: string; }) => Promise<void>;
     onUpdateEmail: (email: string) => Promise<void>;
     onUpdatePassword: (password: string) => Promise<void>;
     onBack: () => void;
@@ -28,6 +28,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
     // State for profile info
     const [fullName, setFullName] = useState(profile.full_name || '');
     const [callSign, setCallSign] = useState(profile.call_sign || '');
+    const [location, setLocation] = useState(profile.location || '');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
 
     // State for email
@@ -42,7 +43,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
     const handleProfileSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSavingProfile(true);
-        await onUpdateProfile({ full_name: fullName, call_sign: callSign });
+        await onUpdateProfile({ full_name: fullName, call_sign: callSign, location: location });
         setIsSavingProfile(false);
     };
     
@@ -86,6 +87,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                         <FormInput label="Full Name" id="fullName" type="text" value={fullName} onChange={e => setFullName(e.target.value)} required />
                         <FormInput label="Callsign" id="callSign" type="text" value={callSign} onChange={e => setCallSign(e.target.value.toUpperCase())} required />
                     </div>
+                     <div className="grid grid-cols-1">
+                        <FormInput label="Location (e.g., City, State)" id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} />
+                    </div>
                     <div className="flex justify-end">
                         <button type="submit" disabled={isSavingProfile} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
                             {isSavingProfile ? 'Saving...' : 'Save Profile'}
@@ -98,7 +102,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                     <h3 className="text-xl font-bold text-dark-text">Update Email</h3>
                     <div>
                         <FormInput label="Email Address" id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-                        <p className="text-md text-dark-text-secondary mt-2">A verification link will be sent to the new email address to confirm the change.</p>
+                        <p className="text-sm text-dark-text-secondary mt-2">A verification link will be sent to the new email address to confirm the change.</p>
                     </div>
                     <div className="flex justify-end">
                         <button type="submit" disabled={isSavingEmail} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
@@ -110,12 +114,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                 {/* Password Form */}
                 <form onSubmit={handlePasswordSave} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-6">
                     <h3 className="text-xl font-bold text-dark-text">Change Password</h3>
-                    <p className="text-md text-dark-text-secondary gap-0">Your password must be at least 6 characters long.</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormInput label="New Password" id="newPassword" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="" />
+                        <FormInput label="New Password" id="newPassword" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Must be at least 6 characters" />
                         <FormInput label="Confirm New Password" id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                     </div>
-                    
                     <div className="flex justify-end">
                         <button type="submit" disabled={isSavingPassword || !newPassword} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
                             {isSavingPassword ? 'Saving...' : 'Change Password'}
