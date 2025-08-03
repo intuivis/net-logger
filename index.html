@@ -38,6 +38,19 @@
                   'text': '#1F2937',
               }
             },
+            animation: {
+                'bouncedelay': 'sk-bouncedelay 1.4s infinite ease-in-out both',
+            },
+            keyframes: {
+                'sk-bouncedelay': {
+                    '0%, 80%, 100%': {
+                        transform: 'scale(0)'
+                    },
+                    '40%': {
+                        transform: 'scale(1.0)'
+                    }
+                }
+            }
           }
         }
       }

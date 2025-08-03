@@ -31,6 +31,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                             <li>Setting up system to improve Rosters.</li>
                             <li>Improved net control badging in check-in log.</li>
                             <li>Improved the presentation of a few mobile screens.</li>
+                            <li>Slight improvement to the "Loading Session..." annimation.</li>
                         </ul>
                     </div>
                 </div>

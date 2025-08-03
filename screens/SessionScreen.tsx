@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Badge } from '../components/Badge';
 import { Database } from '../database.types';
 import { NCOBadge } from '../components/NCOBadge';
+import { RadioTowerIcon } from '../components/icons/RadioTowerIcon';
 // import JoinNetModal from '../components/JoinNetModal';
 
 // --- PROPS INTERFACE ---
@@ -464,7 +465,16 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
 
     // Show a loading indicator while fetching initial data.
     if (loading) {
-        return <div className="text-center py-20 text-dark-text-secondary">Loading Session...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-dark-text-secondary space-y-6" aria-live="polite" aria-busy="true">
+                <div className="flex justify-center items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-gray-300 animate-bouncedelay [animation-delay:-0.32s]"></div>
+                    <div className="w-4 h-4 rounded-full bg-gray-300 animate-bouncedelay [animation-delay:-0.16s]"></div>
+                    <div className="w-4 h-4 rounded-full bg-gray-300 animate-bouncedelay"></div>
+                </div>
+                <p className="text-lg font-semibold">Loading Session...</p>
+            </div>
+        );
     }
     // Show an error message if data couldn't be loaded.
     if (!session || !net) {
