@@ -13,7 +13,6 @@ import { supabase } from '../lib/supabaseClient';
 import { Badge } from '../components/Badge';
 import { Database } from '../database.types';
 import { NCOBadge } from '../components/NCOBadge';
-import { RadioTowerIcon } from '../components/icons/RadioTowerIcon';
 // import JoinNetModal from '../components/JoinNetModal';
 
 // --- PROPS INTERFACE ---
