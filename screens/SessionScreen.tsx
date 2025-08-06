@@ -1,5 +1,3 @@
-
-
 /**
  * SessionScreen.tsx
  * 
@@ -8,7 +6,7 @@
  * handles real-time updates for check-ins and session status.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, ListeningStation, JoinNetFormState, DayOfWeek, PasscodePermissions, NetType } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient';
@@ -292,7 +290,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     .eq('id', sessionId)
                     .limit(1);
         
-                if (sessionError) throw sessionError;
+                if (sessionError) throw new Error(sessionError.message);
         
                 // If no session is found (e.g., deleted), stop loading and let the component render an error.
                 if (!sessionResult || sessionResult.length === 0) {
@@ -308,7 +306,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     .eq('id', sessionData.net_id)
                     .limit(1);
         
-                if (netError) throw netError;
+                if (netError) throw new Error(netError.message);
         
                 if (!netResult || netResult.length === 0) {
                     setLoading(false);
@@ -344,7 +342,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
 
                 // Fetch the check-ins for this session.
                 const { data: checkInData, error: checkInError } = await supabase.from('check_ins').select('*').eq('session_id', sessionId).order('timestamp', { ascending: false });
-                if (checkInError) throw checkInError;
+                if (checkInError) throw new Error(checkInError.message);
 
                 // FIX: Transform raw check-in data to match the frontend CheckIn type.
                 // The database returns `status_flag` as a generic `number`, but our frontend `CheckIn` type
@@ -392,15 +390,17 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                 // Listen for updates to the session itself (e.g., end_time, notes from another user).
                 const updatedSession = payload.new as unknown as NetSession;
                 setSession(prev => prev ? { ...prev, ...updatedSession } : updatedSession);
-                if (updatedSession.notes !== sessionNotes) {
-                    setSessionNotes(updatedSession.notes || '');
-                }
+                // Use callback form to get latest state without adding dependency
+                setSessionNotes(currentNotes => {
+                    const newNotes = updatedSession.notes || '';
+                    return newNotes !== currentNotes ? newNotes : currentNotes;
+                });
             })
             .subscribe();
 
         // Cleanup: remove the channel subscription when the component unmounts.
         return () => { supabase.removeChannel(channel); };
-    }, [sessionId, props.handleApiError, sessionNotes]); // Dependency array ensures this runs only when sessionId changes.
+    }, [sessionId, props.handleApiError]); // Dependency array ensures this runs only when sessionId changes.
 
     // Effect to update the browser tab's title.
     useEffect(() => {
@@ -419,7 +419,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
     // --- EVENT HANDLERS ---
 
     // Handles adding a check-in using an "optimistic UI" approach.
-    const handleAddCheckInOptimistic = useCallback(async (checkInData: CheckInInsertPayload, source: 'form' | RosterMember['id']) => {
+    const handleAddCheckInOptimistic = useCallback(async (checkInData: CheckInInsertPayload, source: 'form' | RosterMember['id']): Promise<void> => {
         if (isSubmitting || !net) return;
         const callsign = normalizeCallsign(checkInData.call_sign);
         if (!callsign) {
@@ -489,7 +489,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
             onConfirm: async () => {
                 try {
                     const { error } = await supabase.rpc('delete_check_in', { p_check_in_id: checkInId, p_passcode: passcode });
-                    if (error) throw error;
+                    if (error) throw new Error(error.message);
                     // The real-time subscription will handle removing the item from the UI.
                 } catch (error) {
                     props.handleApiError(error, "handleDeleteCheckIn");

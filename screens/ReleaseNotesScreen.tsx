@@ -20,7 +20,17 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.1 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.2 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, August 6, 2025</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Fixed an automatic saving issue with Session Notes</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.1</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Saturday, August 2, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Major optimizations and bug fixes to help resolve real-time check-in monitoring.</li>

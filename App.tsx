@@ -1,5 +1,3 @@
-
-
 /**
  * App.tsx
  * 
@@ -489,7 +487,7 @@ const App: React.FC = () => {
 
   // `handleSaveNet`: Handles creating or updating a NET. It calls a Supabase RPC for updates
   // and a direct table insert for new NETs.
-  const handleSaveNet = useCallback(async (netData: Partial<Net>) => {
+  const handleSaveNet = useCallback(async (netData: Partial<Net>): Promise<void> => {
     if (!profile || !profile.full_name || !profile.call_sign) {
         handleApiError({ message: "You must have a full name and call sign in your profile to create or manage a NET." });
         return;
@@ -541,10 +539,10 @@ const App: React.FC = () => {
 
             const { data, error } = await supabase.rpc('update_net_details', rpcPayload);
 
-            if (error) throw error;
+            if (error) throw new Error(error.message);
             if (!data) throw new Error("No data returned after update operation via RPC.");
 
-            const updatedNet = transformNetPayload(data as any);
+            const updatedNet = transformNetPayload(data as Database['public']['Tables']['nets']['Row']);
             setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
             setView({ type: 'netDetail', netId: updatedNet.id });
 
@@ -559,7 +557,7 @@ const App: React.FC = () => {
             };
 
             const { data, error } = await supabase.from('nets').insert(insertPayload as any).select().single();
-            if (error) throw error;
+            if (error) throw new Error(error.message);
             if (!data) throw new Error("No data returned after create operation.");
 
             const newNet = transformNetPayload(data);
@@ -572,7 +570,7 @@ const App: React.FC = () => {
   }, [profile, setView, transformNetPayload, handleApiError, verifiedPasscodes]);
 
   // `handleDeleteNet`: Deletes a NET after user confirmation.
-  const handleDeleteNet = useCallback(async (netId: string) => {
+  const handleDeleteNet = useCallback(async (netId: string): Promise<void> => {
     requestConfirmation({
         title: 'Confirm Deletion',
         message: 'Are you sure you want to delete this NET and all its sessions? This cannot be undone.',
@@ -581,7 +579,7 @@ const App: React.FC = () => {
         onConfirm: async () => {
             try {
                 const { error } = await supabase.from('nets').delete().eq('id', netId);
-                if (error) throw error;
+                if (error) throw new Error(error.message);
                 setNets(prev => prev.filter(n => n.id !== netId));
                 setView({ type: 'manageNets' });
             } catch(error: any) {
@@ -592,7 +590,7 @@ const App: React.FC = () => {
   }, [setView, handleApiError, requestConfirmation]);
   
   // `handleStartSession`: Starts a new session for a given NET.
-  const handleStartSession = useCallback(async (netId: string) => {
+  const handleStartSession = useCallback(async (netId: string): Promise<void> => {
     const netToStart = nets.find(n => n.id === netId);
     if (!netToStart) {
         console.error(`Could not find net with ID ${netId} to start session.`);
@@ -615,7 +613,7 @@ const App: React.FC = () => {
             p_passcode: passcode
         });
         
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         if (!data) throw new Error("Failed to create session: No data returned from RPC.");
         
         const newSession = data as unknown as NetSession;
@@ -628,7 +626,7 @@ const App: React.FC = () => {
   }, [nets, profile, setView, handleApiError, verifiedPasscodes]);
 
   // `handleEndSession`: Ends an active session. Refreshes all data afterwards to ensure consistency.
-  const handleEndSession = useCallback(async (sessionId: string, netId: string) => {
+  const handleEndSession = useCallback(async (sessionId: string, netId: string): Promise<void> => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
 
@@ -637,7 +635,7 @@ const App: React.FC = () => {
             p_passcode: passcode,
         });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message);
 
         await refreshAllData();
 
@@ -661,7 +659,7 @@ const App: React.FC = () => {
   }, [handleEndSession, requestConfirmation]);
 
   // `handleDeleteSession`: Deletes a historical session and its check-ins after confirmation.
-  const handleDeleteSession = useCallback(async (sessionId: string, netId: string) => {
+  const handleDeleteSession = useCallback(async (sessionId: string, netId: string): Promise<void> => {
     requestConfirmation({
         title: 'Confirm Deletion',
         message: 'Are you sure you want to permanently delete this session and its log?',
@@ -670,7 +668,7 @@ const App: React.FC = () => {
         onConfirm: async () => {
             try {
                 const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
-                if (error) throw error;
+                if (error) throw new Error(error.message);
                 
                 // State will update via subscription, but for snappy UI, update locally.
                 setSessions(prev => prev.filter(s => s.id !== sessionId));
@@ -688,11 +686,11 @@ const App: React.FC = () => {
   }, [view, setView, handleApiError, requestConfirmation]);
   
   // `handleUpdateSessionNotes`: Updates the notes for a session.
-  const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
+  const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string): Promise<void> => {
     try {
         const payload: Database['public']['Tables']['sessions']['Update'] = { notes: notes };
         const { error } = await supabase.from('sessions').update(payload as any).eq('id', sessionId);
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, notes } : s));
     } catch (error: any) {
         handleApiError(error, 'handleUpdateSessionNotes');
@@ -701,7 +699,7 @@ const App: React.FC = () => {
 
   // `handleAddCheckIn`: Adds a new check-in to a session via a Supabase RPC.
   // The RPC handles badge awarding logic server-side.
-  const handleAddCheckIn = useCallback(async (sessionId: string, netId: string, checkInData: CheckInInsertPayload) => {
+  const handleAddCheckIn = useCallback(async (sessionId: string, netId: string, checkInData: CheckInInsertPayload): Promise<void> => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
 
@@ -715,7 +713,7 @@ const App: React.FC = () => {
             p_passcode: passcode
         });
 
-        if (checkInError) throw checkInError;
+        if (checkInError) throw new Error(checkInError.message);
 
     } catch (error: any) {
         handleApiError(error, 'handleAddCheckIn');
@@ -729,7 +727,7 @@ const App: React.FC = () => {
   }, []);
 
   // `handleUpdateCheckIn`: Saves the changes to an edited check-in.
-  const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn) => {
+  const handleUpdateCheckIn = useCallback(async (updatedCheckIn: CheckIn): Promise<void> => {
     try {
         const session = sessions.find(s => s.id === updatedCheckIn.session_id);
         if (!session) throw new Error('Session not found to determine permissions.');
@@ -748,7 +746,7 @@ const App: React.FC = () => {
             p_passcode: passcode,
         });
 
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         
         setCheckIns(prev => prev.map(c => c.id === updatedCheckIn.id ? updatedCheckIn : c));
         setEditingCheckIn(null);
@@ -758,7 +756,7 @@ const App: React.FC = () => {
   }, [handleApiError, sessions, nets, verifiedPasscodes]);
 
   // `handleUpdateCheckInStatus`: Updates the status flag of a check-in (e.g., Acknowledged, Question).
-  const handleUpdateCheckInStatus = useCallback(async (checkInId: string, netId: string, status: CheckInStatusValue) => {
+  const handleUpdateCheckInStatus = useCallback(async (checkInId: string, netId: string, status: CheckInStatusValue): Promise<void> => {
     try {
         const passcode = verifiedPasscodes[netId] || null;
         const { error } = await supabase.rpc('update_check_in_status_flag', {
@@ -766,7 +764,7 @@ const App: React.FC = () => {
             p_status_flag: status,
             p_passcode: passcode
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
     } catch(error: any) {
         handleApiError(error, 'handleUpdateCheckInStatus');
         throw error;
@@ -774,15 +772,15 @@ const App: React.FC = () => {
   }, [verifiedPasscodes, handleApiError]);
 
   // `handleSaveRosterMembers`: Replaces the entire roster for a NET with a new list of members.
-  const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]) => {
+  const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]): Promise<void> => {
     try {
         const { error: deleteError } = await supabase.from('roster_members').delete().eq('net_id', netId);
-        if (deleteError) throw deleteError;
+        if (deleteError) throw new Error(deleteError.message);
 
         if (members.length > 0) {
             const membersToInsert: Database['public']['Tables']['roster_members']['Insert'][] = members.map(m => ({ ...m, net_id: netId }));
             const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
-            if (insertError) throw insertError;
+            if (insertError) throw new Error(insertError.message);
         }
 
         await refreshAllData();
@@ -793,7 +791,7 @@ const App: React.FC = () => {
   }, [refreshAllData, handleApiError, setView]);
   
   // `handleVerifyPasscode`: Verifies a user-submitted passcode for a NET to grant delegated permissions.
-  const handleVerifyPasscode = useCallback(async (passcode: string) => {
+  const handleVerifyPasscode = useCallback(async (passcode: string): Promise<void> => {
     if (!verifyingPasscodeForNet) return;
 
     setIsVerifying(true);
@@ -825,7 +823,7 @@ const App: React.FC = () => {
   }, [verifyingPasscodeForNet]);
 
   // `handleUpdateProfileData`: Updates the user's own profile information (name, callsign, location).
-  const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string, location: string }) => {
+  const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string, location: string }): Promise<void> => {
     if (!profile) return;
     try {
         const upperCaseCallSign = profileData.call_sign.toUpperCase();
@@ -840,7 +838,7 @@ const App: React.FC = () => {
 
             if (fetchError) {
                 if (fetchError.code !== 'PGRST116') {
-                    throw fetchError;
+                    throw new Error(fetchError.message);
                 }
             }
 
@@ -860,7 +858,7 @@ const App: React.FC = () => {
             .select()
             .single();
 
-        if (updateError) throw updateError;
+        if (updateError) throw new Error(updateError.message);
         
         setProfile(data as unknown as Profile);
         showAlert('Success', 'Profile updated successfully!');
@@ -870,10 +868,10 @@ const App: React.FC = () => {
   }, [profile, handleApiError, showAlert]);
 
   // `handleUpdatePassword`: Updates the user's password.
-  const handleUpdatePassword = useCallback(async (password: string) => {
+  const handleUpdatePassword = useCallback(async (password: string): Promise<void> => {
     try {
         const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         showAlert('Success', 'Password updated successfully!');
     } catch (error: any) {
         handleApiError(error, 'handleUpdatePassword');
@@ -881,10 +879,10 @@ const App: React.FC = () => {
   }, [handleApiError, showAlert]);
 
   // `handleUpdateEmail`: Updates the user's email address (requires email confirmation).
-  const handleUpdateEmail = useCallback(async (email: string) => {
+  const handleUpdateEmail = useCallback(async (email: string): Promise<void> => {
     try {
         const { error } = await supabase.auth.updateUser({ email });
-        if (error) throw error;
+        if (error) throw new Error(error.message);
         showAlert('Confirmation Required', 'A confirmation link has been sent to your new email address. Please check your inbox to complete the change.');
     } catch (error: any) {
         handleApiError(error, 'handleUpdateEmail');

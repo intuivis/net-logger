@@ -1,13 +1,7 @@
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
-import { Database } from '../database.types';
+//import { Database } from '../database.types';
 import { Icon } from '../components/Icon';
 
 interface UserManagementScreenProps {
@@ -44,7 +38,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
         setUpdatingProfileId(profile.id);
         const { error } = await supabase
             .from('profiles')
-            .update({ is_approved: !profile.is_approved } as any)
+            .update({ is_approved: !profile.is_approved })
             .eq('id', profile.id);
 
         if (error) {
