@@ -56,10 +56,10 @@ export interface Repeater {
 }
 
 export const PERMISSION_DEFINITIONS: { key: PermissionKey; label: string; description: string }[] = [
-    { key: 'editNet', label: 'Edit Net Details', description: 'Allows user to change the net name, description, schedule, and technical configuration.' },
-    { key: 'manageSessions', label: 'Start / End Sessions', description: 'Allows user to start a new session or end an active one.' },
-    { key: 'deleteSessions', label: 'Delete Session History', description: 'Allows user to permanently delete historical session logs for this net.' },
-    { key: 'logContacts', label: 'Manage Check-ins', description: 'Allows user to add, edit, and delete check-ins in an active session.' }
+    { key: 'editNet', label: 'Edit Net Details', description: 'Modify the net name, description, schedule, and technical configuration.' },
+    { key: 'manageSessions', label: 'Start / End Sessions', description: 'Start a new session or end an active one.' },
+    { key: 'deleteSessions', label: 'Delete Session History', description: 'Permanently delete historical session logs for this net.' },
+    { key: 'logContacts', label: 'Manage Check-ins', description: 'Ability to add, edit, and delete check-ins in an active session.' }
 ];
 
 // Re-defining Net to avoid complex recursive types that cause TS errors.

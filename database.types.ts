@@ -299,7 +299,7 @@ export interface Database {
             foreignKeyName: "roster_members_net_id_fkey";
             columns: ["net_id"];
             referencedRelation: "nets";
-            referencedColumns: ["id"]
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -335,7 +335,7 @@ export interface Database {
             foreignKeyName: "sessions_net_id_fkey";
             columns: ["net_id"];
             referencedRelation: "nets";
-            referencedColumns: ["id"]
+            referencedColumns: ["id"];
           }
         ];
       };

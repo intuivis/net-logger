@@ -1,3 +1,5 @@
+
+
 /**
  * SessionScreen.tsx
  * 
@@ -34,6 +36,7 @@ interface SessionScreenProps {
   handleApiError: (error: any, context?: string) => void; // Generic API error handler.
   requestConfirmation: (config: { title: string; message: string; onConfirm: () => void; confirmText?: string; isDestructive?: boolean; }) => void; // Function to show a confirmation dialog.
   verifiedPasscodes: Record<string, string>; // Map of net IDs to their verified passcodes.
+  onDeleteSession: (sessionId: string, netId: string) => void; // Handler to delete the session.
 }
 
 // --- SUB-COMPONENTS ---
@@ -100,7 +103,7 @@ const CheckInForm: React.FC<{
             }
 
             if (data) {
-                const typedData = data as { first_name: string | null; last_name: string | null };
+                const typedData = data as unknown as { first_name: string | null; last_name: string | null; };
                 setName(`${typedData.first_name || ''} ${typedData.last_name || ''}`.trim());
             }
         };
@@ -207,20 +210,54 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
     const [sessionNotes, setSessionNotes] = useState(''); // Local state for the session notes textarea to allow debouncing.
     const [activeTab, setActiveTab] = useState<'log' | 'roster'>('log'); // Controls which tab is visible (Live Log or Roster).
     const [isSubmitting, setIsSubmitting] = useState(false); // Tracks if a new check-in is currently being submitted to prevent double-clicks.
+    const [isMenuOpen, setIsMenuOpen] = useState(false); // State for the historical session actions menu.
+    const [isEditingEndedSession, setIsEditingEndedSession] = useState(false); // State to enable editing on an ended session.
+    const menuRef = useRef<HTMLDivElement>(null);
 
     // --- DERIVED STATE & CONSTANTS (using useMemo for performance) ---
     const isActive = useMemo(() => session?.end_time === null, [session]); // Is the session currently live?
-    const canLogContacts = props.hasPermission('logContacts'); // Does the user have permission to manage check-ins?
+    const canLogContacts = props.hasPermission('logContacts'); // Does the user have permission to manage check-ins during an active session?
     const canManageSessions = props.hasPermission('manageSessions'); // Does the user have permission to start/end sessions?
-    const showTabs = canLogContacts && rosterMembers.length > 0; // Should the Roster/Log tabs be shown?
+    const canDeleteSessions = props.hasPermission('deleteSessions'); // Does the user have permission to delete/edit historical sessions?
+
+    const isOwnerOrAdmin = useMemo(() => {
+        if (!props.profile || !net) return false;
+        return props.profile.role === 'admin' || net.created_by === props.profile.id;
+    }, [props.profile, net]);
+
+    // This is the core permission logic for actions within the session.
+    // It determines if the user can modify things based on session status and their permissions.
+    const hasEditPermissions = useMemo(() => {
+        if (isActive) {
+            return canLogContacts; // For active sessions, you need 'logContacts' permission.
+        }
+        if (isEditingEndedSession) {
+            return isOwnerOrAdmin; // For historical sessions, only owner/admin can edit.
+        }
+        return false; // Otherwise, no editing allowed.
+    }, [isActive, isEditingEndedSession, canLogContacts, isOwnerOrAdmin]);
+
+    const showTabs = hasEditPermissions && rosterMembers.length > 0; // Should the Roster/Log tabs be shown?
     const checkedInCallsigns = useMemo(() => new Set(checkIns.map(ci => normalizeCallsign(ci.call_sign))), [checkIns]); // A Set of already checked-in callsigns for quick lookups.
 
     // --- SIDE EFFECTS (useEffect) ---
+    // Click-outside-to-close handler for the actions menu.
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Debounced effect for saving session notes. This prevents an API call on every keystroke.
     useEffect(() => {
         // Don't save if still loading, user doesn't have permission, or notes haven't changed.
-        if (loading || !session || !canLogContacts || sessionNotes === (session.notes || '')) {
+        if (loading || !hasEditPermissions || sessionNotes === (session?.notes || '')) {
             return;
         }
         // Set a timer to save the notes 1.5 seconds after the user stops typing.
@@ -230,7 +267,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
 
         // Cleanup function: if the component unmounts or dependencies change, clear the timer.
         return () => clearTimeout(handler);
-    }, [sessionNotes, sessionId, session, onUpdateSessionNotes, loading, canLogContacts]);
+    }, [sessionNotes, sessionId, session, onUpdateSessionNotes, loading, hasEditPermissions]);
     
     // This effect ensures the user is always on a valid tab.
     useEffect(() => {
@@ -262,7 +299,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     setLoading(false);
                     return;
                 }
-                const sessionData = sessionResult[0];
+                const sessionData = (sessionResult as unknown as NetSession[])[0];
         
                 // Fetch the associated NET data.
                 const { data: netResult, error: netError } = await supabase
@@ -277,7 +314,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     setLoading(false);
                     return;
                 }
-                const netData = netResult[0] as Database['public']['Tables']['nets']['Row'];
+                const netData = (netResult as unknown as Database['public']['Tables']['nets']['Row'][])[0];
                 
                 // Transform the raw net data into the frontend `Net` type.
                 const typedNet: Net = {
@@ -301,7 +338,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     passcode_permissions: (netData.passcode_permissions as unknown as PasscodePermissions | null),
                 };
 
-                setSession(sessionData);
+                setSession(sessionData as NetSession);
                 setSessionNotes(sessionData.notes || '');
                 setNet(typedNet);
 
@@ -312,7 +349,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                 // FIX: Transform raw check-in data to match the frontend CheckIn type.
                 // The database returns `status_flag` as a generic `number`, but our frontend `CheckIn` type
                 // expects the more specific `CheckInStatusValue` union type. We cast it here.
-                const typedCheckIns = (checkInData || []).map(ci => ({
+                const typedCheckIns = ((checkInData as unknown as Database['public']['Tables']['check_ins']['Row'][]) || []).map(ci => ({
                     ...ci,
                     status_flag: ci.status_flag as CheckInStatusValue,
                 }));
@@ -331,28 +368,29 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
         const channel = supabase.channel(`session-${sessionId}`);
         channel
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'check_ins', filter: `session_id=eq.${sessionId}`}, (payload) => {
-                const newCheckInFromDb = payload.new as CheckIn;
+                const newCheckInFromDb = payload.new as unknown as Database['public']['Tables']['check_ins']['Row'];
                 const callsignFromDb = normalizeCallsign(newCheckInFromDb.call_sign);
                 
                 setCheckIns(current => {
                     // This logic handles replacing the optimistic UI entry with the real one from the database.
                     const optimisticEntry = current.find(c => c.isOptimistic && normalizeCallsign(c.call_sign) === callsignFromDb);
                     if (optimisticEntry) {
-                        return current.map(c => c.id === optimisticEntry.id ? { ...newCheckInFromDb, isOptimistic: false, status_flag: c.status_flag } : c);
+                        return current.map(c => c.id === optimisticEntry.id ? { ...newCheckInFromDb, isOptimistic: false, status_flag: c.status_flag as CheckInStatusValue } : c);
                     }
                     // Avoid adding duplicates if the message arrives multiple times.
-                    return current.some(c => c.id === newCheckInFromDb.id) ? current : [newCheckInFromDb, ...current];
+                    return current.some(c => c.id === newCheckInFromDb.id) ? current : [{...newCheckInFromDb, status_flag: newCheckInFromDb.status_flag as CheckInStatusValue}, ...current];
                 });
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'check_ins', filter: `session_id=eq.${sessionId}`}, (payload) => {
-                setCheckIns(current => current.map(c => c.id === payload.new.id ? (payload.new as CheckIn) : c));
+                const updatedCheckIn = payload.new as unknown as CheckIn;
+                setCheckIns(current => current.map(c => c.id === updatedCheckIn.id ? updatedCheckIn : c));
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'check_ins', filter: `session_id=eq.${sessionId}`}, (payload) => {
                 setCheckIns(current => current.filter(c => c.id !== (payload.old as any).id));
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}`}, (payload) => {
                 // Listen for updates to the session itself (e.g., end_time, notes from another user).
-                const updatedSession = payload.new as NetSession;
+                const updatedSession = payload.new as unknown as NetSession;
                 setSession(prev => prev ? { ...prev, ...updatedSession } : updatedSession);
                 if (updatedSession.notes !== sessionNotes) {
                     setSessionNotes(updatedSession.notes || '');
@@ -423,7 +461,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
 
     // Handles cycling through the check-in statuses (New -> Acknowledged -> Attention -> Question -> New).
     const handleStatusClick = useCallback(async (checkIn: CheckIn) => {
-        if (!net || !isActive || !canLogContacts || checkIn.isOptimistic) return;
+        if (!net || !hasEditPermissions || checkIn.isOptimistic) return;
 
         const currentStatus = checkIn.status_flag;
         const nextStatus = ((currentStatus + 1) % 4) as CheckInStatusValue; // Cycle through 0, 1, 2, 3
@@ -437,7 +475,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
             // If the API call fails, revert the change in the UI.
             setCheckIns(prev => prev.map(c => c.id === checkIn.id ? { ...c, status_flag: currentStatus } : c));
         }
-    }, [net, isActive, canLogContacts, onUpdateCheckInStatus]);
+    }, [net, hasEditPermissions, onUpdateCheckInStatus]);
 
     // Handles deleting a check-in after confirming with the user.
     const handleDeleteCheckIn = (checkInId: string) => {
@@ -492,8 +530,18 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                 <span>Back to {net.name} Details</span>
             </button>
 
+             {isEditingEndedSession && (
+                <div className="bg-yellow-900/50 text-yellow-300 p-4 rounded-lg ring-1 ring-inset ring-yellow-400/50">
+                    <div className="flex items-center justify-center gap-3">
+                        <Icon>edit_note</Icon>
+                        <p className="font-semibold">You are editing a historical session. Changes are saved automatically.</p>
+                        <button onClick={() => setIsEditingEndedSession(false)} className="ml-4 text-sm font-bold underline hover:text-white flex-shrink-0">Exit Edit Mode</button>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-dark-800 shadow-lg rounded-lg p-5 sm:p-6">
-                <div className="flex justify-between items-center flex-wrap gap-4">
+                 <div className="flex justify-between items-start flex-wrap gap-4">
                     <div>
                         <div className="flex items-center gap-3">
                             <h1 className="text-3xl font-bold tracking-tight">{net.name}</h1>
@@ -514,14 +562,57 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                             Net Control: {session.primary_nco} ({session.primary_nco_callsign})
                         </p>
                     </div>
-                    {canManageSessions && isActive && (
-                        <button 
-                            onClick={() => props.onEndSessionRequest(sessionId, net.id)} 
-                            className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors shadow-md"
-                        >
-                            End Session
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {canManageSessions && isActive && (
+                            <button 
+                                onClick={() => props.onEndSessionRequest(sessionId, net.id)} 
+                                className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors shadow-md"
+                            >
+                                End Session
+                            </button>
+                        )}
+                        {!isActive && (isOwnerOrAdmin || canDeleteSessions) && (
+                           <div className="relative" ref={menuRef}>
+                                <button
+                                    onClick={() => setIsMenuOpen(prev => !prev)}
+                                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                                    aria-label="More session actions"
+                                >
+                                    <Icon>more_vert</Icon>
+                                </button>
+                                {isMenuOpen && (
+                                    <div className="absolute right-0 mt-2 w-56 origin-top-right bg-dark-800 border border-dark-700 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none p-2 z-10">
+                                        <div className="space-y-1">
+                                            {isOwnerOrAdmin && (
+                                                <button
+                                                    onClick={() => {
+                                                        setIsEditingEndedSession(true);
+                                                        setIsMenuOpen(false);
+                                                    }}
+                                                    className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-dark-text-secondary hover:bg-dark-700 hover:text-dark-text transition-colors rounded-md"
+                                                >
+                                                    <Icon className="text-xl w-5 text-center">edit</Icon>
+                                                    <span>Edit Session</span>
+                                                </button>
+                                            )}
+                                            {canDeleteSessions && (
+                                                <button
+                                                    onClick={() => {
+                                                        props.onDeleteSession(sessionId, net.id);
+                                                        setIsMenuOpen(false);
+                                                    }}
+                                                    className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors rounded-md"
+                                                >
+                                                    <Icon className="text-xl w-5 text-center">delete_forever</Icon>
+                                                    <span>Delete Session</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -533,14 +624,14 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     rows={4}
                     value={sessionNotes}
                     onChange={(e) => setSessionNotes(e.target.value)}
-                    disabled={!isActive || !canLogContacts}
+                    disabled={!hasEditPermissions}
                     className="text-md block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm disabled:bg-dark-800/50"
                     aria-label="Session Notes"
                 />
             </div>
-
-            {/* --- Check-In Form Section (only shown if session is active and user has permission) --- */}
-            {isActive && canLogContacts && (
+            
+            {/* --- Check-In Form Section (only shown if session is active/editable and user has permission) --- */}
+            {hasEditPermissions && (
                 <CheckInForm net={net} onSubmit={(data) => handleAddCheckInOptimistic(data, 'form')} isSubmitting={isSubmitting} />
             )}
             
@@ -604,7 +695,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                                     return (
                                         <tr key={checkIn.id} className={`transition-colors ${style.row} ${checkIn.isOptimistic ? 'opacity-50' : ''}`}>
                                             <td className="w-12 px-2 py-4">
-                                                <button onClick={() => handleStatusClick(checkIn)} className={`w-full flex items-center justify-center rounded-md ${isActive && canLogContacts && !checkIn.isOptimistic ? 'hover:bg-dark-700' : 'cursor-default'}`} disabled={!isActive || !canLogContacts || checkIn.isOptimistic}>
+                                                <button onClick={() => handleStatusClick(checkIn)} className={`w-full flex items-center justify-center rounded-md ${hasEditPermissions && !checkIn.isOptimistic ? 'hover:bg-dark-700' : 'cursor-default'}`} disabled={!hasEditPermissions || checkIn.isOptimistic}>
                                                     <Icon className={`text-2xl transition-colors ${style.icon}`}>{getStatusIcon(checkIn.status_flag)}</Icon>
                                                 </button>
                                             </td>
@@ -631,8 +722,8 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                                             )}
                                             <td className="px-4 py-2 whitespace-nowrap text-sm italic">{checkIn.notes}</td>
                                             <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                                                {/* Edit/Delete buttons only appear for active sessions for authorized users. */}
-                                                {isActive && canLogContacts && (
+                                                {/* Edit/Delete buttons only appear for active/editable sessions for authorized users. */}
+                                                {hasEditPermissions && (
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button onClick={() => onEditCheckIn(sessionId, checkIn)} disabled={checkIn.isOptimistic} className="w-8 h-8 flex items-center justify-center text-gray-400 rounded-full hover:bg-white/10 hover:text-white transition-colors disabled:text-gray-600 disabled:cursor-not-allowed">
                                                             <Icon className="text-xl">edit</Icon>
@@ -651,7 +742,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                     </div>
                 )}
                 {/* --- Roster Table --- */}
-                {activeTab === 'roster' && canLogContacts && (
+                {activeTab === 'roster' && showTabs && (
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-dark-700">
                             <thead className="bg-dark-700/50">
@@ -672,7 +763,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">{member.location}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {/* Check-in from roster button */}
-                                            {canLogContacts && isActive && (
+                                            {hasEditPermissions && (
                                                 <button onClick={() => handleAddCheckInOptimistic({call_sign: member.call_sign, name: member.name, location: member.location, notes: "From Roster", repeater_id: null}, member.id)}
                                                     // Disable if submitting or if the user is already checked in.
                                                     disabled={isSubmitting || checkedInCallsigns.has(normalizeCallsign(member.call_sign))}

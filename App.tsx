@@ -247,22 +247,22 @@ const App: React.FC = () => {
             throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
         }
         
-        const typedNets: Net[] = ((netsRes.data as Database['public']['Tables']['nets']['Row'][]) || []).map(transformNetPayload);
+        const typedNets: Net[] = ((netsRes.data as unknown as Database['public']['Tables']['nets']['Row'][]) || []).map(transformNetPayload);
         
         // FIX: Transform raw check-in data to match the frontend CheckIn type.
         // The database returns `status_flag` as a generic `number`, but our frontend `CheckIn` type
         // expects the more specific `CheckInStatusValue` union type. We cast it here.
-        const typedCheckIns = ((checkInsRes.data as Database['public']['Tables']['check_ins']['Row'][]) || []).map(ci => ({
+        const typedCheckIns = ((checkInsRes.data as unknown as Database['public']['Tables']['check_ins']['Row'][]) || []).map(ci => ({
             ...ci,
             status_flag: ci.status_flag as CheckInStatusValue,
         }));
 
         setNets(typedNets);
-        setSessions((sessionsRes.data as NetSession[]) || []);
+        setSessions((sessionsRes.data as unknown as NetSession[]) || []);
         setCheckIns(typedCheckIns);
-        setAwardedBadges((awardedBadgesRes.data as AwardedBadge[]) || []);
-        setAllBadges((allBadgesRes.data as Badge[]) || []);
-        setRosterMembers((rosterMembersRes.data as RosterMember[]) || []);
+        setAwardedBadges((awardedBadgesRes.data as unknown as AwardedBadge[]) || []);
+        setAllBadges((allBadgesRes.data as unknown as Badge[]) || []);
+        setRosterMembers((rosterMembersRes.data as unknown as RosterMember[]) || []);
 
     } catch (error: any) {
         handleApiError(error, 'refreshAllData');
@@ -277,7 +277,7 @@ const App: React.FC = () => {
     try {
         const { data: allSessions, error: sessionsError } = await supabase.from('sessions').select('id, net_id');
         if (sessionsError) throw new Error(`Failed to fetch sessions for backfill: ${sessionsError.message}`);
-        const sessionToNetMap = new Map(((allSessions as Pick<NetSession, 'id' | 'net_id'>[]) || []).map(s => [s.id, s.net_id]));
+        const sessionToNetMap = new Map(((allSessions as unknown as { id: string; net_id: string }[]) || []).map(s => [s.id, s.net_id]));
 
         const { data: allCheckIns, error: checkInsError } = await supabase.from('check_ins').select('call_sign, timestamp, session_id');
         if (checkInsError) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsError.message}`);
@@ -285,7 +285,7 @@ const App: React.FC = () => {
         const { data: existingAwards, error: awardedBadgesError } = await supabase.from('awarded_badges').select('call_sign, net_id').eq('badge_id', firstCheckinBadgeId);
         if (awardedBadgesError) throw new Error(`Failed to fetch existing badges: ${awardedBadgesError.message}`);
 
-        const allCheckInsWithNetId = ((allCheckIns as Pick<CheckIn, 'call_sign' | 'timestamp' | 'session_id'>[]) || []).map(ci => ({
+        const allCheckInsWithNetId = ((allCheckIns as unknown as { call_sign: string, timestamp: string, session_id: string }[]) || []).map(ci => ({
             ...ci,
             net_id: sessionToNetMap.get(ci.session_id)
         })).filter(ci => ci.net_id);
@@ -301,7 +301,7 @@ const App: React.FC = () => {
             }
         }
         
-        const existingAwardsSet = new Set(((existingAwards as Pick<AwardedBadge, 'call_sign' | 'net_id'>[]) || []).map(b => `${b.call_sign}-${b.net_id}`));
+        const existingAwardsSet = new Set(((existingAwards as unknown as { call_sign: string, net_id: string }[]) || []).map(b => `${b.call_sign}-${b.net_id}`));
         const newAwardsToInsert: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
 
         for (const [key, firstCheckIn] of firstCheckInsPerNet.entries()) {
@@ -376,7 +376,7 @@ const App: React.FC = () => {
                     await supabase.auth.signOut();
                     return;
                 } else {
-                    userProfile = profiles[0] as Profile;
+                    userProfile = profiles[0] as unknown as Profile;
                 }
             }
 
@@ -448,7 +448,7 @@ const App: React.FC = () => {
             if (error) {
                 console.error("Error re-fetching roster members:", error);
             } else {
-                setRosterMembers((data as RosterMember[]) || []);
+                setRosterMembers((data as unknown as RosterMember[]) || []);
             }
         })
         .subscribe();
@@ -544,7 +544,7 @@ const App: React.FC = () => {
             if (error) throw error;
             if (!data) throw new Error("No data returned after update operation via RPC.");
 
-            const updatedNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
+            const updatedNet = transformNetPayload(data as any);
             setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
             setView({ type: 'netDetail', netId: updatedNet.id });
 
@@ -562,7 +562,7 @@ const App: React.FC = () => {
             if (error) throw error;
             if (!data) throw new Error("No data returned after create operation.");
 
-            const newNet = transformNetPayload(data as Database['public']['Tables']['nets']['Row']);
+            const newNet = transformNetPayload(data);
             setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
             setView({ type: 'netDetail', netId: newNet.id });
         }
@@ -661,7 +661,7 @@ const App: React.FC = () => {
   }, [handleEndSession, requestConfirmation]);
 
   // `handleDeleteSession`: Deletes a historical session and its check-ins after confirmation.
-  const handleDeleteSession = useCallback(async (sessionId: string) => {
+  const handleDeleteSession = useCallback(async (sessionId: string, netId: string) => {
     requestConfirmation({
         title: 'Confirm Deletion',
         message: 'Are you sure you want to permanently delete this session and its log?',
@@ -671,14 +671,21 @@ const App: React.FC = () => {
             try {
                 const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
                 if (error) throw error;
+                
+                // State will update via subscription, but for snappy UI, update locally.
                 setSessions(prev => prev.filter(s => s.id !== sessionId));
                 setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
+
+                // If we are on the session screen we just deleted, navigate away.
+                if (view.type === 'session' && view.sessionId === sessionId) {
+                    setView({ type: 'netDetail', netId });
+                }
             } catch (error: any) {
                 handleApiError(error, 'handleDeleteSession');
             }
         }
     });
-  }, [handleApiError, requestConfirmation]);
+  }, [view, setView, handleApiError, requestConfirmation]);
   
   // `handleUpdateSessionNotes`: Updates the notes for a session.
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string) => {
@@ -773,7 +780,7 @@ const App: React.FC = () => {
         if (deleteError) throw deleteError;
 
         if (members.length > 0) {
-            const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
+            const membersToInsert: Database['public']['Tables']['roster_members']['Insert'][] = members.map(m => ({ ...m, net_id: netId }));
             const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
             if (insertError) throw insertError;
         }
@@ -855,7 +862,7 @@ const App: React.FC = () => {
 
         if (updateError) throw updateError;
         
-        setProfile(data as Profile);
+        setProfile(data as unknown as Profile);
         showAlert('Success', 'Profile updated successfully!');
     } catch (error: any) {
         handleApiError(error, 'handleUpdateProfileData');
@@ -1021,7 +1028,6 @@ const App: React.FC = () => {
                 onDeleteNet={() => handleDeleteNet(view.netId)}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
                 onBack={goBack}
-                onDeleteSession={handleDeleteSession}
                 onVerifyPasscodeRequest={() => setVerifyingPasscodeForNet(detailNet)}
                 onEditRoster={() => setView({ type: 'rosterEditor', netId: view.netId })}
             />
@@ -1050,6 +1056,7 @@ const App: React.FC = () => {
             handleApiError={handleApiError}
             requestConfirmation={requestConfirmation}
             verifiedPasscodes={verifiedPasscodes}
+            onDeleteSession={handleDeleteSession}
           />
         );
       }

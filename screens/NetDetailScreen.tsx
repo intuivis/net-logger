@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
 import { formatTime, formatRepeaterCondensed, formatTimeZone } from '../lib/time';
@@ -19,7 +18,6 @@ interface NetDetailScreenProps {
     onDeleteNet: () => void;
     onViewSession: (sessionId: string) => void;
     onBack: () => void;
-    onDeleteSession: (sessionId: string) => void;
     onVerifyPasscodeRequest: () => void;
     onEditRoster: () => void;
 }
@@ -74,13 +72,12 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
 );
 
 
-const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, hasPermission, onStartSession, onEndSessionRequest, onEditNet, onDeleteNet, onViewSession, onBack, onDeleteSession, onVerifyPasscodeRequest, onEditRoster }) => {
+const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkIns, profile, hasPermission, onStartSession, onEndSessionRequest, onEditNet, onDeleteNet, onViewSession, onBack, onVerifyPasscodeRequest, onEditRoster }) => {
     const [isRepeaterListVisible, setIsRepeaterListVisible] = React.useState(false);
     const activeSession = sessions.find(s => s.end_time === null);
     
     const canEditNet = hasPermission(net, 'editNet');
     const canManageSessions = hasPermission(net, 'manageSessions');
-    const canDeleteSessions = hasPermission(net, 'deleteSessions');
     const isOwnerOrAdmin = profile && (profile.role === 'admin' || net.created_by === profile.id);
 
     const handleEndSessionClick = () => {
@@ -107,7 +104,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             onClick={() => setIsRepeaterListVisible(!isRepeaterListVisible)}
                             aria-expanded={isRepeaterListVisible}
                         >
-                            <h3 className="text-md font-semibold text-dark-text uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
+                            <h3 className="text-md font-semibold text-dark-text-secondary uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
                             {isRepeaterListVisible ? <Icon className="text-xl">expand_less</Icon> : <Icon className="text-xl">expand_more</Icon>}
                         </button>
                         {isRepeaterListVisible && (
@@ -248,35 +245,24 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             
                             return (
                                 <li key={session.id}>
-                                   <div className="group flex items-center justify-between p-5 hover:bg-dark-700/30 transition-colors">
-                                        <button onClick={() => onViewSession(session.id)} className="flex-grow text-left cursor-pointer focus:outline-none">
-                                            <div className="flex flex-col sm:flex-row justify-between sm:items-center">
-                                                <div>
-                                                    <p className="font-bold text-dark-text">{startTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                                                    <p className="text-sm text-dark-text-secondary">
-                                                        Started at {startTime.toLocaleTimeString()} by {session.primary_nco_callsign}
-                                                    </p>
-                                                </div>
-                                                <div className="text-right mt-2 sm:mt-0">
-                                                    <p className="font-semibold text-dark-text">{sessionCheckIns.length} Check-ins</p>
-                                                    <p className={`text-sm ${endTime ? 'text-dark-text-secondary' : 'text-green-400 animate-pulse'}`}>
-                                                        {formatDuration(startTime, endTime)}
-                                                    </p>
-                                                </div>
+                                   <button onClick={() => onViewSession(session.id)} className="w-full text-left p-5 hover:bg-dark-700/30 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary">
+                                        <div className="flex w-full items-start justify-between gap-4">
+                                            {/* Left Side */}
+                                            <div className="flex-1">
+                                                <p className="font-bold text-dark-text">{startTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                                <p className="text-sm text-dark-text-secondary">
+                                                    Started at {startTime.toLocaleTimeString()} by {session.primary_nco_callsign}
+                                                </p>
                                             </div>
-                                        </button>
-                                        {canDeleteSessions && (
-                                            <div className="pl-4">
-                                                <button 
-                                                    onClick={() => onDeleteSession(session.id)}
-                                                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-red-500 rounded-full hover:bg-red-500/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                                                    aria-label="Delete Session"
-                                                >
-                                                    <Icon className="text-xl">delete</Icon>
-                                                </button>
+                                            {/* Right Side */}
+                                            <div className="text-right flex-shrink-0">
+                                                <p className="font-semibold text-dark-text">{sessionCheckIns.length} Check-ins</p>
+                                                <p className={`text-sm ${endTime ? 'text-dark-text-secondary' : 'text-green-400 animate-pulse'}`}>
+                                                    {formatDuration(startTime, endTime)}
+                                                </p>
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    </button>
                                 </li>
                             );
                         })}
