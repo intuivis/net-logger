@@ -6,6 +6,8 @@
  * handles real-time updates for check-ins and session status.
  */
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import FormInput from '../components/FormInput';
+import FormSelect from '../components/FormSelect';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
@@ -39,45 +41,19 @@ interface SessionScreenProps {
 
 // --- SUB-COMPONENTS ---
 
-// A reusable, styled text input component.
-const FormInput: React.FC<{label: string, id: string} & React.InputHTMLAttributes<HTMLInputElement>> = ({ label, id, ...props }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-dark-text-secondary mb-1">
-            {label}
-            {props.required && <span className="text-red-400 ml-1">*</span>}
-        </label>
-        <input
-            id={id}
-            {...props}
-            className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11"
-        />
-    </div>
-);
-
-// A reusable, styled select dropdown component.
-const FormSelect: React.FC<{label: string, id: string, children: React.ReactNode} & React.SelectHTMLAttributes<HTMLSelectElement>> = ({ label, id, children, ...props }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-medium text-dark-text-secondary mb-1">
-          {label}
-          {props.required && <span className="text-red-400 ml-1">*</span>}
-        </label>
-        <select id={id} {...props} className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11">
-            {children}
-        </select>
-    </div>
-);
 
 // The main form for adding new check-ins.
 const CheckInForm: React.FC<{
     net: Net,
     onSubmit: (data: CheckInInsertPayload) => Promise<void>,
-    isSubmitting: boolean
-}> = React.memo(({ net, onSubmit, isSubmitting }) => {
+    isSubmitting: boolean,
+    repeaterId: string,
+    setRepeaterId: React.Dispatch<React.SetStateAction<string>>
+}> = React.memo(({ net, onSubmit, isSubmitting, repeaterId, setRepeaterId }) => {
     const [callSign, setCallSign] = useState('');
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
     const [notes, setNotes] = useState('');
-    const [repeaterId, setRepeaterId] = useState<string | null>(null);
 
     // This effect provides a UX enhancement by automatically looking up the name
     // associated with a callsign from a public database table after the user
@@ -112,7 +88,11 @@ const CheckInForm: React.FC<{
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const checkInData: CheckInInsertPayload = {
-            call_sign: callSign, name, location, notes, repeater_id: repeaterId,
+            call_sign: callSign,
+            name,
+            location,
+            notes,
+            repeater_id: repeaterId !== '' ? repeaterId : null,
         };
         try {
             await onSubmit(checkInData);
@@ -122,7 +102,7 @@ const CheckInForm: React.FC<{
             setName('');
             setLocation('');
             setNotes('');
-            setRepeaterId(null);
+            // Do NOT reset repeaterId here; it will persist until user changes it
             document.getElementById('callSign')?.focus();
         } catch (error) {
             // Error is handled by the parent component (which shows the alert).
@@ -134,15 +114,27 @@ const CheckInForm: React.FC<{
     const isLinkedRepeaterNet = net.net_config_type === NetConfigType.LINKED_REPEATER;
     const gridColsClass = isLinkedRepeaterNet ? 'lg:grid-cols-6' : 'lg:grid-cols-5';
 
+
     return (
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 bg-dark-800 shadow-lg rounded-lg">
             <div className={`grid grid-cols-1 md:grid-cols-2 ${gridColsClass} gap-4 items-end`}>
                 {/* Conditionally render the repeater dropdown only for linked repeater systems. */}
                 {isLinkedRepeaterNet && (
                 <div className="lg:col-span-1">
-                    <FormSelect label="Repeater" id="repeater_id" name="repeater_id" value={repeaterId || ''} onChange={(e) => setRepeaterId(e.target.value || null)}>
+                    <FormSelect
+                        label="Repeater"
+                        id="repeater_id"
+                        name="repeater_id"
+                        value={repeaterId ?? ''}
+                        onChange={(e) => setRepeaterId(e.target.value !== '' ? e.target.value : '')}
+                        required={false}
+                    >
                         <option value="">Select Repeater...</option>
-                        {net.repeaters.map(r => <option key={r.id} value={r.id}>{formatRepeaterCondensed(r)}</option>)}
+                        {net.repeaters.map(r => (
+                            <option key={r.id} value={r.id}>
+                                {formatRepeaterCondensed(r)}
+                            </option>
+                        ))}
                     </FormSelect>
                 </div>
                 )}
@@ -210,6 +202,7 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
     const [isSubmitting, setIsSubmitting] = useState(false); // Tracks if a new check-in is currently being submitted to prevent double-clicks.
     const [isMenuOpen, setIsMenuOpen] = useState(false); // State for the historical session actions menu.
     const [isEditingEndedSession, setIsEditingEndedSession] = useState(false); // State to enable editing on an ended session.
+    const [repeaterId, setRepeaterId] = useState<string>(''); // Persist selected repeater
     const menuRef = useRef<HTMLDivElement>(null);
 
     // --- DERIVED STATE & CONSTANTS (using useMemo for performance) ---
@@ -631,9 +624,15 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allBadges, ros
             </div>
             
             {/* --- Check-In Form Section (only shown if session is active/editable and user has permission) --- */}
-            {hasEditPermissions && (
-                <CheckInForm net={net} onSubmit={(data) => handleAddCheckInOptimistic(data, 'form')} isSubmitting={isSubmitting} />
-            )}
+                        {hasEditPermissions && (
+                                <CheckInForm
+                                    net={net}
+                                    onSubmit={(data) => handleAddCheckInOptimistic(data, 'form')}
+                                    isSubmitting={isSubmitting}
+                                    repeaterId={repeaterId}
+                                    setRepeaterId={setRepeaterId}
+                                />
+                        )}
             
             {/* --- Check-In Log / Roster Section --- */}
             <div className="bg-dark-800 shadow-lg rounded-lg">
