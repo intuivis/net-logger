@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
-//import { Database } from '../database.types';
+import { Database } from '../database.types';
 import { Icon } from '../components/Icon';
 
 interface UserManagementScreenProps {
@@ -36,9 +36,10 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
 
     const handleApprovalToggle = async (profile: Profile) => {
         setUpdatingProfileId(profile.id);
+        const updatePayload = { is_approved: !profile.is_approved };
         const { error } = await supabase
             .from('profiles')
-            .update({ is_approved: !profile.is_approved })
+            .update(updatePayload)
             .eq('id', profile.id);
 
         if (error) {
@@ -66,8 +67,8 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">NCO Management</h1>
-                <p className="text-dark-text-secondary mt-1">View all registered Net Control Operators and manage their access.</p>
+                <h1 className="text-3xl font-bold tracking-tight">Net Control User Management</h1>
+                <p className="text-dark-text-secondary mt-1">View all registered Net Control Stations and manage their access.</p>
             </div>
             
             <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">

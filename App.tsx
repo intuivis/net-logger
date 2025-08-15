@@ -35,6 +35,7 @@ import ConfirmModal from './components/ConfirmModal';
 import AlertModal from './components/AlertModal';
 import ProfileScreen from './screens/ProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import DirectoryScreen from './screens/DirectoryScreen';
 
 const App: React.FC = () => {
   // --- STATE MANAGEMENT ---
@@ -114,7 +115,7 @@ const App: React.FC = () => {
           if (JSON.stringify(newView) === JSON.stringify(currentView)) return prev;
 
           // Navigating to a main screen from the header should reset the stack
-          if (['home', 'login', 'register', 'manageNets', 'userManagement', 'about', 'awards', 'profile'].includes(newView.type)) {
+          if (['home', 'login', 'register', 'manageNets', 'userManagement', 'about', 'awards', 'directory', 'profile'].includes(newView.type)) {
               return [newView];
           }
           
@@ -227,13 +228,20 @@ const App: React.FC = () => {
   // This is called on initial load and after major state changes (like ending a session).
   const refreshAllData = useCallback(async () => {
     try {
+        const netsPromise = supabase.from('nets').select('*').order('name');
+        const sessionsPromise = supabase.from('sessions').select('*').order('start_time', { ascending: false });
+        const checkInsPromise = supabase.from('check_ins').select('*').order('timestamp', { ascending: false });
+        const awardedBadgesPromise = supabase.from('awarded_badges').select('*');
+        const allBadgesPromise = supabase.from('badges').select('*');
+        const rosterMembersPromise = supabase.from('roster_members').select('*');
+
         const [netsRes, sessionsRes, checkInsRes, awardedBadgesRes, allBadgesRes, rosterMembersRes] = await Promise.all([
-            supabase.from('nets').select('*').order('name'),
-            supabase.from('sessions').select('*').order('start_time', { ascending: false }),
-            supabase.from('check_ins').select('*').order('timestamp', { ascending: false }),
-            supabase.from('awarded_badges').select('*'),
-            supabase.from('badges').select('*'),
-            supabase.from('roster_members').select('*'),
+            netsPromise,
+            sessionsPromise,
+            checkInsPromise,
+            awardedBadgesPromise,
+            allBadgesPromise,
+            rosterMembersPromise,
         ]);
 
         if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
@@ -471,10 +479,10 @@ const App: React.FC = () => {
                 setView({ type: 'accessRevoked' });
             }
         } else if (['login', 'register', 'accessRevoked'].includes(view.type)) {
-            setView({ type: 'home' });
+            setView({ type: 'directory' });
         }
     } else if (!session) {
-        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about', 'awards', 'userAgreement', 'releaseNotes'];
+        const publicViews: Array<View['type']> = ['home', 'login', 'register', 'netDetail', 'session', 'callsignProfile', 'about', 'awards', 'userAgreement', 'releaseNotes', 'directory'];
         if (!publicViews.includes(view.type)) {
              setView({ type: 'login' });
         }
@@ -542,14 +550,14 @@ const App: React.FC = () => {
             if (error) throw new Error(error.message);
             if (!data) throw new Error("No data returned after update operation via RPC.");
 
-            const updatedNet = transformNetPayload(data as Database['public']['Tables']['nets']['Row']);
+            const updatedNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
             setNets(prev => prev.map(n => n.id === updatedNet.id ? updatedNet : n));
             setView({ type: 'netDetail', netId: updatedNet.id });
 
         } else {
             if (!profile) throw new Error("User must be logged in to create a net.");
             
-            const insertPayload: Database['public']['Tables']['nets']['Insert'] = {
+            const insertPayload = {
                 ...commonPayload,
                 repeaters: commonPayload.repeaters as unknown as Json,
                 passcode_permissions: commonPayload.passcode_permissions as unknown as Json | null,
@@ -560,7 +568,7 @@ const App: React.FC = () => {
             if (error) throw new Error(error.message);
             if (!data) throw new Error("No data returned after create operation.");
 
-            const newNet = transformNetPayload(data);
+            const newNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
             setNets(prev => [...prev, newNet].sort((a,b) => a.name.localeCompare(b.name)));
             setView({ type: 'netDetail', netId: newNet.id });
         }
@@ -778,7 +786,7 @@ const App: React.FC = () => {
         if (deleteError) throw new Error(deleteError.message);
 
         if (members.length > 0) {
-            const membersToInsert: Database['public']['Tables']['roster_members']['Insert'][] = members.map(m => ({ ...m, net_id: netId }));
+            const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
             const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
             if (insertError) throw new Error(insertError.message);
         }
@@ -847,13 +855,15 @@ const App: React.FC = () => {
             }
         }
         
+        const updatePayload = {
+            full_name: profileData.full_name,
+            call_sign: upperCaseCallSign,
+            location: profileData.location
+        };
+
         const { data, error: updateError } = await supabase
             .from('profiles')
-            .update({
-                full_name: profileData.full_name,
-                call_sign: upperCaseCallSign,
-                location: profileData.location
-            } as any)
+            .update(updatePayload)
             .eq('id', profile.id)
             .select()
             .single();
@@ -956,6 +966,21 @@ const App: React.FC = () => {
                 profile={profile}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
                 onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
+                onSetView={setView}
+            />
+        );
+      }
+      case 'directory': {
+        const activeSessions = sessions.filter(s => s.end_time === null);
+        return (
+            <DirectoryScreen
+                nets={nets}
+                sessions={sessions}
+                activeSessions={activeSessions}
+                checkIns={checkIns}
+                profile={profile}
+                onViewNetDetails={(netId) => setView({ type: 'netDetail', netId })}
+                onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
             />
         );
       }

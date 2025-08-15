@@ -20,7 +20,20 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.2 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.3 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 15, 2025</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Testing a redesign of the home screen.</li>
+                            <li>Added a new Direcory page with filters to prepare for hopefully many more Nets.</li>
+                            <li>Slight adjustment to header navigation.</li>
+                            <li>Bug fix: For Linked Repeater Nets, the net selected will stay selected until you select a different one for faster logging.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.2</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, August 6, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Fixed an automatic saving issue with Session Notes</li>

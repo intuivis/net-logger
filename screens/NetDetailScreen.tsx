@@ -47,7 +47,11 @@ const RepeaterDetails: React.FC<{repeater: Repeater}> = ({repeater}) => (
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Location</dt>
-                <dd className="mt-1 text-md text-dark-text font-semibold">{repeater.county || '-'}, {repeater.grid_square || '-'}</dd>
+                <dd className="mt-1 text-md text-dark-text font-semibold">
+                    {repeater.county && <span>{repeater.county}</span>}
+                    {repeater.county && repeater.grid_square && ', '}
+                    {repeater.grid_square && <span>{repeater.grid_square}</span>}
+                </dd>
             </div>
             <div>
                 <dt className="text-sm font-medium text-dark-text-secondary">Frequency &amp; Offset</dt>
@@ -104,7 +108,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             onClick={() => setIsRepeaterListVisible(!isRepeaterListVisible)}
                             aria-expanded={isRepeaterListVisible}
                         >
-                            <h3 className="text-md font-semibold text-dark-text-secondary uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
+                            <h3 className="text-md font-semibold text-dark-text uppercase tracking-wider">Linked Repeaters ({net.repeaters.length})</h3>
                             {isRepeaterListVisible ? <Icon className="text-xl">expand_less</Icon> : <Icon className="text-xl">expand_more</Icon>}
                         </button>
                         {isRepeaterListVisible && (
@@ -113,7 +117,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                     <li key={r.id} className="text-sm text-dark-text-secondary bg-dark-700/30 p-3 rounded-md flex items-center justify-between">
                                         <span>{formatRepeaterCondensed(r)}</span>
                                         {r.website_url && (
-                                            <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label={`Visit website for ${r.name}`}>
+                                            <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="p-2 hover:text-brand-accent rounded-full hover:bg-white/10" aria-label={`Visit website for ${r.name}`}>
                                                 <Icon className="text-base">open_in_new</Icon>
                                             </a>
                                         )}
@@ -125,7 +129,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                 );
              case NetConfigType.GROUP:
                 return (
-                    <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-6">
+                    <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-10">
                         <DetailItem label="Net Control" value={`${net.primary_nco} (${net.primary_nco_callsign})`} />
                         <DetailItem label="Frequency" value={net.frequency ? `${net.frequency} MHz` : undefined} />
                         <DetailItem label="Band" value={net.band} />

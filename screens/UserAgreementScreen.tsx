@@ -40,19 +40,22 @@ const UserAgreementScreen: React.FC<UserAgreementScreenProps> = ({ onBack, onRel
                     <h2 className="text-2xl font-bold text-dark-text pt-4">3. Limitation of Liability</h2>
                     <p>In no event shall Intuivis, LLC, its developers, or its affiliates be liable for any direct, indirect, incidental, special, consequential or exemplary damages, including but not limited to, damages for loss of profits, goodwill, use, data or other intangible losses (even if we have been advised of the possibility of such damages), resulting from the use of this service.</p>
 
-                    <h2 className="text-2xl font-bold text-dark-text pt-4">4. User Conduct</h2>
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">4. User Accounts</h2>
+                    <p>Users are permitted one 1 account per person with no exceptions. You may not register for someone else or use someone else's callsign.</p>
+
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">5. User Conduct</h2>
                     <p>You agree to use this Application only for lawful purposes and in accordance with all applicable rules and regulations. You are responsible for any content you submit or manage using the service. Registered usered recognize that content entered into Application may be seen by others and access to Application may be revoked at anytime for inappropriate language or misconduct.</p>
 
-                    <h2 className="text-2xl font-bold text-dark-text pt-4">5. Feedback &amp; Updates</h2>
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">6. Feedback &amp; Updates</h2>
                     <p>We may improve the Application from time to time. By providing feedback or using updated versions, you acknowledge that changes may affect your experience. You are encouraged to review the <button onClick={onReleaseNotes} className="text-dark-text hover:underline transition-colors underline">Release Notes</button> periodically.</p>
 
-                    <h2 className="text-2xl font-bold text-dark-text pt-4">6. Termination</h2>
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">7. Termination</h2>
                     <p>We reserve the right to suspend or terminate access to the Application at any time without notice, for any reason, including but not limited to violations of this agreement.</p>
 
-                    <h2 className="text-2xl font-bold text-dark-text pt-4">7. Governing Law</h2>
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">8. Governing Law</h2>
                     <p>This agreement shall be governed by and interpreted in accordance with the laws of the State of Georgia, without regard to its conflict of law principles.</p>
 
-                    <h2 className="text-2xl font-bold text-dark-text pt-4">8. Changes to Terms</h2>
+                    <h2 className="text-2xl font-bold text-dark-text pt-4">9. Changes to Terms</h2>
                     <p>We reserve the right to modify these terms at any time. We will do our best to notify you of any significant changes.</p>
 
                     <p>By using this Application, you acknowledge that you have read, understood, and agreed to this User Agreement. If you do not agree, you should <span className="text-bold text-dark-text">discontinue use of the Application immediately</span>.</p>

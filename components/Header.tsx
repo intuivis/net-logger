@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
@@ -70,7 +69,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
     return (
         <header className="bg-light-card dark:bg-dark-800 shadow-md sticky top-0 z-20">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-16">
+                <div className="relative flex items-center justify-between h-16">
                     {/* Logo and Title */}
                     <button onClick={() => handleNavClick({ type: 'home' })} className="flex items-center space-x-2 group">
                         <LogoSignal className="w-8 h-8 text-white" />
@@ -79,8 +78,8 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                         </h1>
                     </button>
                     
-                    {/* --- Desktop Navigation --- */}
-                    <nav className="hidden md:flex items-center gap-4">
+                    {/* --- Centered Desktop Navigation --- */}
+                    <nav className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-4">
                         <button
                             onClick={() => handleNavClick({ type: 'about' })}
                             className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text hover:bg-dark-700 rounded-lg transition-colors"
@@ -93,6 +92,16 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                         >
                             Awards
                         </button>
+                        <button
+                            onClick={() => handleNavClick({ type: 'directory' })}
+                            className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text hover:bg-dark-700 rounded-lg transition-colors"
+                        >
+                            Directory
+                        </button>
+                    </nav>
+                    
+                    {/* --- Right-aligned Auth Controls --- */}
+                    <div className="hidden md:flex items-center gap-4">
                         {profile ? (
                             <div className="relative" ref={menuRef}>
                                 <button
@@ -134,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                 </button>
                             </>
                         )}
-                    </nav>
+                    </div>
                     
                     {/* --- Mobile Menu Button --- */}
                     <div className="md:hidden flex items-center">
@@ -166,6 +175,12 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
                         >
                             Awards
+                        </button>
+                        <button
+                            onClick={() => handleNavClick({ type: 'directory' })}
+                            className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700"
+                        >
+                            Directory
                         </button>
                        {profile ? (
                             <>

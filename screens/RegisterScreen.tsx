@@ -55,10 +55,10 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
             <div className="w-full max-w-md p-8 space-y-8 bg-dark-800 rounded-lg shadow-lg">
                 <div>
                     <h2 className="text-2xl font-bold text-center text-dark-text">Create a new account</h2>
-                     <p className="mt-2 text-center text-sm text-dark-text-secondary">
+                     <p className="mt-2 text-center text-md text-dark-text-secondary">
                         Already have an account?{' '}
                         <button onClick={() => onSetView({type: 'login'})} className="font-medium text-brand-secondary hover:text-brand-primary">
-                          Sign in
+                          Sign In
                         </button>
                     </p>
                 </div>
@@ -67,28 +67,28 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                     {message && <div className="p-3 bg-green-500/20 text-green-400 rounded-md text-sm">{message}</div>}
                     <div className="space-y-4 rounded-md shadow-sm">
                          <div>
-                            <label htmlFor="register-email" className="block text-sm font-medium text-dark-text-secondary mb-1">
+                            <label htmlFor="register-email" className="block text-md font-medium text-dark-text-secondary mb-1">
                                 Email
                             </label>
                             <input id="register-email" name="email" type="email" autoComplete="email" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
                          </div>
                          <div>
-                            <label htmlFor="register-password" className="block text-sm font-medium text-dark-text-secondary mb-1">
+                            <label htmlFor="register-password" className="block text-md font-medium text-dark-text-secondary mb-1">
                                 Password
                             </label>
                             <input id="register-password" name="password" type="password" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
                          </div>
                          <div>
-                            <label htmlFor="register-full-name" className="block text-sm font-medium text-dark-text-secondary mb-1">
+                            <label htmlFor="register-full-name" className="block text-md font-medium text-dark-text-secondary mb-1">
                                 Full Name
                             </label>
                             <input id="register-full-name" name="full_name" type="text" required className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
                          </div>
                          <div>
-                            <label htmlFor="register-call-sign" className="block text-sm font-medium text-dark-text-secondary mb-1">
-                                Call Sign
+                            <label htmlFor="register-call-sign" className="block text-md font-medium text-dark-text-secondary mb-1">
+                                Callsign
                             </label>
-                            <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Call Sign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
+                            <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Callsign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
                          </div>
                     </div>
                      <div className="flex items-start">
@@ -103,7 +103,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                                 required
                             />
                         </div>
-                        <div className="ml-3 text-sm">
+                        <div className="ml-3 text-md">
                             <label htmlFor="terms-agreement" className="text-dark-text-secondary">
                                 I have read and agree to the{' '}
                                 <button

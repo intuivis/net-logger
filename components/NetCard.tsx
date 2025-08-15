@@ -47,7 +47,7 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, c
         
         <div className="mb-4">
             {net.description && (
-                <p className="text-sm text-gray-400 mt-2 truncate" title={net.description}>
+                <p className="text-sm mt-2 dark:text-dark-text-secondary truncate" title={net.description}>
                     {net.description}
                 </p>
             )}

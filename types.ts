@@ -206,6 +206,7 @@ export type View =
   | { type: 'callsignProfile'; callsign: string }
   | { type: 'about' }
   | { type: 'awards' }
+  | { type: 'directory' }
   | { type: 'userAgreement' }
   | { type: 'releaseNotes' }
   | { type: 'profile' }

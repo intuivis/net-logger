@@ -50,7 +50,9 @@ export const formatRepeaterCondensed = (repeater: Repeater): string => {
              details.push(`${offsetNum > 0 ? '+' : ''}${repeater.offset}`);
         }
     }
-    if (repeater.uplink_tone) {
+    if (repeater.uplink_tone && repeater.downlink_tone) {
+        details.push(`Tones ${repeater.uplink_tone}/${repeater.downlink_tone}`);
+    } else if (repeater.uplink_tone) {
         details.push(`Tone ${repeater.uplink_tone}`);
     }
 

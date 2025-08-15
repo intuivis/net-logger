@@ -31,10 +31,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
       <div className="w-full max-w-md p-8 space-y-8 bg-dark-800 rounded-lg shadow-lg">
         <div>
           <h2 className="text-2xl font-bold text-center text-dark-text">Sign in to your account</h2>
-          <p className="mt-2 text-center text-sm text-dark-text-secondary">
+          <p className="mt-2 text-center text-md text-dark-text-secondary">
             Or{' '}
             <button onClick={() => onSetView({type: 'register'})} className="font-medium text-brand-secondary hover:text-brand-primary">
-              create a new account
+              Create a New Account
             </button>
           </p>
         </div>
@@ -42,7 +42,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
           {error && <div className="p-3 bg-red-500/20 text-red-400 rounded-md text-sm">{error}</div>}
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
-              <label htmlFor="email-address" className="block text-sm font-medium text-dark-text-secondary mb-1">
+              <label htmlFor="email-address" className="block text-md font-medium text-dark-text-secondary mb-1">
                 Email
               </label>
               <input
@@ -58,7 +58,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-dark-text-secondary mb-1">
+              <label htmlFor="password" className="block text-md font-medium text-dark-text-secondary mb-1">
                 Password
               </label>
               <input
