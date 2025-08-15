@@ -3,6 +3,7 @@ import React from 'react';
 import { Net, NetSession, CheckIn, Profile, View } from '../types';
 import { Icon } from '../components/Icon';
 import LiveNetsSection from '../components/LiveNetsSection';
+import netControlScreenshot from '../img/NetControl-screen-mobile.png'; // Adjust the path as necessary
 
 
 interface HomeScreenProps {
@@ -77,7 +78,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
                     </div>                                   
                     
                     <div className="w-full md:w-6/12 lg:w-1/2 p-4 rounded-lg ml-0 text-center">
-                        <img src="/img/NetControl-screen-mobile.png" alt="NetControl Screenshot" className="mx-auto h-120 w-120 object-cover"/>
+                      <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" />
                     </div>
                 </div>
             </div>  
