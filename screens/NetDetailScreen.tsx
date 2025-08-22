@@ -252,8 +252,15 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                                    <button onClick={() => onViewSession(session.id)} className="w-full text-left p-5 hover:bg-dark-700/30 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary">
                                         <div className="flex w-full items-start justify-between gap-4">
                                             {/* Left Side */}
-                                            <div className="flex-1">
-                                                <p className="font-bold text-dark-text">{startTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                            <div className="text-left flex-shrink-0">
+                                                <p className="font-bold text-dark-text">
+                                                    <span className="hidden sm:inline">
+                                                        {startTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </span>
+                                                    <span className="sm:hidden">
+                                                        {startTime.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </span>
+                                                </p>
                                                 <p className="text-sm text-dark-text-secondary">
                                                     Started at {startTime.toLocaleTimeString()} by {session.primary_nco_callsign}
                                                 </p>

@@ -65,7 +65,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
                     <div className="w-full text-lg md:w-12/12 lg:w-1/2 p-4 rounded-lg mr-0 mb-4">
                         <h2 className="text-3xl font-bold tracking-tight text-brand-accent">Traditional Net Logging, Reimagined</h2>
                         <p className="mt-4 text-dark-text-secondary">
-                            Welcome to a modern Net management and check-in system to help amateur radio Net Control Operators schedule and run nets and encourages regular on-air participation through a fun and engaging badge system.</p>
+                            Welcome to a modern Net management and check-in system to help amateur radio Net Control stations schedule and run nets and encourages regular on-air participation through a fun and engaging badge system.</p>
                         <p className="mt-4 text-dark-text-secondary">
                             Net participants <span className='font-bold text-dark-text'>do not need to create an account or register</span> to see their badges and awards.
                         </p>
@@ -78,6 +78,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
                     </div>                                   
                     
                     <div className="w-full md:w-6/12 lg:w-1/2 p-4 rounded-lg ml-0 text-center">
+                      {/* GoogleAIStudio <img src="https://placehold.co/350x700/1E1E1E/E0E0E0?text=NetControl%0AApp+Screenshot" alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
                       <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" />
                     </div>
                 </div>
@@ -96,7 +97,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
     <div className="pb-12">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tight">Get Started in 3 Easy Steps</h2>
-            <p className="mt-2 text-dark-text-secondary">For Net Control Operators ready to manage their NET.</p>
+            <p className="mt-2 text-dark-text-secondary">For Net Control Stations ready to manage their NET.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <StepCard step={1} icon="podcasts" title="Register as a Net Control Station">

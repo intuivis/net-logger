@@ -56,7 +56,7 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
   <div className="p-4 bg-dark-900/50 rounded-lg border border-dark-700">
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <FormInput className="md:col-span-2" label="Repeater Name" id={`r-name-${index}`} type="text" value={repeater.name} onChange={e => onUpdate(index, 'name', e.target.value)} placeholder="e.g., Spring Mountain" required />
-        <FormInput className="md:col-span-2" label="Owner Callsign" id={`r-owner-${index}`} type="text" value={repeater.owner_callsign || ''} onChange={e => onUpdate(index, 'owner_callsign', e.target.value)} placeholder="e.g., K4NRC" />
+        <FormInput className="md:col-span-2" label="Owner Call Sign" id={`r-owner-${index}`} type="text" value={repeater.owner_callsign || ''} onChange={e => onUpdate(index, 'owner_callsign', e.target.value)} placeholder="e.g., K4NRC" />
         
         <FormInput label="Downlink Freq (MHz)" id={`r-freq-${index}`} type="text" value={repeater.downlink_freq} onChange={e => onUpdate(index, 'downlink_freq', e.target.value)} placeholder="e.g., 145.130" required />
         <FormInput label="Offset (MHz)" id={`r-offset-${index}`} type="text" value={repeater.offset || ''} onChange={e => onUpdate(index, 'offset', e.target.value)} placeholder="e.g., -0.600" />

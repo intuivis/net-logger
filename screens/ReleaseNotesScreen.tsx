@@ -20,8 +20,20 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.3 (Current)</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 15, 2025</p>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.4 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 22, 2025</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Adjusted "callsign" to "call sign" in most areas in keeping with ARRL and other sources.</li>
+                            <li>Adjusted instances of Net Control "operator" to "station" where it made sense.</li>
+                            <li>Adjusted the mobile view for session history to fit better for smaller screens.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.3</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Wednesday, August 13, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Testing a redesign of the home screen.</li>
                             <li>Added a new Direcory page with filters to prepare for hopefully many more Nets.</li>
@@ -47,7 +59,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Saturday, August 2, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Major optimizations and bug fixes to help resolve real-time check-in monitoring.</li>
-                            <li>Removed name and callsign from "New NET" screen since that is captured during registration.</li>
+                            <li>Removed name and call sign from "New NET" screen since that is captured during registration.</li>
                             <li>Improved speed in logging and preparing system for next major feature.</li>
                             <li>Improved user experience for viewing and managing NCO profiles.</li>
                             <li>Improved user experience for all alerts and confirmation dialogs.</li>
@@ -68,7 +80,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                             <li>Slight adjustment to the badge design for added size consistency.</li>
                             <li><span className="font-bold text-dark-text">New Feature: Profile Management</span></li>
                             <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
-                                <li>Authenticated users can now edit name, callsign, email, and password.</li>
+                                <li>Authenticated users can now edit name, call sign, email, and password.</li>
                                 <li>This change also comes with a minor update to the header navigation.</li>
                             </ul>
                             <li><span className="font-bold text-dark-text">New Feature: Status Action Button</span></li>

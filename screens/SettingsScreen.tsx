@@ -85,7 +85,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                     <h3 className="text-xl font-bold text-dark-text">Profile Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormInput label="Full Name" id="fullName" type="text" value={fullName} onChange={e => setFullName(e.target.value)} required />
-                        <FormInput label="Callsign" id="callSign" type="text" value={callSign} onChange={e => setCallSign(e.target.value.toUpperCase())} required />
+                        <FormInput label="Call Sign" id="callSign" type="text" value={callSign} onChange={e => setCallSign(e.target.value.toUpperCase())} required />
                     </div>
                      <div className="grid grid-cols-1">
                         <FormInput label="Location (e.g., City, State)" id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} />

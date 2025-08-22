@@ -86,9 +86,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                          </div>
                          <div>
                             <label htmlFor="register-call-sign" className="block text-md font-medium text-dark-text-secondary mb-1">
-                                Callsign
+                                Call Sign
                             </label>
-                            <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Callsign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
+                            <input id="register-call-sign" name="call_sign" type="text" className="block w-full px-3 py-2 bg-dark-700 border border-dark-600 rounded-md placeholder-gray-500 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-11" placeholder="Call Sign" value={callSign} onChange={(e) => setCallSign(e.target.value.toUpperCase())} />
                          </div>
                     </div>
                      <div className="flex items-start">

@@ -1,6 +1,6 @@
 {
   "name": "NetControl Amateur Radio Net Logging System",
-  "description": "A net control logging system where operators configure a weekly NET and log check-ins from participants. Features include detailed NET configuration, repeater management for linked systems, and real-time check-in logging.",
+  "description": "A net control logging system where stations can configure a recurring Net and log check-ins from participants. Features include detailed Net configuration, repeater management for linked systems, and real-time check-in logging.",
   "requestFramePermissions": [],
   "prompt": ""
 }

@@ -41,7 +41,7 @@ const UserAgreementScreen: React.FC<UserAgreementScreenProps> = ({ onBack, onRel
                     <p>In no event shall Intuivis, LLC, its developers, or its affiliates be liable for any direct, indirect, incidental, special, consequential or exemplary damages, including but not limited to, damages for loss of profits, goodwill, use, data or other intangible losses (even if we have been advised of the possibility of such damages), resulting from the use of this service.</p>
 
                     <h2 className="text-2xl font-bold text-dark-text pt-4">4. User Accounts</h2>
-                    <p>Users are permitted one 1 account per person with no exceptions. You may not register for someone else or use someone else's callsign.</p>
+                    <p>Users are permitted one 1 account per person with no exceptions. You may not register for someone else or use someone else's call sign.</p>
 
                     <h2 className="text-2xl font-bold text-dark-text pt-4">5. User Conduct</h2>
                     <p>You agree to use this Application only for lawful purposes and in accordance with all applicable rules and regulations. You are responsible for any content you submit or manage using the service. Registered usered recognize that content entered into Application may be seen by others and access to Application may be revoked at anytime for inappropriate language or misconduct.</p>

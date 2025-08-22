@@ -607,7 +607,7 @@ const App: React.FC = () => {
     }
 
     if (!profile || !profile.full_name || !profile.call_sign) {
-        handleApiError({ message: "You must have a name and callsign in your profile to start a session." });
+        handleApiError({ message: "You must have a name and call sign in your profile to start a session." });
         return;
     }
 
@@ -830,7 +830,7 @@ const App: React.FC = () => {
     setIsVerifying(false);
   }, [verifyingPasscodeForNet]);
 
-  // `handleUpdateProfileData`: Updates the user's own profile information (name, callsign, location).
+  // `handleUpdateProfileData`: Updates the user's own profile information (name, call sign, location).
   const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string, location: string }): Promise<void> => {
     if (!profile) return;
     try {

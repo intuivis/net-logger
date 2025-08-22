@@ -140,7 +140,7 @@ const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
     return (
       <div className="text-center py-20">
         <h1 className="text-3xl font-bold tracking-tight mb-2">{callsign}</h1>
-        <p className="text-dark-text-secondary">This callsign has not checked into any nets yet.</p>
+        <p className="text-dark-text-secondary">This call sign has not checked into any nets yet.</p>
         <button onClick={onBack} className="mt-8 flex mx-auto items-center gap-2 text-md font-semibold text-dark-text-secondary hover:text-dark-text transition-colors">
           <Icon className="text-xl">arrow_back</Icon>
           <span>Back</span>
