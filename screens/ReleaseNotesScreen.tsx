@@ -26,6 +26,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                             <li>Adjusted "callsign" to "call sign" in most areas in keeping with ARRL and other sources.</li>
                             <li>Adjusted instances of Net Control "operator" to "station" where it made sense.</li>
                             <li>Adjusted the mobile view for session history to fit better for smaller screens.</li>
+                            <li>Minor feature: Added a stats and usage block on the homepage.</li>
                         </ul>
                     </div>
                 </div>

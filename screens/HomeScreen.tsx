@@ -9,6 +9,7 @@ import netControlScreenshot from '../img/NetControl-screen-mobile.png'; // Adjus
 interface HomeScreenProps {
   activeSessions: NetSession[];
   nets: Net[];
+  sessions: NetSession[];
   checkIns: CheckIn[];
   profile: Profile | null;
   onViewSession: (sessionId: string) => void;
@@ -43,8 +44,25 @@ const StepCard: React.FC<{ icon: string; title: string; children: React.ReactNod
     </div>
 );
 
+const StatCard: React.FC<{ icon: string; value: number | string; label: string }> = ({ icon, value, label }) => (
+    <div className="bg-dark-800 p-6 rounded-lg shadow-lg flex items-center gap-4">
+        <div className="w-16 h-16 p-3 flex items-center justify-center bg-dark-700 rounded-full">
+            <Icon className="text-3xl text-brand-accent">{icon}</Icon>
+        </div>
+        <div>
+            <div className="text-3xl font-bold">{value}</div>
+            <div className="text-dark-text-secondary">{label}</div>
+        </div>
+    </div>
+);
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns, onViewSession, onViewNetDetails, profile, onSetView }) => {
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, sessions, checkIns, onViewSession, onViewNetDetails, profile, onSetView }) => {
+
+  const totalCheckIns = checkIns.length;
+  const totalNets = nets.length;
+  const totalSessions = sessions.length;
+  const uniqueCallSigns = new Set(checkIns.map(ci => ci.call_sign)).size;
 
   return (
     <div className="space-y-10">
@@ -78,12 +96,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, checkIns,
                     </div>                                   
                     
                     <div className="w-full md:w-6/12 lg:w-1/2 p-4 rounded-lg ml-0 text-center">
-                      {/* GoogleAIStudio <img src="https://placehold.co/350x700/1E1E1E/E0E0E0?text=NetControl%0AApp+Screenshot" alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
+                      {/* GoogleAIStudio <img src="https://placehold.co/350x300/1E1E1E/E0E0E0?text=NetControl%0AApp+Screenshot" alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
+                      {/* Local <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
                       <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" />
                     </div>
                 </div>
             </div>  
         </div>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold tracking-tight">Stats</h2>
+        <p className="mt-2 text-dark-text-secondary">
+         NetControl usage as of {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <StatCard icon="tag" value={totalCheckIns} label="Total Check-ins" />
+        <StatCard icon="podcasts" value={totalNets} label="Configured Nets" />
+        <StatCard icon="history" value={totalSessions} label="Logged Net Sessions" />
+        <StatCard icon="group" value={uniqueCallSigns} label="Call Signs Logged" />
       </div>
 
       <LiveNetsSection

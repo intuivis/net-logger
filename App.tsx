@@ -962,6 +962,7 @@ const App: React.FC = () => {
             <HomeScreen 
                 activeSessions={activeSessions}
                 nets={nets}
+                sessions={sessions}
                 checkIns={checkIns}
                 profile={profile}
                 onViewSession={(sessionId) => setView({ type: 'session', sessionId })}
