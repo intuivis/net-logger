@@ -6,7 +6,7 @@
  * subscriptions, and view routing.
  */
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, CheckInStatusValue } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, CheckInStatusValue, Schedule } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -140,52 +140,44 @@ const App: React.FC = () => {
   const handleApiError = useCallback((error: any, context?: string) => {
     console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
 
-    let title = `API Error${context ? ` in ${context}` : ''}`;
-    let message = 'An unexpected error occurred.';
+    const title = `API Error${context ? ` in ${context}` : ''}`;
+    let message: string;
 
-    if (error) {
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-            const errorParts = [];
-            if (typeof error.message === 'string') {
-                errorParts.push(error.message);
-            }
-            if ('details' in error && typeof error.details === 'string' && error.details) {
-                errorParts.push(`Details: ${error.details}`);
-            }
-            if ('hint' in error && typeof error.hint === 'string' && error.hint) {
-                errorParts.push(`Hint: ${error.hint}`);
-            }
-            if (errorParts.length > 0) {
-                message = errorParts.join(' ');
-            } else {
-                 try {
-                    message = `An unknown error occurred: ${JSON.stringify(error)}`;
-                 } catch(e) { message = 'An un-serializable error object was thrown.' }
-            }
-        } else if (error instanceof Error) {
-            message = error.message;
-        } else if (typeof error === 'string') {
-            message = error;
-        } else {
-             try {
-                message = `An unknown error occurred: ${JSON.stringify(error)}`;
-            } catch (e) { message = 'An un-serializable error object was thrown.' }
+    // 1. Handle network errors (TypeError: Failed to fetch)
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        message = 'The application could not connect to the server. This may be due to a network connectivity issue, a browser extension (like an ad-blocker), or a firewall. Please check your connection and browser settings, then try again.';
+        showAlert('Network Connection Error', message);
+        return;
+    }
+
+    // 2. Handle Supabase/PostgREST errors and standard Error objects
+    if (typeof error === 'object' && error !== null && typeof error.message === 'string') {
+        const parts = [error.message];
+        if (typeof (error as any).details === 'string' && (error as any).details) {
+            parts.push(`Details: ${(error as any).details}`);
+        }
+        if (typeof (error as any).hint === 'string' && (error as any).hint) {
+            parts.push(`Hint: ${(error as any).hint}`);
+        }
+        message = parts.join(' ');
+    } else {
+        // 3. Fallback for other types of errors
+        try {
+            message = `An unknown error occurred: ${JSON.stringify(error, null, 2)}`;
+        } catch {
+            message = 'An unknown, un-serializable error occurred.';
         }
     }
 
+    // Check for session expiration
     const isAuthError = (
-        (typeof error === 'object' && error !== null && 'status' in error && (error.status === 401 || error.status === 403)) ||
+        (typeof error === 'object' && error !== null && ((error as any).status === 401 || (error as any).status === 403)) ||
         (message && (message.includes('JWT expired') || (message.includes('invalid') && message.includes('token'))))
     );
 
     if (isAuthError) {
         setIsSessionExpired(true);
         return;
-    }
-
-    if (message && message.includes('Failed to fetch')) {
-        title = 'Network Connection Error';
-        message = 'The application could not connect to the server. This may be due to a network connectivity issue, a browser extension (like an ad-blocker), or a firewall. Please check your connection and browser settings, then try again.';
     }
 
     showAlert(title, message);
@@ -203,26 +195,44 @@ const App: React.FC = () => {
 
   // `transformNetPayload`: A helper function to convert raw net data from Supabase 
   // into the strongly-typed `Net` interface used by the frontend.
-  const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => ({
-    id: rawNet.id,
-    created_by: rawNet.created_by,
-    name: rawNet.name,
-    description: rawNet.description,
-    website_url: rawNet.website_url,
-    primary_nco: rawNet.primary_nco,
-    primary_nco_callsign: rawNet.primary_nco_callsign,
-    net_type: rawNet.net_type as NetType,
-    schedule: rawNet.schedule as DayOfWeek,
-    time: rawNet.time,
-    time_zone: rawNet.time_zone,
-    net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
-    repeaters: (rawNet.repeaters as unknown as Repeater[]) || [],
-    frequency: rawNet.frequency,
-    band: rawNet.band,
-    mode: rawNet.mode,
-    passcode: rawNet.passcode || null,
-    passcode_permissions: (rawNet.passcode_permissions as unknown as PasscodePermissions | null),
-  }), []);
+  const transformNetPayload = useCallback((rawNet: Database['public']['Tables']['nets']['Row']): Net => {
+    
+    let schedule: Schedule;
+    // The schedule can be a JSON string or a direct object, depending on how it was fetched.
+    const rawSchedule = (typeof rawNet.schedule === 'string') ? JSON.parse(rawNet.schedule) : rawNet.schedule;
+
+    // Backward compatibility for nets with old string-based schedule
+    if (typeof rawSchedule === 'string' && rawSchedule) {
+        schedule = { type: 'weekly', day: rawSchedule as DayOfWeek };
+    } else if (rawSchedule && typeof rawSchedule === 'object' && 'type' in rawSchedule) {
+        // More robust check to ensure it's a valid Schedule object
+        schedule = rawSchedule as Schedule;
+    } else {
+        // Fallback for null, undefined, or invalid schedule data
+        schedule = { type: 'weekly', day: DayOfWeek.MONDAY };
+    }
+
+    return {
+        id: rawNet.id,
+        created_by: rawNet.created_by,
+        name: rawNet.name,
+        description: rawNet.description,
+        website_url: rawNet.website_url,
+        primary_nco: rawNet.primary_nco,
+        primary_nco_callsign: rawNet.primary_nco_callsign,
+        net_type: rawNet.net_type as NetType,
+        schedule: schedule,
+        time: rawNet.time,
+        time_zone: rawNet.time_zone,
+        net_config_type: (rawNet.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+        repeaters: (typeof rawNet.repeaters === 'string' ? JSON.parse(rawNet.repeaters) : rawNet.repeaters as unknown as Repeater[]) || [],
+        frequency: rawNet.frequency,
+        band: rawNet.band,
+        mode: rawNet.mode,
+        passcode: rawNet.passcode || null,
+        passcode_permissions: (typeof rawNet.passcode_permissions === 'string' ? JSON.parse(rawNet.passcode_permissions) : rawNet.passcode_permissions as unknown as PasscodePermissions | null),
+    };
+  }, []);
 
   // `refreshAllData`: Fetches all primary data sets from Supabase in parallel.
   // This is called on initial load and after major state changes (like ending a session).
@@ -244,13 +254,13 @@ const App: React.FC = () => {
             rosterMembersPromise,
         ]);
 
-        if (netsRes.error) throw new Error(`Failed to load NETs: ${netsRes.error.message}`);
-        if (sessionsRes.error) throw new Error(`Failed to load sessions: ${sessionsRes.error.message}`);
-        if (checkInsRes.error) throw new Error(`Failed to load check-ins: ${checkInsRes.error.message}`);
-        if (awardedBadgesRes.error) throw new Error(`Failed to load awarded badges: ${awardedBadgesRes.error.message}`);
-        if (allBadgesRes.error) throw new Error(`Failed to load badge definitions: ${allBadgesRes.error.message}`);
+        if (netsRes.error) throw netsRes.error;
+        if (sessionsRes.error) throw sessionsRes.error;
+        if (checkInsRes.error) throw checkInsRes.error;
+        if (awardedBadgesRes.error) throw awardedBadgesRes.error;
+        if (allBadgesRes.error) throw allBadgesRes.error;
         if (rosterMembersRes.error && !rosterMembersRes.error.message.includes('does not exist')) {
-            throw new Error(`Failed to load roster members: ${rosterMembersRes.error.message}`);
+            throw rosterMembersRes.error;
         }
         
         const typedNets: Net[] = ((netsRes.data as unknown as Database['public']['Tables']['nets']['Row'][]) || []).map(transformNetPayload);
@@ -532,7 +542,7 @@ const App: React.FC = () => {
                 p_primary_nco: commonPayload.primary_nco,
                 p_primary_nco_callsign: commonPayload.primary_nco_callsign,
                 p_net_type: commonPayload.net_type,
-                p_schedule: commonPayload.schedule,
+                p_schedule: commonPayload.schedule as unknown as Json,
                 p_time: commonPayload.time,
                 p_time_zone: commonPayload.time_zone,
                 p_net_config_type: commonPayload.net_config_type,
@@ -541,13 +551,13 @@ const App: React.FC = () => {
                 p_band: commonPayload.band,
                 p_mode: commonPayload.mode,
                 p_passcode_val: commonPayload.passcode,
-                p_passcode_permissions: commonPayload.passcode_permissions as unknown as Json,
+                p_passcode_permissions: commonPayload.passcode_permissions as unknown as Json | null,
                 p_passcode: passcode,
             };
 
-            const { data, error } = await supabase.rpc('update_net_details', rpcPayload);
+            const { data, error } = await supabase.rpc('update_net_details', rpcPayload as any);
 
-            if (error) throw new Error(error.message);
+            if (error) throw error;
             if (!data) throw new Error("No data returned after update operation via RPC.");
 
             const updatedNet = transformNetPayload(data as unknown as Database['public']['Tables']['nets']['Row']);
@@ -559,6 +569,7 @@ const App: React.FC = () => {
             
             const insertPayload = {
                 ...commonPayload,
+                schedule: commonPayload.schedule as unknown as Json,
                 repeaters: commonPayload.repeaters as unknown as Json,
                 passcode_permissions: commonPayload.passcode_permissions as unknown as Json | null,
                 created_by: profile.id,

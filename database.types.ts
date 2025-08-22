@@ -191,7 +191,7 @@ export interface Database {
           primary_nco: string;
           primary_nco_callsign: string;
           net_type: string;
-          schedule: string;
+          schedule: Json;
           time: string;
           time_zone: string;
           repeaters: Json;
@@ -210,7 +210,7 @@ export interface Database {
           primary_nco: string;
           primary_nco_callsign: string;
           net_type: string;
-          schedule: string;
+          schedule: Json;
           time: string;
           time_zone: string;
           repeaters: Json;
@@ -229,7 +229,7 @@ export interface Database {
           primary_nco?: string;
           primary_nco_callsign?: string;
           net_type?: string;
-          schedule?: string;
+          schedule?: Json;
           time?: string;
           time_zone?: string;
           repeaters?: Json;
@@ -406,7 +406,7 @@ export interface Database {
           p_primary_nco: string;
           p_primary_nco_callsign: string;
           p_net_type: string;
-          p_schedule: string;
+          p_schedule: Json;
           p_time: string;
           p_time_zone: string;
           p_net_config_type: string;

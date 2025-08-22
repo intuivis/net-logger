@@ -1,8 +1,4 @@
 
-
-
-
-
 export enum NetType {
   SOCIAL = "Social",
   TECHNICAL = "Technical",
@@ -62,6 +58,32 @@ export const PERMISSION_DEFINITIONS: { key: PermissionKey; label: string; descri
     { key: 'logContacts', label: 'Manage Check-ins', description: 'Ability to add, edit, and delete check-ins in an active session.' }
 ];
 
+// --- Advanced Scheduling Types ---
+export type ScheduleType = 'daily' | 'weekly' | 'monthly';
+export type MonthlyScheduleType = 'date' | 'day';
+
+export type Occurrence = 1 | 2 | 3 | 4 | 5; // 5 represents "Last"
+
+export const OCCURRENCE_OPTIONS: { value: Occurrence, label: string }[] = [
+    { value: 1, label: 'First' },
+    { value: 2, label: 'Second' },
+    { value: 3, label: 'Third' },
+    { value: 4, label: 'Fourth' },
+    { value: 5, label: 'Last' }
+];
+
+export interface MonthlyScheduleConfig {
+    type: MonthlyScheduleType;
+    date?: number; // 1-31
+    occurrence?: Occurrence;
+    day?: DayOfWeek;
+}
+
+export type Schedule = 
+    | { type: 'weekly', day: DayOfWeek }
+    | { type: 'daily', days: DayOfWeek[] }
+    | { type: 'monthly', config: MonthlyScheduleConfig };
+
 // Re-defining Net to avoid complex recursive types that cause TS errors.
 export interface Net {
     id: string;
@@ -72,7 +94,7 @@ export interface Net {
     primary_nco: string;
     primary_nco_callsign: string;
     net_type: NetType;
-    schedule: DayOfWeek;
+    schedule: Schedule;
     time: string;
     time_zone: string;
     repeaters: Repeater[];

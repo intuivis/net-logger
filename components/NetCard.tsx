@@ -1,8 +1,7 @@
 
-
 import React from 'react';
 import { Net, Profile } from '../types';
-import { formatTime, formatTimeZone } from '../lib/time';
+import { formatTime, formatTimeZone, formatSchedule } from '../lib/time';
 import { Icon } from './Icon';
 import { NetTypeBadge } from './NetTypeBadge';
 
@@ -55,7 +54,7 @@ export const NetCard: React.FC<NetCardProps> = ({ net, sessionCount, isActive, c
         
         <div className="text-sm space-y-2 text-gray-600 dark:text-dark-text-secondary">
             <p><span className="font-semibold text-light-text dark:text-dark-text">Net Control:</span> {net.primary_nco} ({net.primary_nco_callsign})</p>
-            <p><span className="font-semibold text-light-text dark:text-dark-text">Schedule:</span> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}</p>
+            <p><span className="font-semibold text-light-text dark:text-dark-text">Schedule:</span> {formatSchedule(net.schedule)} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}</p>
             {typeof sessionCount === 'number' && <p><span className="font-semibold text-light-text dark:text-dark-text">Sessions:</span> {sessionCount}</p>}
         </div>
       </div>

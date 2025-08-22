@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
-import { formatTime, formatRepeaterCondensed, formatTimeZone } from '../lib/time';
+import { formatTime, formatRepeaterCondensed, formatTimeZone, formatSchedule } from '../lib/time';
 import { Icon } from '../components/Icon';
 import { NetTypeBadge } from '../components/NetTypeBadge';
 import { NetActivityChart } from '../components/NetActivityChart';
@@ -165,7 +165,7 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                         </div>
                          <div className="flex items-center gap-4 mt-2">
                             <p className="font-bold text-dark-text">
-                                {net.primary_nco} ({net.primary_nco_callsign}) &bull; Every {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                {net.primary_nco} ({net.primary_nco_callsign}) &bull; {formatSchedule(net.schedule)} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                             </p>
                         </div>
                         {net.description && (

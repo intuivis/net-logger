@@ -8,7 +8,7 @@
     import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
     import FormInput from '../components/FormInput';
     import FormSelect from '../components/FormSelect';
-    import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType } from '../types';
+    import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType, Schedule } from '../types';
     import { Icon } from '../components/Icon';
     import { formatRepeaterCondensed } from '../lib/time';
     import { supabase } from '../lib/supabaseClient';
@@ -304,28 +304,41 @@
                         setLoading(false);
                         return;
                     }
-                    const netData = netDataRow as any;
                     
                     // Transform the raw net data into the frontend `Net` type.
+                    let schedule: Schedule;
+                    const rawSchedule = netDataRow.schedule;
+
+                    // Backward compatibility for nets with old string-based schedule
+                    if (typeof rawSchedule === 'string' && rawSchedule) {
+                        schedule = { type: 'weekly', day: rawSchedule as DayOfWeek };
+                    } else if (rawSchedule && typeof rawSchedule === 'object' && 'type' in rawSchedule) {
+                        // More robust check to ensure it's a valid Schedule object
+                        schedule = rawSchedule as Schedule;
+                    } else {
+                        // Fallback for null, undefined, or invalid schedule data
+                        schedule = { type: 'weekly', day: DayOfWeek.MONDAY };
+                    }
+
                     const typedNet: Net = {
-                        id: netData.id,
-                        created_by: netData.created_by,
-                        name: netData.name,
-                        description: netData.description,
-                        website_url: netData.website_url,
-                        primary_nco: netData.primary_nco,
-                        primary_nco_callsign: netData.primary_nco_callsign,
-                        net_type: netData.net_type as NetType,
-                        schedule: netData.schedule as DayOfWeek,
-                        time: netData.time,
-                        time_zone: netData.time_zone,
-                        net_config_type: (netData.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
-                        repeaters: (netData.repeaters as unknown as Repeater[]) || [],
-                        frequency: netData.frequency,
-                        band: netData.band,
-                        mode: netData.mode,
-                        passcode: netData.passcode || null,
-                        passcode_permissions: (netData.passcode_permissions as unknown as PasscodePermissions | null),
+                        id: netDataRow.id,
+                        created_by: netDataRow.created_by,
+                        name: netDataRow.name,
+                        description: netDataRow.description,
+                        website_url: netDataRow.website_url,
+                        primary_nco: netDataRow.primary_nco,
+                        primary_nco_callsign: netDataRow.primary_nco_callsign,
+                        net_type: netDataRow.net_type as NetType,
+                        schedule: schedule,
+                        time: netDataRow.time,
+                        time_zone: netDataRow.time_zone,
+                        net_config_type: (netDataRow.net_config_type as NetConfigType) || NetConfigType.SINGLE_REPEATER,
+                        repeaters: (netDataRow.repeaters as unknown as Repeater[]) || [],
+                        frequency: netDataRow.frequency,
+                        band: netDataRow.band,
+                        mode: netDataRow.mode,
+                        passcode: netDataRow.passcode || null,
+                        passcode_permissions: (netDataRow.passcode_permissions as unknown as PasscodePermissions | null),
                     };
 
                     setSession(sessionData);

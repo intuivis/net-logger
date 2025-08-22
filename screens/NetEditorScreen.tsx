@@ -1,8 +1,7 @@
 
-
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey, Profile } from '../types';
+import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey, Profile, Schedule, ScheduleType, MonthlyScheduleType, Occurrence, OCCURRENCE_OPTIONS } from '../types';
 import { NET_TYPE_OPTIONS, DAY_OF_WEEK_OPTIONS, TIME_ZONE_OPTIONS, NET_CONFIG_TYPE_OPTIONS } from '../constants';
 import { Icon } from '../components/Icon';
 
@@ -80,14 +79,20 @@ const RepeaterInputSet: React.FC<RepeaterInputSetProps> = React.memo(({
 
 const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, onCancel, profile }) => {
   const [net, setNet] = useState<Partial<Net>>(() => {
-    const baseNet: Partial<Net> = initialNet || {
+    // Default schedule object for a new net
+    const defaultSchedule: Schedule = {
+      type: 'weekly',
+      day: DayOfWeek.TUESDAY,
+    };
+
+    let baseNet: Partial<Net> = initialNet ? { ...initialNet } : {
       name: '',
       description: '',
       website_url: '',
       primary_nco: '',
       primary_nco_callsign: '',
       net_type: NetType.TECHNICAL,
-      schedule: DayOfWeek.TUESDAY,
+      schedule: defaultSchedule,
       time: '19:00',
       time_zone: 'America/New_York',
       net_config_type: NetConfigType.SINGLE_REPEATER,
@@ -98,7 +103,13 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
       passcode: null,
       passcode_permissions: {},
     };
-    
+
+    // --- Data Migration Logic ---
+    // Backward compatibility for nets with old string-based schedule
+    if (initialNet && typeof (initialNet as any).schedule === 'string') {
+        baseNet.schedule = { type: 'weekly', day: (initialNet as any).schedule as DayOfWeek };
+    }
+
     // On-the-fly migration for repeaters from old format to new format
     if (baseNet.repeaters && baseNet.repeaters.length > 0) {
         baseNet.repeaters = baseNet.repeaters.map((r: any) => {
@@ -131,7 +142,7 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    let finalValue: string | PasscodePermissions = value;
+    let finalValue: any = value;
 
     if (name.toLowerCase().includes('callsign')) {
       finalValue = value.toUpperCase();
@@ -168,6 +179,63 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         return newNet;
     });
   };
+  
+  const handleScheduleChange = (field: string, value: any) => {
+    setNet(prev => {
+        const prevNet = { ...prev };
+
+        if (field === 'type') {
+            const newType = value as ScheduleType;
+            if (newType === 'weekly') {
+                prevNet.schedule = { type: 'weekly', day: DayOfWeek.MONDAY };
+            } else if (newType === 'daily') {
+                prevNet.schedule = { type: 'daily', days: [] };
+            } else if (newType === 'monthly') {
+                prevNet.schedule = { type: 'monthly', config: { type: 'date', date: 1 } };
+            }
+            return prevNet;
+        }
+
+        const currentSchedule = prevNet.schedule;
+        if (!currentSchedule) return prevNet; // Should not happen based on init, but good practice
+
+        // Make a copy to modify
+        let newSchedule: Schedule = JSON.parse(JSON.stringify(currentSchedule));
+
+        if (newSchedule.type === 'weekly' && field === 'day') {
+            newSchedule.day = value;
+        } else if (newSchedule.type === 'daily' && field === 'days') {
+            const day = value as DayOfWeek;
+            const currentDays = newSchedule.days || [];
+            if (currentDays.includes(day)) {
+                newSchedule.days = currentDays.filter(d => d !== day);
+            } else {
+                newSchedule.days = [...currentDays, day];
+            }
+        } else if (newSchedule.type === 'monthly') {
+            // Ensure config exists for monthly schedule
+            const newConfig = { ...(newSchedule.config || { type: 'date' as MonthlyScheduleType, date: 1 }) };
+            if (field === 'monthlyType') {
+                newConfig.type = value;
+                if (value === 'date') {
+                    newConfig.date = 1;
+                    delete (newConfig as any).occurrence;
+                    delete (newConfig as any).day;
+                } else {
+                    newConfig.occurrence = 1;
+                    newConfig.day = DayOfWeek.MONDAY;
+                    delete (newConfig as any).date;
+                }
+            }
+            if (field === 'date') newConfig.date = parseInt(value, 10);
+            if (field === 'occurrence') newConfig.occurrence = parseInt(value, 10) as Occurrence;
+            if (field === 'day') newConfig.day = value;
+            newSchedule.config = newConfig;
+        }
+
+        return { ...prevNet, schedule: newSchedule };
+    });
+};
 
   const handlePermissionChange = (key: PermissionKey, checked: boolean) => {
     setNet(prev => {
@@ -273,9 +341,11 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
   // User can manage permissions if they are creating a new net, or if they are the owner/admin of an existing net.
   const canManagePermissions = !initialNet || isOwner || isAdmin;
 
+  const schedule = net.schedule as Schedule;
+
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit NET' : 'Create New NET'}</h1>
+      <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit Net' : 'Create New Net'}</h1>
       <form onSubmit={handleSubmit} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-8">
         
         <div>
@@ -303,11 +373,65 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         </div>
 
         <fieldset className="border-t border-dark-700 pt-6">
-            <legend className="text-lg font-medium text-dark-text">Default Schedule</legend>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                <FormSelect label="Day of Week" id="schedule" name="schedule" value={net.schedule} onChange={handleInputChange}>
-                    {DAY_OF_WEEK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            <legend className="text-lg font-medium text-dark-text">Net Schedule</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <FormSelect label="Frequency" id="schedule_type" name="schedule_type" value={schedule?.type} onChange={e => handleScheduleChange('type', e.target.value)}>
+                    <option value="weekly">Weekly</option>
+                    <option value="daily">Daily</option>
+                    <option value="monthly">Monthly</option>
                 </FormSelect>
+            </div>
+            <div className="mt-4 p-4 bg-dark-900/50 rounded-lg border border-dark-700">
+                {schedule?.type === 'weekly' && (
+                    <FormSelect label="Day of Week" id="schedule_day" name="schedule_day" value={schedule.day} onChange={e => handleScheduleChange('day', e.target.value)}>
+                        {DAY_OF_WEEK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </FormSelect>
+                )}
+                {schedule?.type === 'daily' && (
+                    <div>
+                        <label className="block text-sm font-medium text-dark-text-secondary mb-2">Days of Week</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                            {DAY_OF_WEEK_OPTIONS.map(day => (
+                                <button type="button" key={day} onClick={() => handleScheduleChange('days', day)} className={`px-3 py-2 text-sm rounded-md transition-colors ${schedule.days.includes(day) ? 'bg-brand-primary text-white font-semibold' : 'bg-dark-700 text-dark-text-secondary hover:bg-dark-600'}`}>
+                                    {day.substring(0,3)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {schedule?.type === 'monthly' && (
+                     <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-dark-text-secondary">Monthly Recurrence</h3>
+                        <div className="flex items-center gap-6">
+                            <label className="flex items-center gap-2">
+                                <input type="radio" name="monthlyType" value="date" checked={schedule.config.type === 'date'} onChange={() => handleScheduleChange('monthlyType', 'date')} className="h-4 w-4 text-brand-primary focus:ring-brand-accent border-gray-300"/>
+                                <span className="text-sm">Specific Date</span>
+                            </label>
+                             <label className="flex items-center gap-2">
+                                <input type="radio" name="monthlyType" value="day" checked={schedule.config.type === 'day'} onChange={() => handleScheduleChange('monthlyType', 'day')} className="h-4 w-4 text-brand-primary focus:ring-brand-accent border-gray-300"/>
+                                <span className="text-sm">Recurring Day</span>
+                            </label>
+                        </div>
+                        {schedule.config.type === 'date' && (
+                            <div className="max-w-sm">
+                            <FormInput label="Day of the Month" id="schedule_date" type="number" min="1" max="31" value={schedule.config.date || 1} onChange={e => handleScheduleChange('date', e.target.value)} className="max-w-xs"/>
+                            <p className="text-xs text-dark-text-secondary mt-1">Enter a date between 1-31</p>
+                            </div>
+                        )}
+                        {schedule.config.type === 'day' && (
+                            <div className="flex items-center gap-4">
+                                <FormSelect label="Occurrence" id="schedule_occurrence" value={schedule.config.occurrence} onChange={e => handleScheduleChange('occurrence', e.target.value)}>
+                                    {OCCURRENCE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                </FormSelect>
+                                <FormSelect label="Day of Week" id="schedule_monthly_day" value={schedule.config.day} onChange={e => handleScheduleChange('day', e.target.value)}>
+                                    {DAY_OF_WEEK_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                </FormSelect>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 <FormInput label="Time" id="time" name="time" type="time" value={net.time || ''} onChange={handleInputChange} required />
                 <FormSelect label="Time Zone" id="time_zone" name="time_zone" value={net.time_zone} onChange={handleInputChange}>
                     {TIME_ZONE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}

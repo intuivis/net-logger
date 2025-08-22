@@ -1,11 +1,10 @@
 
-
 import React, { useMemo, useState } from 'react';
 import { Net, NetSession, CheckIn, AwardedBadge, BadgeDefinition, Profile } from '../types';
 import { Icon } from '../components/Icon';
 import { Badge } from '../components/Badge';
 import { NetTypeBadge } from '../components/NetTypeBadge';
-import { formatTime, formatTimeZone } from '../lib/time';
+import { formatTime, formatTimeZone, formatSchedule } from '../lib/time';
 
 interface CallSignProfileScreenProps {
   callsign: string;
@@ -227,7 +226,7 @@ const CallSignProfileScreen: React.FC<CallSignProfileScreenProps> = ({
                                             </button>
                                         </div>
                                         <p className="text-sm text-dark-text mt-1">
-                                            <Icon className="text-sm">calendar_month</Icon> {net.schedule} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
+                                            <Icon className="text-sm">calendar_month</Icon> {formatSchedule(net.schedule)} at {formatTime(net.time)} {formatTimeZone(net.time_zone)}
                                         </p>
                                     </div>
 

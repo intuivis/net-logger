@@ -28,7 +28,17 @@ const DirectoryScreen: React.FC<DirectoryScreenProps> = ({ nets, sessions, onVie
     return nets.filter(net => {
       const typeMatch = netTypeFilter === 'all' || net.net_type === netTypeFilter;
       const configMatch = configTypeFilter === 'all' || net.net_config_type === configTypeFilter;
-      const dayMatch = dayFilter === 'all' || net.schedule === dayFilter;
+      
+      let dayMatch = dayFilter === 'all';
+      if (!dayMatch && net.schedule) {
+          if (net.schedule.type === 'weekly' && net.schedule.day === dayFilter) {
+              dayMatch = true;
+          }
+          if (net.schedule.type === 'daily' && net.schedule.days.includes(dayFilter as DayOfWeek)) {
+              dayMatch = true;
+          }
+      }
+      
       return typeMatch && configMatch && dayMatch;
     });
   }, [nets, netTypeFilter, configTypeFilter, dayFilter]);
