@@ -20,7 +20,21 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.4 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.5 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 22, 2025</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li>Removed the Live Nets list from the top of the Net Directory.</li>
+                            <li>Bug Fix: A session check-in issue while two Net Sessions were Live.</li>
+                            <li>Bug Fix: Navigation issue showing Net Directory after deleting a Net Session.</li>
+                            <li>Minor styling improvements to Net Directory, Net Details, Net Creation, and Session History.</li>
+                            <li>Added Playwright tests for sign-in, registration, and net creation. More on the way!</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.4</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 22, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Adjusted "callsign" to "call sign" in most areas in keeping with ARRL and other sources.</li>

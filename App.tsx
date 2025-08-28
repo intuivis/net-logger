@@ -6,7 +6,7 @@
  * subscriptions, and view routing.
  */
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, CheckInStatusValue, Schedule } from './types';
+import { Net, NetSession, View, CheckIn, Profile, NetType, DayOfWeek, NetConfigType, AwardedBadge, Badge, PasscodePermissions, PermissionKey, RosterMember, Repeater, CheckInInsertPayload, CheckInStatusValue, Schedule, CheckInStatus } from './types';
 import HomeScreen from './screens/HomeScreen';
 import ManageNetsScreen from './screens/ManageNetsScreen';
 import NetEditorScreen from './screens/NetEditorScreen';
@@ -447,6 +447,29 @@ const App: React.FC = () => {
       })
       .subscribe();
       
+    const checkInsChannel = supabase.channel(`${channelId}-check_ins`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'check_ins' }, payload => {
+        const newCheckIn = { ...payload.new, status_flag: payload.new.status_flag as CheckInStatusValue } as CheckIn;
+        const callsign = newCheckIn.call_sign.toUpperCase();
+        
+        setCheckIns(prev => {
+            const optimisticId = `optimistic-${callsign}`;
+            const optimisticEntry = prev.find(c => c.id === optimisticId && c.session_id === newCheckIn.session_id);
+            if (optimisticEntry) {
+                return prev.map(c => c.id === optimisticId ? newCheckIn : c).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            }
+            return prev.some(c => c.id === newCheckIn.id) ? prev : [newCheckIn, ...prev].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'check_ins' }, payload => {
+        const updatedCheckIn = { ...payload.new, status_flag: payload.new.status_flag as CheckInStatusValue } as CheckIn;
+        setCheckIns(prev => prev.map(c => c.id === updatedCheckIn.id ? updatedCheckIn : c));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'check_ins' }, payload => {
+        setCheckIns(prev => prev.filter(item => item.id !== (payload.old as any).id));
+      })
+      .subscribe();
+
     const awardedBadgesChannel = supabase.channel(`${channelId}-awarded_badges`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'awarded_badges' }, payload => {
             const newBadge = payload.new as AwardedBadge;
@@ -472,6 +495,7 @@ const App: React.FC = () => {
     return () => {
       supabase.removeChannel(netsChannel);
       supabase.removeChannel(sessionsChannel);
+      supabase.removeChannel(checkInsChannel);
       supabase.removeChannel(awardedBadgesChannel);
       supabase.removeChannel(rosterMembersChannel);
     };
@@ -659,12 +683,12 @@ const App: React.FC = () => {
         await refreshAllData();
 
         if (view.type === 'session' && view.sessionId === sessionId) {
-            setView({ type: 'netDetail', netId });
+            goBack();
         }
     } catch (error: any) {
         handleApiError(error, 'handleEndSession');
     }
-  }, [view, setView, handleApiError, verifiedPasscodes, refreshAllData]);
+  }, [view, goBack, handleApiError, verifiedPasscodes, refreshAllData]);
 
   // `handleEndSessionRequest`: Wraps the end session action in a confirmation dialog.
   const handleEndSessionRequest = useCallback((sessionId: string, netId: string) => {
@@ -693,16 +717,16 @@ const App: React.FC = () => {
                 setSessions(prev => prev.filter(s => s.id !== sessionId));
                 setCheckIns(prev => prev.filter(ci => ci.session_id !== sessionId));
 
-                // If we are on the session screen we just deleted, navigate away.
+                // If we are on the session screen we just deleted, navigate away by popping the history stack.
                 if (view.type === 'session' && view.sessionId === sessionId) {
-                    setView({ type: 'netDetail', netId });
+                    goBack();
                 }
             } catch (error: any) {
                 handleApiError(error, 'handleDeleteSession');
             }
         }
     });
-  }, [view, setView, handleApiError, requestConfirmation]);
+  }, [view, goBack, handleApiError, requestConfirmation]);
   
   // `handleUpdateSessionNotes`: Updates the notes for a session.
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string): Promise<void> => {
@@ -716,29 +740,53 @@ const App: React.FC = () => {
     }
   }, [handleApiError]);
 
-  // `handleAddCheckIn`: Adds a new check-in to a session via a Supabase RPC.
-  // The RPC handles badge awarding logic server-side.
+  // `handleAddCheckIn`: Adds a new check-in with optimistic UI update.
   const handleAddCheckIn = useCallback(async (sessionId: string, netId: string, checkInData: CheckInInsertPayload): Promise<void> => {
+    const callsign = checkInData.call_sign.trim().toUpperCase();
+    if (!callsign) {
+        showAlert("Missing Information", "Call Sign cannot be empty.");
+        throw new Error("Call Sign cannot be empty.");
+    }
+    
+    const currentSessionCheckIns = checkIns.filter(c => c.session_id === sessionId);
+    if (currentSessionCheckIns.some(c => c.call_sign.toUpperCase() === callsign && !c.isOptimistic)) {
+        showAlert("Duplicate Entry", `${callsign} has already checked into this session.`);
+        throw new Error("Duplicate entry");
+    }
+
+    const optimisticId = `optimistic-${callsign}`;
+    const optimisticCheckIn: CheckIn = {
+        id: optimisticId,
+        session_id: sessionId,
+        timestamp: new Date().toISOString(),
+        status_flag: CheckInStatus.NEW,
+        isOptimistic: true,
+        call_sign: callsign,
+        name: checkInData.name || null,
+        location: checkInData.location || null,
+        notes: checkInData.notes || null,
+        repeater_id: checkInData.repeater_id || null,
+    };
+    setCheckIns(prev => [optimisticCheckIn, ...prev]);
+
     try {
         const passcode = verifiedPasscodes[netId] || null;
-
         const { error: checkInError } = await supabase.rpc('create_check_in', {
             p_session_id: sessionId,
-            p_call_sign: checkInData.call_sign,
+            p_call_sign: callsign,
             p_name: checkInData.name ?? null,
             p_location: checkInData.location ?? null,
             p_notes: checkInData.notes ?? null,
             p_repeater_id: checkInData.repeater_id ?? null,
             p_passcode: passcode
         });
-
         if (checkInError) throw new Error(checkInError.message);
-
     } catch (error: any) {
+        setCheckIns(prev => prev.filter(c => c.id !== optimisticId));
         handleApiError(error, 'handleAddCheckIn');
-        throw error; // Re-throw so the caller knows about the failure.
+        throw error;
     }
-  }, [handleApiError, verifiedPasscodes]);
+  }, [handleApiError, verifiedPasscodes, checkIns, showAlert]);
 
   // `handleEditCheckIn`: Opens the modal for editing a check-in.
   const handleEditCheckIn = useCallback((sessionId: string, checkIn: CheckIn) => {
@@ -774,21 +822,52 @@ const App: React.FC = () => {
     }
   }, [handleApiError, sessions, nets, verifiedPasscodes]);
 
-  // `handleUpdateCheckInStatus`: Updates the status flag of a check-in (e.g., Acknowledged, Question).
-  const handleUpdateCheckInStatus = useCallback(async (checkInId: string, netId: string, status: CheckInStatusValue): Promise<void> => {
+  // `handleUpdateCheckInStatus`: Updates a check-in's status flag with optimistic UI.
+  const handleUpdateCheckInStatus = useCallback(async (checkIn: CheckIn, netId: string, status: CheckInStatusValue): Promise<void> => {
+    setCheckIns(prev => prev.map(c => c.id === checkIn.id ? { ...c, status_flag: status } : c));
     try {
         const passcode = verifiedPasscodes[netId] || null;
         const { error } = await supabase.rpc('update_check_in_status_flag', {
-            p_check_in_id: checkInId,
+            p_check_in_id: checkIn.id,
             p_status_flag: status,
             p_passcode: passcode
         });
         if (error) throw new Error(error.message);
     } catch(error: any) {
+        setCheckIns(prev => prev.map(c => c.id === checkIn.id ? { ...c, status_flag: checkIn.status_flag } : c));
         handleApiError(error, 'handleUpdateCheckInStatus');
         throw error;
     }
   }, [verifiedPasscodes, handleApiError]);
+
+  const handleDeleteCheckIn = useCallback(async (checkIn: CheckIn): Promise<void> => {
+    const session = sessions.find(s => s.id === checkIn.session_id);
+    if (!session) return;
+    const net = nets.find(n => n.id === session.net_id);
+    if (!net) return;
+    
+    const passcode = verifiedPasscodes[net.id] || null;
+    const originalCheckIns = [...checkIns];
+    setCheckIns(prev => prev.filter(c => c.id !== checkIn.id));
+
+    try {
+        const { error } = await supabase.rpc('delete_check_in', { p_check_in_id: checkIn.id, p_passcode: passcode });
+        if (error) throw new Error(error.message);
+    } catch (error) {
+        setCheckIns(originalCheckIns);
+        handleApiError(error, "handleDeleteCheckIn");
+    }
+  }, [sessions, nets, verifiedPasscodes, checkIns, handleApiError]);
+
+  const handleDeleteCheckInRequest = useCallback((checkIn: CheckIn) => {
+    requestConfirmation({
+        title: "Delete Check-in",
+        message: "Are you sure you want to permanently delete this check-in?",
+        isDestructive: true,
+        confirmText: "Delete",
+        onConfirm: () => handleDeleteCheckIn(checkIn)
+    });
+  }, [requestConfirmation, handleDeleteCheckIn]);
 
   // `handleSaveRosterMembers`: Replaces the entire roster for a NET with a new list of members.
   const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]): Promise<void> => {
@@ -1075,6 +1154,9 @@ const App: React.FC = () => {
         return (
           <SessionScreen
             sessionId={view.sessionId}
+            allNets={nets}
+            allSessions={sessions}
+            allCheckIns={checkIns}
             allBadges={allBadges}
             awardedBadges={awardedBadges}
             rosterMembers={netRosterMembers}
@@ -1089,8 +1171,7 @@ const App: React.FC = () => {
             onViewCallsignProfile={(callsign) => setView({ type: 'callsignProfile', callsign })}
             showAlert={showAlert}
             handleApiError={handleApiError}
-            requestConfirmation={requestConfirmation}
-            verifiedPasscodes={verifiedPasscodes}
+            onDeleteCheckInRequest={handleDeleteCheckInRequest}
             onDeleteSession={handleDeleteSession}
           />
         );

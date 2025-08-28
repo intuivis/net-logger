@@ -4,7 +4,6 @@ import { NetCard } from '../components/NetCard';
 import { NetTable } from '../components/NetTable';
 import { Icon } from '../components/Icon';
 import { NET_TYPE_OPTIONS, NET_CONFIG_TYPE_OPTIONS, DAY_OF_WEEK_OPTIONS } from '../constants';
-import LiveNetsSection from '../components/LiveNetsSection';
 
 interface DirectoryScreenProps {
   nets: Net[];
@@ -49,17 +48,9 @@ const DirectoryScreen: React.FC<DirectoryScreenProps> = ({ nets, sessions, onVie
 
   return (
     <div className="space-y-8">
-      <LiveNetsSection
-        activeSessions={activeSessions}
-        nets={nets}
-        checkIns={checkIns}
-        onViewSession={onViewSession}
-        profile={profile}
-      />
-        
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">NET Directory</h1>
-        <p className="text-dark-text-secondary mt-1">Browse and all available NETs in this community.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Net Directory</h1>
+        <p className="text-dark-text-secondary mt-1">Browse and all available Nets in this community.</p>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 p-4 bg-dark-800 rounded-lg">
@@ -70,7 +61,7 @@ const DirectoryScreen: React.FC<DirectoryScreenProps> = ({ nets, sessions, onVie
             onChange={e => setNetTypeFilter(e.target.value as NetType | 'all')}
             className="px-3 py-2 bg-dark-700 border border-dark-600 rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm h-10"
           >
-            <option value="all">All NET Types</option>
+            <option value="all">All Net Types</option>
             {NET_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           <select
@@ -105,9 +96,9 @@ const DirectoryScreen: React.FC<DirectoryScreenProps> = ({ nets, sessions, onVie
       <div>
         {filteredNets.length === 0 ? (
            <div className="text-center py-20 px-4 border-2 border-dashed border-dark-700 rounded-lg">
-              <h2 className="text-2xl font-bold text-dark-text-secondary">No NETs Found</h2>
+              <h2 className="text-2xl font-bold text-dark-text-secondary">No Nets Found</h2>
               <p className="mt-2 text-dark-text-secondary">
-                No NETs match the current filters. Try adjusting your selections.
+                No Nets match the current filters. Try adjusting your selections.
               </p>
            </div>
         ) : viewMode === 'card' ? (

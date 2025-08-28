@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
-import { Database } from '../database.types';
+//import { Database } from '../database.types';
 import { Icon } from '../components/Icon';
 
 interface UserManagementScreenProps {

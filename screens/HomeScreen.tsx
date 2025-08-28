@@ -3,8 +3,6 @@ import React from 'react';
 import { Net, NetSession, CheckIn, Profile, View } from '../types';
 import { Icon } from '../components/Icon';
 import LiveNetsSection from '../components/LiveNetsSection';
-import netControlScreenshot from '../img/NetControl-screen-mobile.png'; // Adjust the path as necessary
-
 
 interface HomeScreenProps {
   activeSessions: NetSession[];
@@ -63,6 +61,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, sessions,
   const totalNets = nets.length;
   const totalSessions = sessions.length;
   const uniqueCallSigns = new Set(checkIns.map(ci => ci.call_sign)).size;
+  const netControlScreenshot = "https://netcontrol.app/assets/NetControl-screen-mobile-DI82yjz6.png";
 
   return (
     <div className="space-y-16">
@@ -71,7 +70,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, sessions,
         <div className="relative rounded-xl p-8 md:p-12 lg:p-12 overflow-hidden">
           <div className="text-center z-10 relative">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">Amateur Radio Net Logging System</h1>
-            <p className="mt-4 max-w-2xl mx-auto text-lg text-dark-text-secondary">Coordinate on-air NETs, track participation, and keep your community connected in real-time.</p>
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-dark-text-secondary">Coordinate on-air Nets, track participation, and keep your community connected in real-time.</p>
           </div>
         </div>
       </div>
@@ -96,9 +95,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, sessions,
                     <span>View Net Directory</span>
                   </button>
                 </div>
-                <div className="w-full md:w-6/12 lg:w-1/2 p-4 rounded-lg ml-0 text-center">
-                  <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" />
-                </div>
+                    <div className="w-full md:w-6/12 lg:w-1/2 p-4 rounded-lg ml-0 text-center">
+                      {/* GoogleAIStudio <img src="https://placehold.co/350x300/1E1E1E/E0E0E0?text=NetControl%0AApp+Screenshot" alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
+                      {/* Local <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" /> */ }
+                      <img src={netControlScreenshot} alt="NetControl Screenshot" className="mx-auto object-cover" />
+                    </div>
               </div>
             </div>
           </div>
