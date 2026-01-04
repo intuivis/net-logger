@@ -21,7 +21,7 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
                         <h2 className="text-2xl font-bold text-dark-text">Version 1.3.5 (Current)</h2>
-                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Friday, August 22, 2025</p>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Thursday, August 28, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Removed the Live Nets list from the top of the Net Directory.</li>
                             <li>Bug Fix: A session check-in issue while two Net Sessions were Live.</li>

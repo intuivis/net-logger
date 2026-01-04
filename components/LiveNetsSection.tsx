@@ -1,6 +1,9 @@
+
+
 import React from 'react';
-import { Net, NetSession, CheckIn, Profile } from '../types';
+import { Net, NetSession, CheckIn, Profile, View } from '../types';
 import { Icon } from './Icon';
+import Button from './Button';
 
 interface LiveNetsSectionProps {
   activeSessions: NetSession[];
@@ -8,9 +11,12 @@ interface LiveNetsSectionProps {
   checkIns: CheckIn[];
   onViewSession: (sessionId: string) => void;
   profile: Profile | null;
+  onSetView: (view: View) => void;
 }
 
-const LiveNetsSection: React.FC<LiveNetsSectionProps> = ({ activeSessions, nets, checkIns, onViewSession, profile }) => {
+const LiveNetsSection: React.FC<LiveNetsSectionProps> = ({ activeSessions, nets, checkIns, onViewSession, profile, onSetView }) => {
+
+
   return (
     <div>
       <div className="mb-6">
@@ -28,6 +34,9 @@ const LiveNetsSection: React.FC<LiveNetsSectionProps> = ({ activeSessions, nets,
           {profile && (profile.role === 'admin' || profile.is_approved) && (
               <p className="mt-1 text-dark-text-secondary">Go to "Manage Nets" to start one.</p>
           )}
+        <Button size="lg" onClick={() => onSetView({ type: 'directory' })} className="mt-8">
+        <span>View Net Directory</span>
+        </Button>
         </div>
       ) : (
         <div className="space-y-4">

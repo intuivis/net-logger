@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Profile, View } from '../types';
-//import { Database } from '../database.types';
 import { Icon } from '../components/Icon';
+import Button from '../components/Button';
 
 interface UserManagementScreenProps {
     onSetView: (view: View) => void;
@@ -13,6 +14,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
+
 
     const fetchProfiles = useCallback(async () => {
         setLoading(true);
@@ -34,21 +36,31 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
         fetchProfiles();
     }, [fetchProfiles]);
 
-    const handleApprovalToggle = async (profile: Profile) => {
-        setUpdatingProfileId(profile.id);
-        const updatePayload = { is_approved: !profile.is_approved };
-        const { error } = await supabase
-            .from('profiles')
-            .update(updatePayload)
-            .eq('id', profile.id);
+    const handleToggleApproval = async (profileToUpdate: Profile) => {
+        setUpdatingProfileId(profileToUpdate.id);
+        const newStatus = !profileToUpdate.is_approved;
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .update({ is_approved: newStatus })
+                .eq('id', profileToUpdate.id)
+                .select()
+                .single();
+            
+            if (error) throw error;
 
-        if (error) {
-            alert('Failed to update profile: ' + error.message);
-        } else {
-            await fetchProfiles(); // Refresh the list
+            setProfiles(prevProfiles => 
+                prevProfiles.map(p => p.id === profileToUpdate.id ? (data as unknown as Profile) : p)
+            );
+
+        } catch (err: any) {
+             console.error("Failed to update user status:", err);
+             setError(`Error updating ${profileToUpdate.call_sign || profileToUpdate.email}: ${err.message}`);
+        } finally {
+            setUpdatingProfileId(null);
         }
-        setUpdatingProfileId(null);
     };
+
 
     const handleViewProfile = (callsign: string | null) => {
         if(callsign) {
@@ -68,7 +80,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Net Control User Management</h1>
-                <p className="text-dark-text-secondary mt-1">View all registered Net Control Stations and manage their access.</p>
+                <p className="text-dark-text-secondary mt-1">Approve or revoke access for registered Net Control Stations.</p>
             </div>
             
             <div className="bg-dark-800 shadow-lg rounded-lg overflow-hidden">
@@ -80,7 +92,7 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Name</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Call Sign</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Status</th>
-                                <th scope="col" className="relative px-6 py-4"><span className="sr-only">Action</span></th>
+                                <th scope="col" className="px-6 py-4 text-right text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-dark-700">
@@ -99,19 +111,25 @@ const UserManagementScreen: React.FC<UserManagementScreenProps> = ({ onSetView }
                                             {profile.call_sign && <Icon className="text-sm">person</Icon>}
                                         </button>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-md">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${profile.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                                            {profile.is_approved ? 'Active' : 'Revoked'}
-                                        </span>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {profile.is_approved ? (
+                                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-500/20 text-green-300">
+                                                Approved
+                                            </span>
+                                        ) : (
+                                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-500/20 text-red-300">
+                                                Revoked
+                                            </span>
+                                        )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-md font-medium">
-                                        <button 
-                                            onClick={() => handleApprovalToggle(profile)}
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <Button
+                                            onClick={() => handleToggleApproval(profile)}
                                             disabled={updatingProfileId === profile.id}
-                                            className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors disabled:bg-gray-500 disabled:cursor-wait ${profile.is_approved ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                            variant={profile.is_approved ? 'destructive' : 'success'}
                                         >
-                                            {updatingProfileId === profile.id ? 'Updating...' : (profile.is_approved ? 'Revoke Access' : 'Reinstate Access')}
-                                        </button>
+                                            {updatingProfileId === profile.id ? 'Updating...' : (profile.is_approved ? 'Revoke' : 'Approve')}
+                                        </Button>
                                     </td>
                                 </tr>
                             ))}

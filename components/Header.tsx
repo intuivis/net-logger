@@ -1,9 +1,11 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Icon } from './Icon';
 import { Profile, View } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { LogoSignal } from './icons/LogoSignal';
+import Button from './Button';
 
 interface HeaderProps {
     profile: Profile | null;
@@ -115,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                     <div className="absolute right-0 mt-2 w-56 origin-top-right bg-dark-800 border border-dark-700 rounded-lg shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none p-2">
                                         <div className="space-y-1">
                                             <DropdownMenuItem icon="person" label="My Profile" onClick={() => handleNavClick({ type: 'profile' })} />
-                                            {(profile.is_approved || profile.role === 'admin') && (
+                                            {profile && profile.is_approved && (
                                                  <DropdownMenuItem icon="podcasts" label="Manage NETs" onClick={() => handleNavClick({ type: 'manageNets' })} />
                                             )}
                                             {profile.role === 'admin' && (
@@ -129,18 +131,8 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                             </div>
                         ) : (
                             <>
-                                <button
-                                    onClick={() => handleNavClick({ type: 'login' })}
-                                    className="px-4 py-2 text-sm font-semibold text-dark-text-secondary hover:text-dark-text bg-dark-700/50 hover:bg-dark-700 rounded-lg transition-colors"
-                                >
-                                    Login
-                                </button>
-                                <button
-                                    onClick={() => handleNavClick({ type: 'register' })}
-                                    className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary hover:bg-brand-secondary rounded-lg transition-colors"
-                                >
-                                    Register
-                                </button>
+                                <Button variant="secondary" onClick={() => handleNavClick({ type: 'login' })}>Login</Button>
+                                <Button variant="primary" onClick={() => handleNavClick({ type: 'register' })}>Register</Button>
                             </>
                         )}
                     </div>
@@ -190,7 +182,7 @@ const Header: React.FC<HeaderProps> = ({ profile, onSetView }) => {
                                 <button onClick={() => handleNavClick({ type: 'profile' })} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700">
                                     <Icon className="text-xl w-5 text-center">person</Icon>My Profile
                                 </button>
-                                {(profile.is_approved || profile.role === 'admin') && (
+                                {profile && profile.is_approved && (
                                     <button onClick={() => handleNavClick({ type: 'manageNets' })} className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-md text-base font-medium text-dark-text hover:bg-dark-700">
                                         <Icon className="text-xl w-5 text-center">podcasts</Icon>Manage NETs
                                     </button>

@@ -1,10 +1,10 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Net, RosterMember } from '../types';
 import { Icon } from '../components/Icon';
 import { supabase } from '../lib/supabaseClient';
+import Button from '../components/Button';
 
 interface RosterEditorScreenProps {
     net: Net;
@@ -180,10 +180,10 @@ const RosterEditorScreen: React.FC<RosterEditorScreenProps> = ({ net, initialMem
                 </fieldset>
 
                 <div className="flex justify-end gap-4 pt-4 border-t border-dark-700">
-                    <button type="button" onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">Cancel</button>
-                    <button type="submit" className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary">
+                    <Button type="button" onClick={onCancel} variant="secondary" size="lg">Cancel</Button>
+                    <Button type="submit" size="lg">
                         Save Roster
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>

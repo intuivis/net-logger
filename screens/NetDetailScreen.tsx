@@ -1,10 +1,12 @@
 
+
 import React from 'react';
 import { Net, NetSession, CheckIn, Profile, NetConfigType, Repeater, PermissionKey } from '../types';
 import { formatTime, formatRepeaterCondensed, formatTimeZone, formatSchedule } from '../lib/time';
 import { Icon } from '../components/Icon';
 import { NetTypeBadge } from '../components/NetTypeBadge';
 import { NetActivityChart } from '../components/NetActivityChart';
+import Button from '../components/Button';
 
 interface NetDetailScreenProps {
     net: Net;
@@ -180,10 +182,10 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                     {showManagementButtons && (
                         <div className="flex items-center gap-2 flex-shrink-0 mt-4 md:mt-0">
                             {profile && !isOwnerOrAdmin && net.passcode && (
-                                <button onClick={onVerifyPasscodeRequest} className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-brand-secondary rounded-md hover:bg-brand-primary transition-colors" aria-label="Use Passcode">
+                                <Button onClick={onVerifyPasscodeRequest} variant="secondary" aria-label="Use Passcode">
                                     <Icon className="text-xl">key</Icon>
                                     Use Passcode
-                                </button>
+                                </Button>
                             )}
                             <div className="flex items-center gap-1">
                                 {canEditNet && (
@@ -200,22 +202,24 @@ const NetDetailScreen: React.FC<NetDetailScreenProps> = ({ net, sessions, checkI
                             </div>
                             {canManageSessions && (
                                 activeSession ? (
-                                    <button
+                                    <Button
                                         onClick={handleEndSessionClick}
-                                        className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                                        variant="destructive"
+                                        className="ml-2"
                                     >
                                         <Icon className="text-base">stop</Icon>
                                         End Session
-                                    </button>
+                                    </Button>
                                 ) : (
-                                    <button
+                                    <Button
                                         onClick={onStartSession}
                                         disabled={!!activeSession}
-                                        className="flex items-center gap-2 ml-2 px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
+                                        variant="success"
+                                        className="ml-2"
                                     >
                                         <Icon className="text-base">play_arrow</Icon>
                                         Start New Session
-                                    </button>
+                                    </Button>
                                 )
                             )}
                         </div>

@@ -1,9 +1,11 @@
 
+
 import React, { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PasscodePermissions, PermissionKey, Profile, Schedule, ScheduleType, MonthlyScheduleType, Occurrence, OCCURRENCE_OPTIONS } from '../types';
+import { Net, Repeater, NetType, DayOfWeek, NetConfigType, NET_CONFIG_TYPE_LABELS, PERMISSION_DEFINITIONS, PermissionKey, Profile, Schedule, ScheduleType, MonthlyScheduleType, Occurrence, OCCURRENCE_OPTIONS } from '../types';
 import { NET_TYPE_OPTIONS, DAY_OF_WEEK_OPTIONS, TIME_ZONE_OPTIONS, NET_CONFIG_TYPE_OPTIONS } from '../constants';
 import { Icon } from '../components/Icon';
+import Button from '../components/Button';
 
 interface NetEditorScreenProps {
   initialNet?: Net;
@@ -345,7 +347,7 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit Net' : 'Create New Net'}</h1>
+      <h1 className="text-3xl font-bold tracking-tight mb-6">{initialNet ? 'Edit NET' : 'Create New NET'}</h1>
       <form onSubmit={handleSubmit} className="bg-dark-800 p-6 sm:p-8 rounded-lg shadow-xl space-y-8">
         
         <div>
@@ -401,22 +403,18 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
                 )}
                 {schedule?.type === 'monthly' && (
                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-dark-text-secondary">Monthly Recurrence</h3>
                         <div className="flex items-center gap-6">
                             <label className="flex items-center gap-2">
                                 <input type="radio" name="monthlyType" value="date" checked={schedule.config.type === 'date'} onChange={() => handleScheduleChange('monthlyType', 'date')} className="h-4 w-4 text-brand-primary focus:ring-brand-accent border-gray-300"/>
-                                <span className="text-sm">Specific Date</span>
+                                <span className="text-sm">On the...</span>
                             </label>
                              <label className="flex items-center gap-2">
                                 <input type="radio" name="monthlyType" value="day" checked={schedule.config.type === 'day'} onChange={() => handleScheduleChange('monthlyType', 'day')} className="h-4 w-4 text-brand-primary focus:ring-brand-accent border-gray-300"/>
-                                <span className="text-sm">Recurring Day</span>
+                                <span className="text-sm">On the...</span>
                             </label>
                         </div>
                         {schedule.config.type === 'date' && (
-                            <div className="max-w-sm">
-                            <FormInput label="Day of the Month" id="schedule_date" type="number" min="1" max="31" value={schedule.config.date || 1} onChange={e => handleScheduleChange('date', e.target.value)} className="max-w-xs"/>
-                            <p className="text-xs text-dark-text-secondary mt-1">Enter a date between 1-31</p>
-                            </div>
+                             <FormInput label="Day of the month" id="schedule_date" type="number" min="1" max="31" value={schedule.config.date || 1} onChange={e => handleScheduleChange('date', e.target.value)} className="max-w-xs"/>
                         )}
                         {schedule.config.type === 'day' && (
                             <div className="flex items-center gap-4">
@@ -535,10 +533,10 @@ const NetEditorScreen: React.FC<NetEditorScreenProps> = ({ initialNet, onSave, o
         )}
 
         <div className="flex justify-end gap-4 pt-4 border-t border-dark-700">
-            <button type="button" onClick={onCancel} className="px-6 py-2.5 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">Cancel</button>
-            <button type="submit" className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary">
+            <Button type="button" onClick={onCancel} variant="secondary" size="lg">Cancel</Button>
+            <Button type="submit" variant="primary" size="lg">
                 {initialNet ? 'Save Changes' : 'Create NET'}
-            </button>
+            </Button>
         </div>
       </form>
     </div>

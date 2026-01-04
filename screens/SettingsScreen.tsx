@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { Profile } from '../types';
 import { Icon } from '../components/Icon';
+import Button from '../components/Button';
 
 const FormInput = ({ label, id, ...props }: {label: string, id: string} & React.InputHTMLAttributes<HTMLInputElement>) => (
     <div>
@@ -91,9 +93,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                         <FormInput label="Location (e.g., City, State)" id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} />
                     </div>
                     <div className="flex justify-end">
-                        <button type="submit" disabled={isSavingProfile} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
+                        <Button type="submit" disabled={isSavingProfile} size="lg">
                             {isSavingProfile ? 'Saving...' : 'Save Profile'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
 
@@ -105,9 +107,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                         <p className="text-sm text-dark-text-secondary mt-2">A verification link will be sent to the new email address to confirm the change.</p>
                     </div>
                     <div className="flex justify-end">
-                        <button type="submit" disabled={isSavingEmail} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
+                        <Button type="submit" disabled={isSavingEmail} size="lg">
                             {isSavingEmail ? 'Saving...' : 'Update Email'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
 
@@ -119,9 +121,9 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ profile, onUpdateProfil
                         <FormInput label="Confirm New Password" id="confirmPassword" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
                     </div>
                     <div className="flex justify-end">
-                        <button type="submit" disabled={isSavingPassword || !newPassword} className="px-6 py-2.5 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50">
+                        <Button type="submit" disabled={isSavingPassword || !newPassword} size="lg">
                             {isSavingPassword ? 'Saving...' : 'Change Password'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

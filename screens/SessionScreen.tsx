@@ -1,3 +1,4 @@
+
 /**
  * SessionScreen.tsx
  * 
@@ -8,13 +9,13 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import FormInput from '../components/FormInput';
 import FormSelect from '../components/FormSelect';
-import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, Repeater, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType, Schedule } from '../types';
+import { Net, NetSession, CheckIn, Profile, NetConfigType, AwardedBadge, Badge as BadgeType, PermissionKey, RosterMember, CheckInInsertPayload, CheckInStatus, CheckInStatusValue, DayOfWeek, PasscodePermissions, NetType, Schedule } from '../types';
 import { Icon } from '../components/Icon';
 import { formatRepeaterCondensed } from '../lib/time';
 import { supabase } from '../lib/supabaseClient';
 import { Badge } from '../components/Badge';
-// import { Database } from '../database.types';
 import { NCOBadge } from '../components/NCOBadge';
+import Button from '../components/Button';
 // import JoinNetModal from '../components/JoinNetModal';
 
 // --- PROPS INTERFACE ---
@@ -155,9 +156,9 @@ const CheckInForm: React.FC<{
                         <div className="flex-grow">
                             <FormInput label="Notes" id="notes" value={notes} onChange={e => setNotes(e.target.value)} />
                         </div>
-                        <button type="submit" disabled={isSubmitting} className="flex-shrink-0 px-4 py-2 h-11 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500 disabled:cursor-wait">
+                        <Button type="submit" disabled={isSubmitting} className="flex-shrink-0 h-11">
                             {isSubmitting ? 'Checking In...' : 'Check In'}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -409,12 +410,13 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allNets, allSe
                     </div>
                     <div className="flex items-center gap-2">
                         {canManageSessions && isActive && (
-                            <button 
-                                onClick={() => props.onEndSessionRequest(sessionId, net.id)} 
-                                className="px-6 py-2.5 text-sm font-bold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors shadow-md"
+                            <Button
+                                onClick={() => props.onEndSessionRequest(sessionId, net.id)}
+                                variant="destructive"
+                                size="lg"
                             >
                                 End Session
-                            </button>
+                            </Button>
                         )}
                         {!isActive && (isOwnerOrAdmin || canDeleteSessions) && (
                         <div className="relative" ref={menuRef}>
@@ -615,12 +617,12 @@ const SessionScreen: React.FC<SessionScreenProps> = ({ sessionId, allNets, allSe
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {/* Check-in from roster button */}
                                             {hasEditPermissions && (
-                                                <button onClick={() => handleAddCheckIn({call_sign: member.call_sign, name: member.name, location: member.location, notes: "From Roster", repeater_id: null})}
+                                                <Button onClick={() => handleAddCheckIn({call_sign: member.call_sign, name: member.name, location: member.location, notes: "From Roster", repeater_id: null})}
                                                     // Disable if submitting or if the user is already checked in.
                                                     disabled={isSubmitting || checkedInCallsigns.has(normalizeCallsign(member.call_sign))}
-                                                    className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:bg-gray-500 disabled:cursor-not-allowed">
+                                                >
                                                     {checkedInCallsigns.has(normalizeCallsign(member.call_sign)) ? 'Logged' : 'Check-in'}
-                                                </button>
+                                                </Button>
                                             )}
                                         </td>
                                     </tr>

@@ -1,6 +1,7 @@
 
 
 import React, { useEffect } from 'react';
+import Button from './Button';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -47,20 +48,16 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     <p className="text-md text-dark-text-secondary mt-2">{message}</p>
                 </div>
                 <div className="flex justify-end gap-4 p-4 bg-dark-800/50 rounded-b-lg">
-                    <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">
+                    <Button variant="secondary" type="button" onClick={onClose}>
                         Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
                         onClick={handleConfirmClick}
-                        className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
-                            isDestructive
-                                ? 'bg-red-600 hover:bg-red-700'
-                                : 'bg-brand-primary hover:bg-brand-secondary'
-                        }`}
+                        variant={isDestructive ? 'destructive' : 'primary'}
                     >
                         {confirmText}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </div>

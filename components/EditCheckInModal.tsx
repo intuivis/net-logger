@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckIn, NetSession, Net, NetConfigType } from '../types';
 import { formatRepeaterCondensed } from '../lib/time';
+import Button from './Button';
 
 interface EditCheckInModalProps {
   session: NetSession;
@@ -92,12 +93,12 @@ const EditCheckInModal: React.FC<EditCheckInModalProps> = ({ session, net, check
             <FormInput label="Notes" id="edit-notes" name="notes" value={formData.notes || ''} onChange={handleChange} />
           </div>
           <div className="flex justify-end gap-4 p-4 bg-dark-800/50 rounded-b-lg">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">
+            <Button variant="secondary" type="button" onClick={onClose}>
               Cancel
-            </button>
-            <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary">
+            </Button>
+            <Button variant="primary" type="submit">
               Save Changes
-            </button>
+            </Button>
           </div>
         </form>
       </div>

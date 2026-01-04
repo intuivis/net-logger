@@ -1,8 +1,8 @@
 
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { View } from '../types';
+import Button from '../components/Button';
 
 interface RegisterScreenProps {
     onSetView: (view: View) => void;
@@ -118,9 +118,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSetView }) => {
                         </div>
                     </div>
                     <div>
-                        <button type="submit" disabled={loading || !!message || !agreedToTerms} className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-md font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                        <Button type="submit" disabled={loading || !!message || !agreedToTerms} size="xl" fullWidth>
                             {loading ? 'Registering...' : 'Register'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

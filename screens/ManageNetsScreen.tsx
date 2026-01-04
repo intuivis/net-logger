@@ -1,9 +1,9 @@
 
-
 import React from 'react';
 import { Net, NetSession, Profile, PermissionKey, RosterMember } from '../types';
 import { NetCard } from '../components/NetCard';
 import { Icon } from '../components/Icon';
+import Button from '../components/Button';
 
 interface ManageNetsScreenProps {
   nets: Net[];
@@ -36,19 +36,18 @@ const ManageNetsScreen: React.FC<ManageNetsScreenProps> = ({
 }) => {
   const activeSessionNetIds = new Set(sessions.filter(s => s.end_time === null).map(s => s.net_id));
   
-  // Admins and approved NCOs can create nets.
-  const canCreateNet = profile?.role === 'admin' || profile?.is_approved;
+  // A user can create a net if they are logged in and their account is approved.
+  const canCreateNet = !!profile && profile.is_approved;
 
   const AddNetButton = () => (
-     <button
+     <Button
         onClick={onAddNet}
         disabled={!canCreateNet}
-        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg shadow-md hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-offset-2 focus:ring-offset-dark-900 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed"
-        title={canCreateNet ? "Create a new NET" : "Your account must be approved to create a NET."}
+        title="Create a new NET"
       >
         <Icon className="text-xl">add</Icon>
         <span>New NET</span>
-      </button>
+      </Button>
   );
   
   return (

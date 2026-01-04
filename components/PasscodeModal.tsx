@@ -1,6 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
+import Button from './Button';
 
 interface PasscodeModalProps {
     netName: string;
@@ -59,12 +60,12 @@ const PasscodeModal: React.FC<PasscodeModalProps> = ({ netName, onVerify, onClos
                         )}
                     </div>
                     <div className="flex justify-end gap-4 p-4 bg-dark-800/50 rounded-b-lg">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-dark-text bg-dark-700 rounded-lg hover:bg-dark-600">
+                        <Button variant="secondary" type="button" onClick={onClose}>
                             Cancel
-                        </button>
-                        <button type="submit" disabled={isVerifying} className="px-4 py-2 text-sm font-semibold text-white bg-brand-primary rounded-lg hover:bg-brand-secondary disabled:opacity-50 disabled:cursor-wait">
+                        </Button>
+                        <Button variant="primary" type="submit" disabled={isVerifying}>
                             {isVerifying ? 'Verifying...' : 'Verify'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </div>

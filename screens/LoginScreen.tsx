@@ -1,8 +1,8 @@
 
-
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { View } from '../types';
+import Button from '../components/Button';
 
 interface LoginScreenProps {
   onSetView: (view: View) => void;
@@ -76,13 +76,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSetView }) => {
           </div>
 
           <div>
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-md font-medium rounded-md text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent focus:ring-offset-dark-800 disabled:bg-gray-500"
+              size="xl"
+              fullWidth
             >
               {loading ? 'Signing in...' : 'Sign in'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

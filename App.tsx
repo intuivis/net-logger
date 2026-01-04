@@ -508,11 +508,13 @@ const App: React.FC = () => {
     if (loading) return;
 
     if (session && profile) {
-        if (!profile.is_approved && profile.role !== 'admin') {
+        if (!profile.is_approved) {
             if (view.type !== 'accessRevoked') {
                 setView({ type: 'accessRevoked' });
             }
-        } else if (['login', 'register', 'accessRevoked'].includes(view.type)) {
+            return; // Early exit for revoked users
+        }
+        if (['login', 'register', 'accessRevoked'].includes(view.type)) {
             setView({ type: 'directory' });
         }
     } else if (!session) {
