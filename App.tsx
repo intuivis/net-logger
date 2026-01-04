@@ -205,7 +205,7 @@ const App: React.FC = () => {
     if (typeof rawSchedule === 'string' && rawSchedule) {
         schedule = { type: 'weekly', day: rawSchedule as DayOfWeek };
     } else if (rawSchedule && typeof rawSchedule === 'object' && 'type' in rawSchedule) {
-        // More robust check to ensure it's a valid Schedule object
+        // More robust check to ensure it's a mythical Schedule object
         schedule = rawSchedule as Schedule;
     } else {
         // Fallback for null, undefined, or invalid schedule data
@@ -285,67 +285,6 @@ const App: React.FC = () => {
     }
   }, [transformNetPayload, handleApiError]);
 
-  // `backfillBadges`: A utility function to retroactively award "First Check-in" badges.
-  // This runs on startup to ensure data consistency if the logic was previously missing.
-  const backfillBadges = useCallback(async () => {
-    const firstCheckinBadgeId = 'first_checkin';
-
-    try {
-        const { data: allSessions, error: sessionsError } = await supabase.from('sessions').select('id, net_id');
-        if (sessionsError) throw new Error(`Failed to fetch sessions for backfill: ${sessionsError.message}`);
-        const sessionToNetMap = new Map(((allSessions as unknown as { id: string; net_id: string }[]) || []).map(s => [s.id, s.net_id]));
-
-        const { data: allCheckIns, error: checkInsError } = await supabase.from('check_ins').select('call_sign, timestamp, session_id');
-        if (checkInsError) throw new Error(`Failed to fetch check-ins for backfill: ${checkInsError.message}`);
-
-        const { data: existingAwards, error: awardedBadgesError } = await supabase.from('awarded_badges').select('call_sign, net_id').eq('badge_id', firstCheckinBadgeId);
-        if (awardedBadgesError) throw new Error(`Failed to fetch existing badges: ${awardedBadgesError.message}`);
-
-        const allCheckInsWithNetId = ((allCheckIns as unknown as { call_sign: string, timestamp: string, session_id: string }[]) || []).map(ci => ({
-            ...ci,
-            net_id: sessionToNetMap.get(ci.session_id)
-        })).filter(ci => ci.net_id);
-
-        const firstCheckInsPerNet = new Map<string, { call_sign: string, timestamp: string, session_id: string, net_id: string }>();
-
-        for (const checkIn of allCheckInsWithNetId) {
-            if (!checkIn.net_id) continue;
-            const key = `${checkIn.call_sign}-${checkIn.net_id}`;
-            const existingFirst = firstCheckInsPerNet.get(key);
-            if (!existingFirst || new Date(checkIn.timestamp) < new Date(existingFirst.timestamp)) {
-                firstCheckInsPerNet.set(key, { ...checkIn, net_id: checkIn.net_id });
-            }
-        }
-        
-        const existingAwardsSet = new Set(((existingAwards as unknown as { call_sign: string, net_id: string }[]) || []).map(b => `${b.call_sign}-${b.net_id}`));
-        const newAwardsToInsert: Database['public']['Tables']['awarded_badges']['Insert'][] = [];
-
-        for (const [key, firstCheckIn] of firstCheckInsPerNet.entries()) {
-            if (!existingAwardsSet.has(key) && firstCheckIn.net_id) {
-                newAwardsToInsert.push({
-                    call_sign: firstCheckIn.call_sign,
-                    badge_id: firstCheckinBadgeId,
-                    session_id: firstCheckIn.session_id,
-                    net_id: firstCheckIn.net_id,
-                });
-            }
-        }
-
-        if (newAwardsToInsert.length > 0) {
-            console.log(`Backfilling ${newAwardsToInsert.length} '${firstCheckinBadgeId}' badges...`);
-            const { error: insertError } = await supabase.from('awarded_badges').insert(newAwardsToInsert as any);
-
-            if (insertError) {
-                console.error(`Error inserting backfilled badges: ${insertError.message}`);
-            } else {
-                await refreshAllData(); // Refresh data after successful backfill
-            }
-        }
-    } catch (error) {
-        console.error("Error during badge backfill process:", error);
-    }
-}, [refreshAllData]);
-  
   // --- SIDE EFFECTS (useEffect) ---
   
   // This effect manages the user's authentication state.
@@ -398,9 +337,6 @@ const App: React.FC = () => {
 
             setProfile(userProfile);
             await refreshAllData();
-            if (session?.user) { // Only backfill if user is logged in
-                await backfillBadges();
-            }
 
         } catch (error) {
             console.error("An unexpected error occurred during session processing:", error);
@@ -410,7 +346,7 @@ const App: React.FC = () => {
     };
 
     onSessionChange();
-  }, [session, refreshAllData, backfillBadges, handleApiError]);
+  }, [session, refreshAllData, handleApiError]);
 
   // This effect sets up all the real-time listeners (subscriptions) for database changes.
   // It listens for inserts, updates, and deletes on key tables and updates the global state.
@@ -615,6 +551,7 @@ const App: React.FC = () => {
   }, [profile, setView, transformNetPayload, handleApiError, verifiedPasscodes]);
 
   // `handleDeleteNet`: Deletes a NET after user confirmation.
+  // UPDATED: Now uses a secure backend RPC to ensure only owners/admins can delete.
   const handleDeleteNet = useCallback(async (netId: string): Promise<void> => {
     requestConfirmation({
         title: 'Confirm Deletion',
@@ -623,7 +560,7 @@ const App: React.FC = () => {
         isDestructive: true,
         onConfirm: async () => {
             try {
-                const { error } = await supabase.from('nets').delete().eq('id', netId);
+                const { error } = await supabase.rpc('delete_net', { p_net_id: netId });
                 if (error) throw new Error(error.message);
                 setNets(prev => prev.filter(n => n.id !== netId));
                 setView({ type: 'manageNets' });
@@ -704,6 +641,7 @@ const App: React.FC = () => {
   }, [handleEndSession, requestConfirmation]);
 
   // `handleDeleteSession`: Deletes a historical session and its check-ins after confirmation.
+  // UPDATED: Now uses a secure backend RPC and correctly utilizes netId for passcode verification.
   const handleDeleteSession = useCallback(async (sessionId: string, netId: string): Promise<void> => {
     requestConfirmation({
         title: 'Confirm Deletion',
@@ -712,7 +650,11 @@ const App: React.FC = () => {
         isDestructive: true,
         onConfirm: async () => {
             try {
-                const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
+                const passcode = verifiedPasscodes[netId] || null;
+                const { error } = await supabase.rpc('delete_session', { 
+                    p_session_id: sessionId, 
+                    p_passcode: passcode 
+                });
                 if (error) throw new Error(error.message);
                 
                 // State will update via subscription, but for snappy UI, update locally.
@@ -728,7 +670,7 @@ const App: React.FC = () => {
             }
         }
     });
-  }, [view, goBack, handleApiError, requestConfirmation]);
+  }, [view, goBack, handleApiError, requestConfirmation, verifiedPasscodes]);
   
   // `handleUpdateSessionNotes`: Updates the notes for a session.
   const handleUpdateSessionNotes = useCallback(async (sessionId: string, notes: string): Promise<void> => {
@@ -872,16 +814,15 @@ const App: React.FC = () => {
   }, [requestConfirmation, handleDeleteCheckIn]);
 
   // `handleSaveRosterMembers`: Replaces the entire roster for a NET with a new list of members.
+  // UPDATED: Now uses an atomic RPC for better security and data integrity.
   const handleSaveRosterMembers = useCallback(async (netId: string, members: Omit<RosterMember, 'id' | 'net_id' | 'created_at'>[]): Promise<void> => {
     try {
-        const { error: deleteError } = await supabase.from('roster_members').delete().eq('net_id', netId);
-        if (deleteError) throw new Error(deleteError.message);
-
-        if (members.length > 0) {
-            const membersToInsert = members.map(m => ({ ...m, net_id: netId }));
-            const { error: insertError } = await supabase.from('roster_members').insert(membersToInsert as any);
-            if (insertError) throw new Error(insertError.message);
-        }
+        const { error } = await supabase.rpc('handle_roster_update', {
+            p_net_id: netId,
+            p_members: members as unknown as Json
+        });
+        
+        if (error) throw new Error(error.message);
 
         await refreshAllData();
         setView({ type: 'netDetail', netId: netId });
@@ -922,45 +863,19 @@ const App: React.FC = () => {
     setIsVerifying(false);
   }, [verifyingPasscodeForNet]);
 
-  // `handleUpdateProfileData`: Updates the user's own profile information (name, call sign, location).
+  // `handleUpdateProfileData`: Updates the user's own profile information.
+  // UPDATED: Now uses a secure backend RPC that enforces uniqueness and validation.
   const handleUpdateProfileData = useCallback(async (profileData: { full_name: string, call_sign: string, location: string }): Promise<void> => {
     if (!profile) return;
     try {
-        const upperCaseCallSign = profileData.call_sign.toUpperCase();
+        const { data, error } = await supabase.rpc('update_profile_with_callsign_check', {
+            p_user_id: profile.id,
+            p_full_name: profileData.full_name,
+            p_call_sign: profileData.call_sign.toUpperCase(),
+            p_location: profileData.location
+        });
 
-        if (upperCaseCallSign && upperCaseCallSign !== profile.call_sign) {
-            const { data: conflictingProfile, error: fetchError } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('call_sign', upperCaseCallSign)
-                .not('id', 'eq', profile.id)
-                .maybeSingle();
-
-            if (fetchError) {
-                if (fetchError.code !== 'PGRST116') {
-                    throw new Error(fetchError.message);
-                }
-            }
-
-            if (conflictingProfile) {
-                throw new Error('This call sign is already in use by another account.');
-            }
-        }
-        
-        const updatePayload = {
-            full_name: profileData.full_name,
-            call_sign: upperCaseCallSign,
-            location: profileData.location
-        };
-
-        const { data, error: updateError } = await supabase
-            .from('profiles')
-            .update(updatePayload)
-            .eq('id', profile.id)
-            .select()
-            .single();
-
-        if (updateError) throw new Error(updateError.message);
+        if (error) throw new Error(error.message);
         
         setProfile(data as unknown as Profile);
         showAlert('Success', 'Profile updated successfully!');
@@ -1017,7 +932,7 @@ const App: React.FC = () => {
     return false;
   }, [profile, grantedPermissions]);
   
-  // `allBadgeDefinitions`: A memoized list that combines badge data from the DB with the client-side logic (e.g., isEarned function).
+  // `allBadgeDefinitions`: A memoized list that combines badge data from the DB with the client-side logic.
   const allBadgeDefinitions = React.useMemo(() => {
     const logicMap = new Map(BADGE_DEFINITIONS.map(b => [b.id, b]));
     return allBadges.map(badge => ({

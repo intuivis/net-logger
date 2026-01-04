@@ -73,7 +73,7 @@ export interface Database {
           id?: string;
           name?: string;
           description?: string;
-        };
+          };
         Relationships: [];
       };
       callsigns: {
@@ -361,12 +361,32 @@ export interface Database {
         };
         Returns: undefined;
       };
+      delete_net: {
+        Args: {
+          p_net_id: string;
+        };
+        Returns: undefined;
+      };
+      delete_session: {
+        Args: {
+          p_session_id: string;
+          p_passcode: string | null;
+        };
+        Returns: undefined;
+      };
       end_session: {
         Args: {
           p_session_id: string;
           p_passcode: string | null;
         };
         Returns: Json;
+      };
+      handle_roster_update: {
+        Args: {
+          p_net_id: string;
+          p_members: Json;
+        };
+        Returns: undefined;
       };
       start_session: {
         Args: {

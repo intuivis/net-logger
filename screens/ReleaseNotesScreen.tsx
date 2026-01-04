@@ -20,7 +20,21 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
 
                 <div className="space-y-4 text-dark-text-secondary">
                     <div className="border-l-4 border-brand-secondary pl-4 py-2">
-                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.5 (Current)</h2>
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.6 (Current)</h2>
+                        <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Sunday, January 4, 2026</p>
+                        <ul className="list-disc list-inside mt-2 space-y-1">
+                            <li><span className="font-bold text-dark-text">Significant Security Hardening - </span> Moved core application logic to the database to prevent errors and ensure that operations are handled securely and consistently.</li>
+                            <li><span className="font-bold text-dark-text">Automated Badge Awarding - </span> Milestone badges (like "Bronze Member") and participation awards are now calculated and awarded instantly.</li>
+                            <li><span className="font-bold text-dark-text">Robust Roster Management - </span> Rewrote the roster update system to be "atomic." This means roster changes now happen in a single, safe step, eliminating potential sync issues.</li>
+                            <li><span className="font-bold text-dark-text">Secure Profile Validation - </span> Enhanced call sign verification to ensure every operator's identity is unique and protected across the entire platform.</li>
+                            <li><span className="font-bold text-dark-text">Enhanced Deletion Safeguards - </span> Added server-side authorization for deleting sessions and nets, providing extra protection for historical logs.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="space-y-4 text-dark-text-secondary">
+                    <div className="border-l-4 border-dark-800 pl-4 py-2">
+                        <h2 className="text-2xl font-bold text-dark-text">Version 1.3.5</h2>
                         <p className="text-sm"><span className="text-dark-text font-bold">Release Date:</span> Thursday, August 28, 2025</p>
                         <ul className="list-disc list-inside mt-2 space-y-1">
                             <li>Removed the Live Nets list from the top of the Net Directory.</li>
@@ -95,14 +109,14 @@ const ReleaseNotesScreen: React.FC<ReleaseNotesScreenProps> = ({ onBack }) => {
                             <li>The "first check-in" badge is now awarded for first time check-ins on a Net.</li>
                             <li>Slight adjustment to the badge design for added size consistency.</li>
                             <li><span className="font-bold text-dark-text">New Feature: Profile Management</span></li>
-                            <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
-                                <li>Authenticated users can now edit name, call sign, email, and password.</li>
-                                <li>This change also comes with a minor update to the header navigation.</li>
-                            </ul>
+                                <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
+                                    <li>Authenticated users can now edit name, call sign, email, and password.</li>
+                                    <li>This change also comes with a minor update to the header navigation.</li>
+                                </ul>
                             <li><span className="font-bold text-dark-text">New Feature: Status Action Button</span></li>
-                            <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
-                                <li>You can now toggle the status of a check-in to help you mark log for activities.</li>
-                            </ul>
+                                <ul className="list-disc list-inside mt-2 space-y-1 pl-5">
+                                    <li>You can now toggle the status of a check-in to help you mark log for activities.</li>
+                                </ul>
                         </ul>
                     </div>
                 </div>

@@ -5,7 +5,7 @@ import { Net, NetSession, CheckIn, Profile, View } from '../types';
 import { Icon } from '../components/Icon';
 import LiveNetsSection from '../components/LiveNetsSection';
 import Button from '../components/Button';
-// import netControlScreenshot from '../img/NetControl-screen-mobile.png'; // Adjust the path as necessary
+import netControlScreenshot from '../img/NetControl-screen-mobile.png'; // Adjust the path as necessary
 
 
 interface HomeScreenProps {
@@ -65,7 +65,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ activeSessions, nets, sessions,
   const totalNets = nets.length;
   const totalSessions = sessions.length;
   const uniqueCallSigns = new Set(checkIns.map(ci => ci.call_sign)).size;
-  const netControlScreenshot = "https://netcontrol.app/assets/NetControl-screen-mobile-DI82yjz6.png";
+  // const netControlScreenshot = "https://netcontrol.app/assets/NetControl-screen-mobile.png";
 
   return (
     <div className="space-y-10">
